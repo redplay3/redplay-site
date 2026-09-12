@@ -9,11 +9,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { editions, featuredUpdate, knowledgeSections, latestPosts, type Edition } from "@/lib/content";
+import { articleCategories } from "@/lib/articles/catalog";
+import { createClient } from "@/lib/supabase/client";
 
 type Video = { id: string; title: string; url: string; thumbnail: string; published: string };
 type OnlineServer = { name: string; online: number };
 type OnlineEdition = "Main" | "Special Project" | "Essence";
 type OnlineGroups = Record<OnlineEdition, OnlineServer[]>;
+type PublishedArticle = { id: string; title: string; description: string; edition: "main" | "essence" | "special-project"; category: string; slug: string; published_at: string | null; updated_at: string };
 const fallbackOnline: OnlineGroups = {
   Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063}],
   "Special Project": [{name:"Wolf1",online:1813},{name:"Wolf2",online:2047},{name:"Eva1",online:1943},{name:"Eva2",online:1690},{name:"Samurai1",online:1728},{name:"Samurai2",online:1438}],
@@ -37,7 +40,7 @@ const heroSlides = [
 ];
 
 export default function Home() {
-  const [edition, setEdition] = useState<Edition>("Essence");
+  const [edition, setEdition] = useState<Edition>("Main");
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [bonusOpen, setBonusOpen] = useState(false);
@@ -46,6 +49,7 @@ export default function Home() {
   const [onlineEdition, setOnlineEdition] = useState<OnlineEdition>("Main");
   const [onlineGroups, setOnlineGroups] = useState<OnlineGroups>(fallbackOnline);
   const [onlineUpdated, setOnlineUpdated] = useState("обновляем сейчас");
+  const [publishedArticles, setPublishedArticles] = useState<PublishedArticle[]>([]);
 
   useEffect(() => {
     const lastSeen = Number(localStorage.getItem("redplay-bonus-seen") || 0);
@@ -57,6 +61,14 @@ export default function Home() {
       if (data?.groups) setOnlineGroups(data.groups);
       if (data?.updatedAt) setOnlineUpdated(new Date(data.updatedAt).toLocaleTimeString("ru", {hour:"2-digit", minute:"2-digit"}));
     }).catch(() => undefined);
+    try {
+      const supabase = createClient();
+      supabase.from("articles").select("id,title,description,edition,category,slug,published_at,updated_at").eq("status", "published").order("published_at", { ascending: false }).limit(20).then(({ data }) => {
+        if (data?.length) setPublishedArticles(data as PublishedArticle[]);
+      });
+    } catch {
+      // The hand-picked cards below remain available if Supabase is temporarily unavailable.
+    }
   }, []);
 
   const closeBonus = (open: boolean) => {
@@ -64,9 +76,19 @@ export default function Home() {
     if (!open) localStorage.setItem("redplay-bonus-seen", String(Date.now()));
   };
   const results = useMemo(() => {
+    const editionSlug = edition === "Special Project" ? "special-project" : edition.toLowerCase();
+    const dynamicPosts = publishedArticles.filter((article) => article.edition === editionSlug).map((article) => ({
+      category: articleCategories.find((item) => item.value === article.category)?.label || article.category,
+      date: new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(article.published_at || article.updated_at)),
+      title: article.title,
+      summary: article.description,
+      href: `/lineage-2/${article.edition}/${article.category}/${article.slug}`,
+    }));
+    const fallbackPosts = latestPosts.filter((post) => post.edition === edition).map((post) => ({ ...post, href: post.title.startsWith("Replica:") ? "/lineage-2/main/updates/replica" : "#updates" }));
+    const posts = [...dynamicPosts, ...fallbackPosts].filter((post, index, all) => all.findIndex((item) => item.title === post.title) === index).slice(0, 5);
     const value = query.trim().toLocaleLowerCase("ru");
-    return value ? latestPosts.filter((post) => [post.title, post.category, post.summary].some((text) => text.toLocaleLowerCase("ru").includes(value))) : latestPosts;
-  }, [query]);
+    return value ? posts.filter((post) => [post.title, post.category, post.summary].some((text) => text.toLocaleLowerCase("ru").includes(value))) : posts;
+  }, [edition, publishedArticles, query]);
   const slide = heroSlides[activeHero];
   const selectedServers = onlineGroups[onlineEdition];
   const totalOnline = selectedServers.reduce((sum, server) => sum + server.online, 0);
@@ -124,7 +146,7 @@ export default function Home() {
       <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> В центре внимания</p><h2>Актуальное в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={`Поиск в ${edition}`} /></label><a className="section-more" href="#knowledge">Все материалы <ArrowRight size={16}/></a></div></div>
       <div className="news-layout mt-7">
         <article className="feature-story"><div className="story-art"><img src="/game-main.webp" alt=""/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Перевод из Кореи</span><span>{featuredUpdate.date}</span><span>• {featuredUpdate.readTime}</span></div><h3>{featuredUpdate.title}</h3><p>{featuredUpdate.summary}</p><div className="mt-5 flex flex-wrap gap-2">{featuredUpdate.tags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div><Link href="/lineage-2/main/updates/replica" className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article>
-        <div className="news-stack">{results.map((post,index)=><a key={post.title} href={post.title.startsWith("Replica:") ? "/lineage-2/main/updates/replica" : "#updates"} className={`news-card news-card-${index+1}`}><div className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></div><h3>{post.title}</h3><p>{post.summary}</p><span className="mt-auto flex items-center gap-2 pt-4 text-xs font-black uppercase tracking-[.08em]">Читать <ArrowRight size={14}/></span></a>)}</div>
+        <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><div className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></div><h3>{post.title}</h3><p>{post.summary}</p><span className="mt-auto flex items-center gap-2 pt-4 text-xs font-black uppercase tracking-[.08em]">Читать <ArrowRight size={14}/></span></Link>)}</div>
       </div>
     </div></section>
 
