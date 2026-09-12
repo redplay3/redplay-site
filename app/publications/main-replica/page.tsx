@@ -6,11 +6,30 @@ import {
   Sparkles, Swords, Video as Youtube,
 } from "lucide-react";
 import { ArticleNavigation } from "@/components/article-navigation";
+import { absoluteUrl, safeJsonLd, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Replica для Lineage 2 Main – Гора Богов, новые зоны и 13 агатионов | RedPlay",
+  title: { absolute: "Replica в Lineage 2 Main: Гора Богов и 13 агатионов | RedPlay" },
   description: "Главное из обновления Lineage 2 Main Replica: межсерверные вторжения, Гора Богов, Каратель Тира, зоны 131–132, агатионы и изменения фарма.",
+  keywords: ["Lineage 2 Main Replica", "обновление Replica", "Гора Богов Lineage 2", "новые агатионы Lineage 2", "патчноут Lineage 2 Main"],
   alternates: { canonical: "/lineage-2/main/updates/replica" },
+  openGraph: {
+    type: "article",
+    locale: "ru_RU",
+    url: "/lineage-2/main/updates/replica",
+    siteName: "RedPlay",
+    title: "Replica в Lineage 2 Main: Гора Богов и 13 агатионов",
+    description: "Межсерверные вторжения, новые зоны 120–132, переработка классов и 13 исключительных агатионов – полный разбор обновления Replica.",
+    publishedTime: "2026-09-12T10:30:00+03:00",
+    modifiedTime: "2026-09-12T13:30:00+03:00",
+    images: [{ url: "/replica-hero.webp", alt: "Обновление Replica для Lineage 2 Main" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Replica в Lineage 2 Main: Гора Богов и 13 агатионов",
+    description: "Полный разбор обновления Replica: вторжения, зоны 120–132, классы и новые предметы.",
+    images: ["/replica-hero.webp"],
+  },
 };
 
 const mainLink = "https://ru.4game.com/s2s/lineage2_RedPlay";
@@ -67,7 +86,38 @@ const tocItems = [
 ];
 
 export default function ReplicaArticle() {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        "@id": `${absoluteUrl("/lineage-2/main/updates/replica")}#article`,
+        headline: "Replica для Lineage 2 Main: межсерверные вторжения, Гора Богов и 13 новых агатионов",
+        description: "Главное из обновления Lineage 2 Main Replica: межсерверные вторжения, Гора Богов, Каратель Тира, зоны 131–132, агатионы и изменения фарма.",
+        image: [absoluteUrl("/replica-hero.webp")],
+        datePublished: "2026-09-12T10:30:00+03:00",
+        dateModified: "2026-09-12T13:30:00+03:00",
+        mainEntityOfPage: absoluteUrl("/lineage-2/main/updates/replica"),
+        articleSection: "Обновления Lineage 2 Main",
+        keywords: "Lineage 2 Main Replica, обновление Replica, Гора Богов, агатионы, патчноут Lineage 2",
+        inLanguage: "ru-RU",
+        author: { "@type": "Organization", name: "RedPlay", url: SITE_URL },
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Главная", item: SITE_URL },
+          { "@type": "ListItem", position: 2, name: "Lineage 2 Main", item: absoluteUrl("/lineage-2/main") },
+          { "@type": "ListItem", position: 3, name: "Обновления", item: absoluteUrl("/lineage-2/main/updates") },
+          { "@type": "ListItem", position: 4, name: "Replica", item: absoluteUrl("/lineage-2/main/updates/replica") },
+        ],
+      },
+    ],
+  };
+
   return <main className="article-page">
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>
     <header className="article-header"><div className="mx-auto flex h-[68px] max-w-[1460px] items-center gap-5 px-4 sm:px-6 lg:px-8">
       <Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link>
       <span className="hidden h-6 w-px bg-white/12 sm:block"/>
@@ -81,7 +131,7 @@ export default function ReplicaArticle() {
       <div className="article-hero-shade"/>
       <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-16">
         <div className="max-w-5xl">
-          <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><span>Обновления</span><ChevronRight size={14}/><span>Main</span></div>
+          <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href="/lineage-2/main/updates">Main</Link><ChevronRight size={14}/><Link href="/lineage-2/main/updates">Обновления</Link></div>
           <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">Большое обновление</span><span className="article-meta"><CalendarDays size={14}/> 12 сентября 2026</span><span className="article-meta"><Clock3 size={14}/> 18 минут</span></div>
           <h1>Replica для Lineage 2 Main: межсерверные вторжения, Гора Богов и 13 новых агатионов</h1>
           <p className="article-deck">14 октября мир Lineage 2 Main должен измениться заметнее, чем кажется по сухим строкам патчноута. Разбираем, где появится новый контент, кого затронет баланс и к чему стоит подготовиться заранее.</p>
@@ -219,7 +269,7 @@ export default function ReplicaArticle() {
           <ol className="prepare-list"><li><span>1</span><div><strong>Проверь позиционный урон</strong><p>Классы, способные стабильно атаковать сбоку или со спины, получают отдельное преимущество.</p></div></li><li><span>2</span><div><strong>Не оценивай билд по старому криту</strong><p>После изменения базовых значений реальная эффективность бафов и экипировки может поменяться.</p></div></li><li><span>3</span><div><strong>Сохрани Камни Рун</strong><p>На уровнях 121–129 многим классам понадобятся материалы для новых ступеней умений.</p></div></li><li><span>4</span><div><strong>Подготовь адену для Реплики</strong><p>Входы, выбранные переходы, подношения и восстановление тела требуют ощутимых затрат.</p></div></li><li><span>5</span><div><strong>Пересмотри позицию группы</strong><p>Дальнобойные монстры новых и обновлённых зон начинают охотиться за самым удалённым участником.</p></div></li><li><span>6</span><div><strong>Следи за финальными патчноутами</strong><p>Цены, расписание и состав обновления могут измениться к моменту выхода.</p></div></li></ol>
         </section>
 
-        <section className="article-next"><div className="article-next-head"><span>Продолжить с RedPlay</span><h2>Выбери следующий шаг</h2><p>Посмотри живой разбор, получай быстрые обновления или начни играть с бонусами.</p></div><div className="article-next-grid"><a className="next-youtube" href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer"><Youtube size={24}/><span><small>YouTube</small><strong>Подписаться на видеоразбор</strong></span><ArrowUpRight size={17}/></a><a className="next-telegram" href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer"><Send size={24}/><span><small>Telegram</small><strong>Новости, тесты и обсуждение</strong></span><ArrowUpRight size={17}/></a><a className="next-game" href={mainLink} target="_blank" rel="sponsored noopener noreferrer"><img src="/game-main.webp" alt=""/><span className="next-game-shade"/><span><small>Lineage 2 Main</small><strong>Начать играть с бонусами</strong></span><ArrowUpRight size={17}/></a></div></section>
+        <section className="article-next"><div className="article-next-head"><span>Продолжить с RedPlay</span><h2>Выбери следующий шаг</h2><p>Открой другие обновления, посмотри живой разбор или получай быстрые новости.</p></div><div className="article-next-grid"><Link className="next-section" href="/lineage-2/main/updates"><Bell size={24}/><span><small>Lineage 2 Main</small><strong>Все обновления и патчноуты</strong></span><ArrowUpRight size={17}/></Link><a className="next-youtube" href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer"><Youtube size={24}/><span><small>YouTube</small><strong>Подписаться на видеоразбор</strong></span><ArrowUpRight size={17}/></a><a className="next-telegram" href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer"><Send size={24}/><span><small>Telegram</small><strong>Новости, тесты и обсуждение</strong></span><ArrowUpRight size={17}/></a><a className="next-game" href={mainLink} target="_blank" rel="sponsored noopener noreferrer"><img src="/game-main.webp" alt=""/><span className="next-game-shade"/><span><small>Lineage 2 Main</small><strong>Начать играть с бонусами</strong></span><ArrowUpRight size={17}/></a></div></section>
 
       </article>
 
