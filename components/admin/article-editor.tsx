@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, Eye, ImagePlus, Plus, Save, Send, Trash2 } from "lu
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
 import { articleCategories, articleEditions, buildArticlePath } from "@/lib/articles/catalog";
 import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleSection } from "@/lib/articles/types";
+import { articleSeoTitle, categorySeo, editionSeo } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/client";
 
 type EditorArticle = {
@@ -21,6 +22,8 @@ type EditorArticle = {
   tags?: string[];
   content?: ArticleSection[];
   video_url?: string | null;
+  published_at?: string | null;
+  seo?: { title?: string; description?: string; keywords?: string[] };
 };
 
 const newId = () => typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
@@ -84,7 +87,11 @@ function BlockFields({ block, onChange, uploadImage }: { block: ArticleBlock; on
 
 export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
   const router = useRouter();
-  const normalizedInitial = initial ? { ...initial, edition: initial.edition === "special-project" ? "essence" as const : initial.edition } : undefined;
+  const normalizedInitial = initial ? {
+    ...initial,
+    edition: initial.edition === "special-project" ? "essence" as const : initial.edition,
+    seo: initial.seo?.title === initial.title ? { ...initial.seo, title: "" } : initial.seo,
+  } : undefined;
   const [article, setArticle] = useState<EditorArticle>(normalizedInitial || { title: "", description: "", label: "Новый материал", edition: "main", category: "news", slug: "", cover: {}, tags: [], content: [{ id: "summary", label: "Коротко о главном", blocks: [makeBlock("paragraph")] }] });
   const [targets, setTargets] = useState<Array<"essence" | "special-project">>(() => {
     if (initial?.edition === "special-project") return ["special-project"];
@@ -95,6 +102,12 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
   const [saving, setSaving] = useState(false);
   const sections = article.content || [];
   const path = useMemo(() => article.slug ? buildArticlePath(article.edition, article.category, article.slug) : "Адрес появится после заголовка", [article]);
+  const contentTags = (article.tags || []).filter((tag) => tag !== "Essence" && tag !== "Special Project");
+  const suggestedKeywords = useMemo(() => [...new Set([...categorySeo[article.category].keywords, ...editionSeo[article.edition].keywords])], [article.category, article.edition]);
+  const seoTitlePreview = article.seo?.title?.trim()
+    ? (/redplay/i.test(article.seo.title) ? article.seo.title : articleSeoTitle(article.seo.title, article.edition))
+    : articleSeoTitle(article.title || "Название материала", article.edition);
+  const seoDescriptionPreview = article.seo?.description?.trim() || article.description;
 
   const setSections = (content: ArticleSection[]) => setArticle((current) => ({ ...current, content }));
   const updateBlock = (sectionIndex: number, blockIndex: number, block: ArticleBlock) => setSections(sections.map((section, index) => index === sectionIndex ? { ...section, blocks: section.blocks.map((item, childIndex) => childIndex === blockIndex ? block : item) } : section));
@@ -121,7 +134,9 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
       const supabase = createClient();
       const ordinaryTags = (article.tags || []).filter((tag) => tag !== "Essence" && tag !== "Special Project");
       const audienceTags = article.edition === "essence" ? targets.map((target) => target === "essence" ? "Essence" : "Special Project") : [];
-      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: [], content: sections, seo: { title: article.title, description: article.description }, video_url: article.video_url || null, published_at: status === "published" ? new Date().toISOString() : null };
+      const customSeoTitle = article.seo?.title?.trim();
+      const finalSeoTitle = customSeoTitle ? (/redplay/i.test(customSeoTitle) ? customSeoTitle : articleSeoTitle(customSeoTitle, article.edition)) : articleSeoTitle(article.title, article.edition);
+      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: [], content: sections, seo: { title: finalSeoTitle, description: article.seo?.description?.trim() || article.description, keywords: ordinaryTags }, video_url: article.video_url || null, published_at: status === "published" ? article.published_at || new Date().toISOString() : null };
       const query = article.id ? supabase.from("articles").update(payload).eq("id", article.id) : supabase.from("articles").insert(payload);
       const { data, error } = await query.select("id").single();
       if (error) throw error;
@@ -157,6 +172,14 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     {article.edition === "essence" && <div className="admin-field wide"><span>Материал относится к серверам</span><div className="editor-targets"><label><input type="checkbox" checked={targets.includes("essence")} onChange={(event) => setTargets(event.target.checked ? [...new Set([...targets, "essence" as const])] : targets.filter((item) => item !== "essence"))}/> Essence</label><label><input type="checkbox" checked={targets.includes("special-project")} onChange={(event) => setTargets(event.target.checked ? [...new Set([...targets, "special-project" as const])] : targets.filter((item) => item !== "special-project"))}/> Special Project</label></div></div>}
     <label className="admin-field wide"><span>Адрес страницы</span><input value={article.slug} onChange={(event) => setArticle({ ...article, slug: slugify(event.target.value) })}/><small>{path}</small></label>
     <label className="admin-field wide"><span>Обложка – адрес или загруженный файл</span><input value={article.cover?.src || ""} onChange={(event) => setArticle({ ...article, cover: { ...article.cover, src: event.target.value } })}/><label className="admin-secondary"><ImagePlus size={15}/> Загрузить обложку<input hidden type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (file) setArticle({ ...article, cover: { src: await uploadImage(file), alt: article.title } }); }}/></label></label>
+    <div className="editor-seo wide">
+      <div className="editor-seo-head"><div><strong>SEO и поиск</strong><span>Как публикация будет называться и описываться в поиске</span></div><span className={seoTitlePreview.length > 72 ? "is-long" : ""}>{seoTitlePreview.length} знаков</span></div>
+      <label className="admin-field wide"><span>SEO-заголовок</span><input value={article.seo?.title || ""} placeholder={articleSeoTitle(article.title || "Название материала", article.edition)} onChange={(event) => setArticle({ ...article, seo: { ...article.seo, title: event.target.value } })}/><small>Можно оставить пустым – RedPlay сформирует заголовок автоматически.</small></label>
+      <label className="admin-field wide"><span>Описание для поиска и социальных сетей</span><textarea rows={3} value={article.seo?.description || ""} placeholder={article.description || "Кратко объясни, что узнает читатель."} onChange={(event) => setArticle({ ...article, seo: { ...article.seo, description: event.target.value } })}/><small className={seoDescriptionPreview.length > 170 ? "is-long" : ""}>{seoDescriptionPreview.length} знаков · оптимально около 120–170</small></label>
+      <label className="admin-field wide"><span>Ключевые темы и теги через запятую</span><input value={contentTags.join(", ")} placeholder="например: Диверсант, PvE, фарм адены" onChange={(event) => setArticle({ ...article, tags: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) })}/></label>
+      <div className="editor-keywords"><span>Подходящие запросы:</span>{suggestedKeywords.map((keyword) => <button type="button" key={keyword} onClick={() => !contentTags.includes(keyword) && setArticle({ ...article, tags: [...contentTags, keyword] })}>+ {keyword}</button>)}</div>
+      <div className="editor-serp"><small>redplay.stream › {article.edition} › {article.category}</small><strong>{seoTitlePreview}</strong><p>{seoDescriptionPreview || "Добавь краткое описание материала – оно появится здесь."}</p></div>
+    </div>
   </div></div>
   {sections.map((section, sectionIndex) => <div className="editor-section" key={section.id}><div className="editor-section-head"><input value={section.label} onChange={(event) => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, label: event.target.value, id: slugify(event.target.value) || item.id } : item))}/><button className="editor-icon-button" onClick={() => setSections(sections.filter((_, index) => index !== sectionIndex))}><Trash2 size={15}/></button></div>
     {section.blocks.map((block, blockIndex) => <div className="editor-block" key={block.id}><div className="editor-block-tools"><span>{blockNames[block.type]}</span><span className="editor-block-actions">{article.edition === "essence" && <select className={`editor-scope ${block.scope || "all"}`} value={block.scope || "all"} onChange={(event) => updateBlock(sectionIndex, blockIndex, { ...block, scope: event.target.value as ArticleAudience })}><option value="all">Общий</option><option value="essence">Только Essence</option><option value="special-project">Только Special</option></select>}<button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, -1)}><ArrowUp size={14}/></button><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, 1)}><ArrowDown size={14}/></button><button className="editor-icon-button" onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: item.blocks.filter((_, childIndex) => childIndex !== blockIndex) } : item))}><Trash2 size={14}/></button></span></div><BlockFields block={block} onChange={(next) => updateBlock(sectionIndex, blockIndex, next)} uploadImage={uploadImage}/></div>)}
