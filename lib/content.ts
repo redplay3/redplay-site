@@ -1,4 +1,4 @@
-export const editions = ["Essence", "Special Project", "Main"] as const;
+export const editions = ["Main", "Essence / Special Project"] as const;
 export type Edition = (typeof editions)[number];
 
 export const knowledgeSections = [
@@ -15,7 +15,7 @@ export const featuredUpdate = { category: "Крупное обновление",
 export const latestPosts = [
   { edition: "Main", category: "Обновление", date: "12.09.2026", title: "Replica: главное для новичков и вернувшихся игроков", summary: "Межсерверная Реплика, новые зоны, Каратель Тира, агатионы и изменения фарма – без сотен строк патчноута." },
   { edition: "Main", category: "Патчноут", date: "11.09.2026", title: "Изменения классов в Forged in Battle", summary: "Какие умения переработаны и как это влияет на текущую мету." },
-  { edition: "Special Project", category: "База знаний", date: "09.09.2026", title: "Диверсант: навыки и приоритет изучения", summary: "Структурированный список редких, исключительных и улучшенных умений." },
-  { edition: "Special Project", category: "Сравнение", date: "07.09.2026", title: "Самурай против Диверсанта: фарм", summary: "Сопоставление опыта и адены на серверных и межсерверных локациях." },
+  { edition: "Essence / Special Project", category: "База знаний", date: "09.09.2026", title: "Диверсант: навыки и приоритет изучения", summary: "Структурированный список редких, исключительных и улучшенных умений." },
+  { edition: "Essence / Special Project", category: "Сравнение", date: "07.09.2026", title: "Самурай против Диверсанта: фарм", summary: "Сопоставление опыта и адены на серверных и межсерверных локациях." },
   { edition: "Main", category: "Гайд", date: "04.09.2026", title: "Как читать корейские патчноуты", summary: "Термины, расхождения локализаций и проверка игровых значений." },
 ];
