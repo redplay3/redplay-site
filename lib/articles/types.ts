@@ -1,4 +1,5 @@
 export type ArticleEdition = "main" | "essence" | "special-project";
+export type ArticleAudience = "all" | "essence" | "special-project";
 
 export type ArticleCategory =
   | "news"
@@ -23,7 +24,7 @@ export type ArticleIcon =
   | "sparkles"
   | "swords";
 
-export type ArticleBlock =
+type ArticleBlockContent =
   | { id: string; type: "paragraph"; text: string; lead?: boolean }
   | { id: string; type: "heading"; text: string; level: 2 | 3; kicker?: string; number?: string; anchor?: string }
   | { id: string; type: "list"; items: string[]; ordered?: boolean }
@@ -38,6 +39,8 @@ export type ArticleBlock =
   | { id: string; type: "opinion"; text: string; image?: string; label?: string }
   | { id: string; type: "video"; title: string; text: string; url: string; label?: string; action?: string }
   | { id: string; type: "telegram"; title: string; text: string; url?: string; label?: string; action?: string };
+
+export type ArticleBlock = ArticleBlockContent & { scope?: ArticleAudience };
 
 export type ArticleSection = {
   id: string;
@@ -64,4 +67,3 @@ export type ArticleDocument = {
   seo?: { title?: string; description?: string };
   videoUrl?: string;
 };
-
