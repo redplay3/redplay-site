@@ -16,7 +16,7 @@ type Video = { id: string; title: string; url: string; thumbnail: string; publis
 type OnlineServer = { name: string; online: number };
 type OnlineEdition = "Main" | "Special Project" | "Essence";
 type OnlineGroups = Record<OnlineEdition, OnlineServer[]>;
-type PublishedArticle = { id: string; title: string; description: string; edition: "main" | "essence" | "special-project"; category: string; slug: string; published_at: string | null; updated_at: string };
+type PublishedArticle = { id: string; title: string; description: string; edition: "main" | "essence" | "special-project"; category: string; slug: string; tags: string[] | null; published_at: string | null; updated_at: string };
 const fallbackOnline: OnlineGroups = {
   Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063}],
   "Special Project": [{name:"Wolf1",online:1813},{name:"Wolf2",online:2047},{name:"Eva1",online:1943},{name:"Eva2",online:1690},{name:"Samurai1",online:1728},{name:"Samurai2",online:1438}],
@@ -63,7 +63,7 @@ export default function Home() {
     }).catch(() => undefined);
     try {
       const supabase = createClient();
-      supabase.from("articles").select("id,title,description,edition,category,slug,published_at,updated_at").eq("status", "published").order("published_at", { ascending: false }).limit(20).then(({ data }) => {
+      supabase.from("articles").select("id,title,description,edition,category,slug,tags,published_at,updated_at").eq("status", "published").order("published_at", { ascending: false }).limit(20).then(({ data }) => {
         if (data?.length) setPublishedArticles(data as PublishedArticle[]);
       });
     } catch {
@@ -76,14 +76,16 @@ export default function Home() {
     if (!open) localStorage.setItem("redplay-bonus-seen", String(Date.now()));
   };
   const results = useMemo(() => {
-    const editionSlug = edition === "Special Project" ? "special-project" : edition.toLowerCase();
-    const dynamicPosts = publishedArticles.filter((article) => article.edition === editionSlug).map((article) => ({
-      category: articleCategories.find((item) => item.value === article.category)?.label || article.category,
+    const dynamicPosts = publishedArticles.filter((article) => edition === "Main" ? article.edition === "main" : article.edition === "essence" || article.edition === "special-project").map((article) => {
+      const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
+      const targetLabel = targets.length === 2 ? "Essence + Special" : targets[0];
+      return {
+      category: `${articleCategories.find((item) => item.value === article.category)?.label || article.category}${targetLabel ? ` · ${targetLabel}` : ""}`,
       date: new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(article.published_at || article.updated_at)),
       title: article.title,
       summary: article.description,
       href: `/lineage-2/${article.edition}/${article.category}/${article.slug}`,
-    }));
+    }});
     const fallbackPosts = latestPosts.filter((post) => post.edition === edition).map((post) => ({ ...post, href: post.title.startsWith("Replica:") ? "/lineage-2/main/updates/replica" : "#updates" }));
     const posts = [...dynamicPosts, ...fallbackPosts].filter((post, index, all) => all.findIndex((item) => item.title === post.title) === index).slice(0, 5);
     const value = query.trim().toLocaleLowerCase("ru");
