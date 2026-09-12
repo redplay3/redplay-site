@@ -64,6 +64,6 @@ export type ArticleDocument = {
   tags: string[];
   highlights: Array<{ icon: ArticleIcon; value: string; label: string }>;
   sections: ArticleSection[];
-  seo?: { title?: string; description?: string };
+  seo?: { title?: string; description?: string; keywords?: string[] };
   videoUrl?: string;
 };
