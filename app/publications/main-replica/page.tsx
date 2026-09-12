@@ -10,6 +10,7 @@ import { ArticleNavigation } from "@/components/article-navigation";
 export const metadata: Metadata = {
   title: "Replica для Lineage 2 Main – Гора Богов, новые зоны и 13 агатионов | RedPlay",
   description: "Главное из обновления Lineage 2 Main Replica: межсерверные вторжения, Гора Богов, Каратель Тира, зоны 131–132, агатионы и изменения фарма.",
+  alternates: { canonical: "/lineage-2/main/updates/replica" },
 };
 
 const mainLink = "https://ru.4game.com/s2s/lineage2_RedPlay";
