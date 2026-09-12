@@ -14,11 +14,9 @@ export const articleCategories: Array<{ value: ArticleCategory; label: string }>
 
 export const articleEditions: Array<{ value: ArticleEdition; label: string }> = [
   { value: "main", label: "Main" },
-  { value: "essence", label: "Essence" },
-  { value: "special-project", label: "Special Project" },
+  { value: "essence", label: "Essence / Special Project" },
 ];
 
 export function buildArticlePath(edition: ArticleEdition, category: ArticleCategory, slug: string) {
   return `/lineage-2/${edition}/${category}/${slug}`;
 }
-
