@@ -2,7 +2,8 @@ import {
   ArrowUpRight, Bell, ChevronRight, CircleAlert, Crosshair, Gem, Globe2,
   Layers3, Map, Play, Send, Shield, Sparkles, Swords,
 } from "lucide-react";
-import type { ArticleBlock, ArticleIcon } from "@/lib/articles/types";
+import { Fragment } from "react";
+import type { ArticleAudience, ArticleBlock, ArticleIcon } from "@/lib/articles/types";
 
 const icons = {
   alert: CircleAlert,
@@ -22,8 +23,7 @@ function BlockIcon({ name = "alert", size = 21 }: { name?: ArticleIcon; size?: n
   return <Icon size={size}/>;
 }
 
-export function ArticleBlockRenderer({ blocks }: { blocks: ArticleBlock[] }) {
-  return blocks.map((block) => {
+function RenderBlock({ block }: { block: ArticleBlock }) {
     switch (block.type) {
       case "paragraph":
         return <p key={block.id} className={block.lead ? "article-lead" : undefined}>{block.text}</p>;
@@ -62,6 +62,11 @@ export function ArticleBlockRenderer({ blocks }: { blocks: ArticleBlock[] }) {
       case "telegram":
         return <aside key={block.id} className="telegram-callout"><span className="telegram-callout-icon"><Send size={22}/></span><div><small>{block.label || "RedPlay в Telegram"}</small><strong>{block.title}</strong><p>{block.text}</p></div><a href={block.url || "https://t.me/redplay2022"} target="_blank" rel="noopener noreferrer">{block.action || "Присоединиться"} <ArrowUpRight size={15}/></a></aside>;
     }
-  });
 }
 
+export function ArticleBlockRenderer({ blocks, audience = "all" }: { blocks: ArticleBlock[]; audience?: ArticleAudience }) {
+  return blocks.filter((block) => audience === "all" || !block.scope || block.scope === "all" || block.scope === audience).map((block) => <Fragment key={block.id}>
+    {audience === "all" && block.scope && block.scope !== "all" && <span className={`article-scope-badge ${block.scope}`}>{block.scope === "essence" ? "ESSENCE" : "SPECIAL"}</span>}
+    <RenderBlock block={block}/>
+  </Fragment>);
+}
