@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminSignOut } from "@/components/admin/admin-sign-out";
 import "./admin.css";
+
+export const metadata: Metadata = {
+  title: "Редакция",
+  robots: { index: false, follow: false, nocache: true },
+};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
