@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminSignOut } from "@/components/admin/admin-sign-out";
 import "./admin.css";
+import "./stats.css";
 
 export const metadata: Metadata = {
   title: "Редакция",

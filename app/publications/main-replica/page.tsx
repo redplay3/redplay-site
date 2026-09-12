@@ -6,6 +6,8 @@ import {
   Sparkles, Swords, Video as Youtube,
 } from "lucide-react";
 import { ArticleNavigation } from "@/components/article-navigation";
+import { ArticleEngagement } from "@/components/article-engagement";
+import { getArticleViewCount } from "@/lib/articles/views";
 import { absoluteUrl, safeJsonLd, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -85,7 +87,9 @@ const tocItems = [
   { id: "prepare", label: "Что подготовить" },
 ];
 
-export default function ReplicaArticle() {
+export default async function ReplicaArticle() {
+  const canonicalPath = "/lineage-2/main/updates/replica";
+  const initialViews = await getArticleViewCount(canonicalPath);
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -132,7 +136,7 @@ export default function ReplicaArticle() {
       <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-16">
         <div className="max-w-5xl">
           <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href="/lineage-2/main/updates">Main</Link><ChevronRight size={14}/><Link href="/lineage-2/main/updates">Обновления</Link></div>
-          <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">Большое обновление</span><span className="article-meta"><CalendarDays size={14}/> 12 сентября 2026</span><span className="article-meta"><Clock3 size={14}/> 18 минут</span></div>
+          <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">Большое обновление</span><span className="article-meta"><CalendarDays size={14}/> 12 сентября 2026</span><span className="article-meta"><Clock3 size={14}/> 18 минут</span><ArticleEngagement pageKey={canonicalPath} title="Replica для Lineage 2 Main: межсерверные вторжения, Гора Богов и 13 новых агатионов" initialViews={initialViews}/></div>
           <h1>Replica для Lineage 2 Main: межсерверные вторжения, Гора Богов и 13 новых агатионов</h1>
           <p className="article-deck">14 октября мир Lineage 2 Main должен измениться заметнее, чем кажется по сухим строкам патчноута. Разбираем, где появится новый контент, кого затронет баланс и к чему стоит подготовиться заранее.</p>
         </div>

@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Bell, CalendarDays, ChevronRight, Clock3, Send, Video as Youtube } from "lucide-react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
+import { ArticleEngagement } from "@/components/article-engagement";
 import { ArticleAudienceContent } from "@/components/article-audience-content";
 import { ArticleNavigation } from "@/components/article-navigation";
 import { articleCategories, articleEditions } from "@/lib/articles/catalog";
+import { getArticleViewCount } from "@/lib/articles/views";
 import type { ArticleCategory, ArticleEdition, ArticleIcon, ArticleSection } from "@/lib/articles/types";
 import { absoluteUrl, articleSeoTitle, categorySeo, editionSeo, safeJsonLd, SITE_URL } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
@@ -101,6 +103,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
   const cover = article.cover?.src || fallbackCovers[article.edition];
   const toc = sections.map((section) => ({ id: section.id, label: section.label }));
   const canonicalPath = `/lineage-2/${article.edition}/${article.category}/${article.slug}`;
+  const initialViews = await getArticleViewCount(canonicalPath);
   const categoryPath = `/lineage-2/${article.edition}/${article.category}`;
   const structuredData = {
     "@context": "https://schema.org",
@@ -146,7 +149,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
       <img src={cover} alt={article.cover?.alt || article.title}/><div className="article-hero-shade"/>
       <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-16"><div className="max-w-5xl">
         <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href={categoryPath}>{edition}</Link><ChevronRight size={14}/><Link href={categoryPath}>{category}</Link></div>
-        <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">{article.label || category}</span><span className="article-meta"><CalendarDays size={14}/> {formatDate(article.published_at)}</span><span className="article-meta"><Clock3 size={14}/> {readingTime(sections)} минут</span></div>
+        <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">{article.label || category}</span><span className="article-meta"><CalendarDays size={14}/> {formatDate(article.published_at)}</span><span className="article-meta"><Clock3 size={14}/> {readingTime(sections)} минут</span><ArticleEngagement pageKey={canonicalPath} title={article.title} initialViews={initialViews}/></div>
         <h1>{article.title}</h1><p className="article-deck">{article.description}</p>
       </div></div>
     </section>

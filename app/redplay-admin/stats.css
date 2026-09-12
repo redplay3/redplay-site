@@ -1,0 +1,4 @@
+.admin-article-row{grid-template-columns:minmax(0,1fr) auto auto auto}
+.admin-views{display:flex;align-items:center;gap:.35rem;color:#777d88;font-size:.7rem;font-weight:850}
+.admin-views svg{color:#e32239}
+@media(max-width:650px){.admin-article-row{grid-template-columns:1fr}.admin-views{margin-top:.15rem}}
