@@ -123,6 +123,23 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     finally { setSaving(false); }
   };
 
+  const remove = async () => {
+    if (!article.id) return;
+    const confirmed = window.confirm(`Удалить публикацию «${article.title}»? Это действие нельзя отменить.`);
+    if (!confirmed) return;
+    setSaving(true); setMessage("");
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("articles").delete().eq("id", article.id);
+      if (error) throw error;
+      router.replace("/redplay-admin");
+      router.refresh();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Не удалось удалить публикацию.");
+      setSaving(false);
+    }
+  };
+
   return <div className="editor-layout"><div><div className="editor-panel"><div className="editor-meta">
     <label className="admin-field wide"><span>Название публикации</span><input value={article.title} onChange={(event) => setArticle({ ...article, title: event.target.value, slug: article.slug || slugify(event.target.value) })}/></label>
     <label className="admin-field wide"><span>Краткое описание</span><textarea rows={3} value={article.description} onChange={(event) => setArticle({ ...article, description: event.target.value })}/></label>
@@ -135,6 +152,6 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     {section.blocks.map((block, blockIndex) => <div className="editor-block" key={block.id}><div className="editor-block-tools"><span>{blockNames[block.type]}</span><span><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, -1)}><ArrowUp size={14}/></button><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, 1)}><ArrowDown size={14}/></button><button className="editor-icon-button" onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: item.blocks.filter((_, childIndex) => childIndex !== blockIndex) } : item))}><Trash2 size={14}/></button></span></div><BlockFields block={block} onChange={(next) => updateBlock(sectionIndex, blockIndex, next)} uploadImage={uploadImage}/></div>)}
     <div className="block-library">{(Object.keys(blockNames) as ArticleBlock["type"][]).map((type) => <button key={type} onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: [...item.blocks, makeBlock(type)] } : item))}><Plus size={12}/> {blockNames[type]}</button>)}</div>
   </div>)}
-  <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{message && <span className="admin-saving">{message}</span>}</div></div>
+  <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
   <aside className="editor-panel editor-preview"><div className="editor-preview-head"><strong><Eye size={15}/> Предпросмотр</strong><span className="admin-status">{article.status || "draft"}</span></div><div className="article-body">{sections.map((section) => <section id={section.id} key={section.id}><ArticleBlockRenderer blocks={section.blocks}/></section>)}</div></aside></div>;
 }
