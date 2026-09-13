@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Eye, ImagePlus, Plus, Save, Send, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, ImagePlus, Plus, Save, Send, Trash2, Upload, Video } from "lucide-react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
 import { articleCategories, articleEditions, buildArticlePath } from "@/lib/articles/catalog";
 import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleSection } from "@/lib/articles/types";
@@ -32,7 +32,7 @@ const blockNames: Record<ArticleBlock["type"], string> = {
   paragraph: "Текст", heading: "Заголовок", list: "Список", facts: "Цифры", note: "Плашка",
   warning: "Предупреждение", cards: "Карточки", table: "Таблица", flow: "Маршрут",
   image: "Изображение", disclosure: "Выпадающий блок", opinion: "Мнение Они",
-  video: "YouTube", telegram: "Telegram",
+  video: "Видео", telegram: "Telegram",
 };
 
 function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
@@ -50,7 +50,7 @@ function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
     case "image": return { id, type, src: "", alt: "", caption: "" };
     case "disclosure": return { id, type, title: "Показать полный список", items: ["Первый пункт"] };
     case "opinion": return { id, type, text: "Редакционный вывод RedPlay.", label: "Мнение RedPlay" };
-    case "video": return { id, type, title: "Посмотри видеоразбор", text: "Главные изменения и выводы в видео.", url: "https://www.youtube.com/@iRedP", action: "Смотреть" };
+    case "video": return { id, type, title: "Видеоразбор", text: "Главные изменения и выводы в видео.", url: "", source: "youtube" };
     case "telegram": return { id, type, title: "Следи за обновлениями", text: "Финальные данные и обсуждение в Telegram.", action: "Получить уведомление" };
   }
 }
@@ -64,7 +64,7 @@ function pairs(value: string) {
   return value.split("\n").filter(Boolean).map((line) => { const [first, ...rest] = line.split("|"); return [first.trim(), rest.join("|").trim()]; });
 }
 
-function BlockFields({ block, onChange, uploadImage }: { block: ArticleBlock; onChange: (next: ArticleBlock) => void; uploadImage: (file: File) => Promise<string> }) {
+function BlockFields({ block, onChange, uploadMedia }: { block: ArticleBlock; onChange: (next: ArticleBlock) => void; uploadMedia: (file: File, kind: "image" | "video") => Promise<string> }) {
   const input = (value: string, change: (value: string) => void, placeholder = "") => <input value={value} placeholder={placeholder} onChange={(event) => change(event.target.value)}/>;
   const area = (value: string, change: (value: string) => void, placeholder = "") => <textarea rows={4} value={value} placeholder={placeholder} onChange={(event) => change(event.target.value)}/>;
   switch (block.type) {
@@ -77,10 +77,22 @@ function BlockFields({ block, onChange, uploadImage }: { block: ArticleBlock; on
     case "cards": return <label className="admin-field"><span>Заголовок | описание, одна карточка на строку</span>{area(block.items.map((item) => `${item.title} | ${item.text}`).join("\n"), (value) => onChange({ ...block, items: pairs(value).map(([title, text]) => ({ title, text, icon: "sparkles" as const })) }))}</label>;
     case "table": return <><label className="admin-field"><span>Колонки через |</span>{input(block.columns.join(" | "), (value) => onChange({ ...block, columns: value.split("|").map((item) => item.trim()) }))}</label><label className="admin-field"><span>Каждая строка отдельно, ячейки через |</span>{area(block.rows.map((row) => row.join(" | ")).join("\n"), (value) => onChange({ ...block, rows: value.split("\n").map((row) => row.split("|").map((cell) => cell.trim())) }))}</label></>;
     case "flow": return <label className="admin-field"><span>Этап | подпись, один этап на строку</span>{area(block.items.map((item) => `${item.title} | ${item.subtitle || ""}`).join("\n"), (value) => onChange({ ...block, items: pairs(value).map(([title, subtitle]) => ({ title, subtitle })) }))}</label>;
-    case "image": return <><label className="admin-field"><span>Адрес изображения</span>{input(block.src, (src) => onChange({ ...block, src }))}</label><label className="admin-field"><span>Описание изображения</span>{input(block.alt, (alt) => onChange({ ...block, alt }))}</label><label className="admin-field"><span>Подпись под изображением</span>{input(block.caption || "", (caption) => onChange({ ...block, caption }))}</label><label className="admin-secondary"><ImagePlus size={15}/> Загрузить файл<input hidden type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (file) onChange({ ...block, src: await uploadImage(file), alt: block.alt || file.name }); }}/></label></>;
+    case "image": return <><label className="admin-field"><span>Адрес изображения</span>{input(block.src, (src) => onChange({ ...block, src }))}</label><label className="admin-field"><span>Описание изображения</span>{input(block.alt, (alt) => onChange({ ...block, alt }))}</label><label className="admin-field"><span>Подпись под изображением</span>{input(block.caption || "", (caption) => onChange({ ...block, caption }))}</label><label className="admin-secondary"><ImagePlus size={15}/> Загрузить файл<input hidden type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (file) onChange({ ...block, src: await uploadMedia(file, "image"), alt: block.alt || file.name }); }}/></label></>;
     case "disclosure": return <><label className="admin-field"><span>Название</span>{input(block.title, (title) => onChange({ ...block, title }))}</label><label className="admin-field"><span>Один пункт на строку</span>{area(block.items.join("\n"), (value) => onChange({ ...block, items: value.split("\n") }))}</label></>;
     case "opinion": return <><label className="admin-field"><span>Подпись</span>{input(block.label || "", (label) => onChange({ ...block, label }))}</label><label className="admin-field"><span>Мнение</span>{area(block.text, (text) => onChange({ ...block, text }))}</label></>;
-    case "video": return <><label className="admin-field"><span>Заголовок</span>{input(block.title, (title) => onChange({ ...block, title }))}</label><label className="admin-field"><span>Описание</span>{area(block.text, (text) => onChange({ ...block, text }))}</label><label className="admin-field"><span>Ссылка YouTube</span>{input(block.url, (url) => onChange({ ...block, url }))}</label></>;
+    case "video": {
+      const source = block.source || "youtube";
+      return <>
+        <label className="admin-field"><span>Источник видео</span><select value={source} onChange={(event) => onChange({ ...block, source: event.target.value as "youtube" | "file" })}><option value="youtube">YouTube</option><option value="file">Загрузить видеофайл</option></select></label>
+        <label className="admin-field"><span>Заголовок</span>{input(block.title, (title) => onChange({ ...block, title }))}</label>
+        <label className="admin-field"><span>Описание</span>{area(block.text, (text) => onChange({ ...block, text }))}</label>
+        {source === "youtube" ? <label className="admin-field"><span>Ссылка на ролик YouTube</span>{input(block.url, (url) => onChange({ ...block, url }), "https://youtu.be/...")}<small>Подойдут обычные ссылки, Shorts, Live и youtu.be.</small></label> : <>
+          <label className="admin-field"><span>Адрес загруженного видео</span>{input(block.url, (url) => onChange({ ...block, url }), "Появится после загрузки")}</label>
+          <label className="admin-secondary admin-upload-video"><Upload size={15}/> Загрузить MP4 или WebM<input hidden type="file" accept="video/mp4,video/webm,video/ogg" onChange={async (event) => { const file = event.target.files?.[0]; if (file) onChange({ ...block, url: await uploadMedia(file, "video"), source: "file" }); }}/></label>
+        </>}
+        <label className="admin-field"><span>Подпись под видео</span>{input(block.caption || "", (caption) => onChange({ ...block, caption }), "Необязательно")}</label>
+      </>;
+    }
     case "telegram": return <><label className="admin-field"><span>Заголовок</span>{input(block.title, (title) => onChange({ ...block, title }))}</label><label className="admin-field"><span>Описание</span>{area(block.text, (text) => onChange({ ...block, text }))}</label></>;
   }
 }
@@ -118,13 +130,23 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     [next[sectionIndex].blocks[blockIndex], next[sectionIndex].blocks[target]] = [next[sectionIndex].blocks[target], next[sectionIndex].blocks[blockIndex]];
     setSections(next);
   };
-  const uploadImage = async (file: File) => {
+  const uploadMedia = async (file: File, kind: "image" | "video") => {
+    if (kind === "video" && !["video/mp4", "video/webm", "video/ogg"].includes(file.type)) {
+      throw new Error("Поддерживаются видео MP4, WebM и OGG.");
+    }
+    setMessage(kind === "video" ? "Загружаю видео…" : "Загружаю изображение…");
     const supabase = createClient();
     const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
-    const filePath = `${new Date().getFullYear()}/${newId()}-${safeName}`;
-    const { error } = await supabase.storage.from("article-media").upload(filePath, file, { upsert: false });
-    if (error) throw error;
-    return supabase.storage.from("article-media").getPublicUrl(filePath).data.publicUrl;
+    const filePath = `${new Date().getFullYear()}/${kind}/${newId()}-${safeName}`;
+    try {
+      const { error } = await supabase.storage.from("article-media").upload(filePath, file, { upsert: false, contentType: file.type, cacheControl: "31536000" });
+      if (error) throw error;
+      setMessage(kind === "video" ? "Видео загружено. Не забудь сохранить публикацию." : "Изображение загружено.");
+      return supabase.storage.from("article-media").getPublicUrl(filePath).data.publicUrl;
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Не удалось загрузить файл.");
+      throw cause;
+    }
   };
   const save = async (status: "draft" | "published") => {
     if (!article.title.trim() || !article.slug.trim()) return setMessage("Заполни название и адрес материала.");
@@ -171,7 +193,7 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     <label className="admin-field"><span>Категория</span><select value={article.category} onChange={(event) => setArticle({ ...article, category: event.target.value as ArticleCategory })}>{articleCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
     {article.edition === "essence" && <div className="admin-field wide"><span>Материал относится к серверам</span><div className="editor-targets"><label><input type="checkbox" checked={targets.includes("essence")} onChange={(event) => setTargets(event.target.checked ? [...new Set([...targets, "essence" as const])] : targets.filter((item) => item !== "essence"))}/> Essence</label><label><input type="checkbox" checked={targets.includes("special-project")} onChange={(event) => setTargets(event.target.checked ? [...new Set([...targets, "special-project" as const])] : targets.filter((item) => item !== "special-project"))}/> Special Project</label></div></div>}
     <label className="admin-field wide"><span>Адрес страницы</span><input value={article.slug} onChange={(event) => setArticle({ ...article, slug: slugify(event.target.value) })}/><small>{path}</small></label>
-    <label className="admin-field wide"><span>Обложка – адрес или загруженный файл</span><input value={article.cover?.src || ""} onChange={(event) => setArticle({ ...article, cover: { ...article.cover, src: event.target.value } })}/><label className="admin-secondary"><ImagePlus size={15}/> Загрузить обложку<input hidden type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (file) setArticle({ ...article, cover: { src: await uploadImage(file), alt: article.title } }); }}/></label></label>
+    <label className="admin-field wide"><span>Обложка – адрес или загруженный файл</span><input value={article.cover?.src || ""} onChange={(event) => setArticle({ ...article, cover: { ...article.cover, src: event.target.value } })}/><label className="admin-secondary"><ImagePlus size={15}/> Загрузить обложку<input hidden type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (file) setArticle({ ...article, cover: { src: await uploadMedia(file, "image"), alt: article.title } }); }}/></label></label>
     <div className="editor-seo wide">
       <div className="editor-seo-head"><div><strong>SEO и поиск</strong><span>Как публикация будет называться и описываться в поиске</span></div><span className={seoTitlePreview.length > 72 ? "is-long" : ""}>{seoTitlePreview.length} знаков</span></div>
       <label className="admin-field wide"><span>SEO-заголовок</span><input value={article.seo?.title || ""} placeholder={articleSeoTitle(article.title || "Название материала", article.edition)} onChange={(event) => setArticle({ ...article, seo: { ...article.seo, title: event.target.value } })}/><small>Можно оставить пустым – RedPlay сформирует заголовок автоматически.</small></label>
@@ -182,7 +204,7 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     </div>
   </div></div>
   {sections.map((section, sectionIndex) => <div className="editor-section" key={section.id}><div className="editor-section-head"><input value={section.label} onChange={(event) => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, label: event.target.value, id: slugify(event.target.value) || item.id } : item))}/><button className="editor-icon-button" onClick={() => setSections(sections.filter((_, index) => index !== sectionIndex))}><Trash2 size={15}/></button></div>
-    {section.blocks.map((block, blockIndex) => <div className="editor-block" key={block.id}><div className="editor-block-tools"><span>{blockNames[block.type]}</span><span className="editor-block-actions">{article.edition === "essence" && <select className={`editor-scope ${block.scope || "all"}`} value={block.scope || "all"} onChange={(event) => updateBlock(sectionIndex, blockIndex, { ...block, scope: event.target.value as ArticleAudience })}><option value="all">Общий</option><option value="essence">Только Essence</option><option value="special-project">Только Special</option></select>}<button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, -1)}><ArrowUp size={14}/></button><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, 1)}><ArrowDown size={14}/></button><button className="editor-icon-button" onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: item.blocks.filter((_, childIndex) => childIndex !== blockIndex) } : item))}><Trash2 size={14}/></button></span></div><BlockFields block={block} onChange={(next) => updateBlock(sectionIndex, blockIndex, next)} uploadImage={uploadImage}/></div>)}
+    {section.blocks.map((block, blockIndex) => <div className="editor-block" key={block.id}><div className="editor-block-tools"><span>{block.type === "video" && <Video size={13}/>} {blockNames[block.type]}</span><span className="editor-block-actions">{article.edition === "essence" && <select className={`editor-scope ${block.scope || "all"}`} value={block.scope || "all"} onChange={(event) => updateBlock(sectionIndex, blockIndex, { ...block, scope: event.target.value as ArticleAudience })}><option value="all">Общий</option><option value="essence">Только Essence</option><option value="special-project">Только Special</option></select>}<button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, -1)}><ArrowUp size={14}/></button><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, 1)}><ArrowDown size={14}/></button><button className="editor-icon-button" onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: item.blocks.filter((_, childIndex) => childIndex !== blockIndex) } : item))}><Trash2 size={14}/></button></span></div><BlockFields block={block} onChange={(next) => updateBlock(sectionIndex, blockIndex, next)} uploadMedia={uploadMedia}/></div>)}
     <div className="block-library">{(Object.keys(blockNames) as ArticleBlock["type"][]).map((type) => <button key={type} onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: [...item.blocks, makeBlock(type)] } : item))}><Plus size={12}/> {blockNames[type]}</button>)}</div>
   </div>)}
   <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
