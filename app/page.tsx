@@ -127,8 +127,7 @@ export default function Home() {
     </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {setBonusOpen(true);setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/main/guides"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
     <section id="top" className="hero-stage">
-      <video className="hero-video" autoPlay muted loop playsInline preload="metadata" poster="/redplay-world-poster.webp" aria-hidden="true">
-        <source src="/redplay-world.webm" type="video/webm"/>
+      <video className="hero-video" autoPlay muted loop playsInline preload="auto" poster="/redplay-world-poster.webp" aria-hidden="true">
         <source src="/redplay-world.mp4" type="video/mp4"/>
       </video>
       <div className="hero-video-tint"/>
