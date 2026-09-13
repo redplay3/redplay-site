@@ -40,8 +40,8 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [geometry, setGeometry] = useState<VideoGeometry | null>(null);
+  const isExpanded = geometry !== null;
 
   const motionDuration = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXPAND_DURATION;
 
@@ -50,7 +50,6 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
     if (!compactRect) return;
 
     setGeometry(rectToGeometry(compactRect));
-    setIsExpanded(true);
   };
 
   const closeExpanded = () => {
@@ -59,7 +58,6 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
 
     setGeometry(rectToGeometry(compactRect));
     closeTimerRef.current = window.setTimeout(() => {
-      setIsExpanded(false);
       setGeometry(null);
     }, motionDuration());
   };
