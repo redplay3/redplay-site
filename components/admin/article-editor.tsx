@@ -8,6 +8,7 @@ import { articleCategories, articleEditions, buildArticlePath } from "@/lib/arti
 import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleSection } from "@/lib/articles/types";
 import { articleSeoTitle, categorySeo, editionSeo } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/client";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 
 type EditorArticle = {
   id?: string;
@@ -64,7 +65,17 @@ function pairs(value: string) {
   return value.split("\n").filter(Boolean).map((line) => { const [first, ...rest] = line.split("|"); return [first.trim(), rest.join("|").trim()]; });
 }
 
-function BlockFields({ block, onChange, uploadMedia }: { block: ArticleBlock; onChange: (next: ArticleBlock) => void; uploadMedia: (file: File, kind: "image" | "video") => Promise<string> }) {
+async function storageError(response: Response) {
+  const fallback = `Ошибка загрузки (${response.status}).`;
+  try {
+    const body = await response.json() as { message?: string; error?: string };
+    return body.message || body.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function BlockFields({ block, onChange, uploadMedia, uploadProgress }: { block: ArticleBlock; onChange: (next: ArticleBlock) => void; uploadMedia: (file: File, kind: "image" | "video") => Promise<string>; uploadProgress: number | null }) {
   const input = (value: string, change: (value: string) => void, placeholder = "") => <input value={value} placeholder={placeholder} onChange={(event) => change(event.target.value)}/>;
   const area = (value: string, change: (value: string) => void, placeholder = "") => <textarea rows={4} value={value} placeholder={placeholder} onChange={(event) => change(event.target.value)}/>;
   switch (block.type) {
@@ -88,7 +99,7 @@ function BlockFields({ block, onChange, uploadMedia }: { block: ArticleBlock; on
         <label className="admin-field"><span>Описание</span>{area(block.text, (text) => onChange({ ...block, text }))}</label>
         {source === "youtube" ? <label className="admin-field"><span>Ссылка на ролик YouTube</span>{input(block.url, (url) => onChange({ ...block, url }), "https://youtu.be/...")}<small>Подойдут обычные ссылки, Shorts, Live и youtu.be.</small></label> : <>
           <label className="admin-field"><span>Адрес загруженного видео</span>{input(block.url, (url) => onChange({ ...block, url }), "Появится после загрузки")}</label>
-          <label className="admin-secondary admin-upload-video"><Upload size={15}/> Загрузить MP4 или WebM<input hidden type="file" accept="video/mp4,video/webm,video/ogg" onChange={async (event) => { const file = event.target.files?.[0]; if (file) onChange({ ...block, url: await uploadMedia(file, "video"), source: "file" }); }}/></label>
+          <label className={`admin-secondary admin-upload-video${uploadProgress !== null ? " is-uploading" : ""}`}><Upload size={15}/> {uploadProgress !== null ? `Загрузка ${uploadProgress}%` : "Загрузить MP4 или WebM"}<input hidden disabled={uploadProgress !== null} type="file" accept="video/mp4,video/webm,video/ogg" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; try { onChange({ ...block, url: await uploadMedia(file, "video"), source: "file" }); } finally { event.target.value = ""; } }}/></label>
         </>}
         <label className="admin-field"><span>Подпись под видео</span>{input(block.caption || "", (caption) => onChange({ ...block, caption }), "Необязательно")}</label>
       </>;
@@ -112,6 +123,7 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
   });
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const sections = article.content || [];
   const path = useMemo(() => article.slug ? buildArticlePath(article.edition, article.category, article.slug) : "Адрес появится после заголовка", [article]);
   const contentTags = (article.tags || []).filter((tag) => tag !== "Essence" && tag !== "Special Project");
@@ -134,18 +146,65 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     if (kind === "video" && !["video/mp4", "video/webm", "video/ogg"].includes(file.type)) {
       throw new Error("Поддерживаются видео MP4, WebM и OGG.");
     }
-    setMessage(kind === "video" ? "Загружаю видео…" : "Загружаю изображение…");
+    setMessage(kind === "video" ? `Подготовка видео: ${file.name}` : "Загружаю изображение…");
     const supabase = createClient();
     const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
     const filePath = `${new Date().getFullYear()}/${kind}/${newId()}-${safeName}`;
     try {
-      const { error } = await supabase.storage.from("article-media").upload(filePath, file, { upsert: false, contentType: file.type, cacheControl: "31536000" });
-      if (error) throw error;
+      if (kind === "video") {
+        const config = getSupabaseConfig();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!config || !sessionData.session?.access_token) throw new Error("Сессия редактора истекла. Обнови страницу и войди снова.");
+
+        const encodeMetadata = (value: string) => btoa(Array.from(new TextEncoder().encode(value), (byte) => String.fromCharCode(byte)).join(""));
+        const endpoint = `${config.url}/storage/v1/upload/resumable`;
+        const metadata = [
+          ["bucketName", "article-media"],
+          ["objectName", filePath],
+          ["contentType", file.type],
+          ["cacheControl", "31536000"],
+        ].map(([key, value]) => `${key} ${encodeMetadata(value)}`).join(",");
+        const authHeaders = { Authorization: `Bearer ${sessionData.session.access_token}`, apikey: config.key };
+        setUploadProgress(0);
+        const created = await fetch(endpoint, { method: "POST", headers: { ...authHeaders, "Tus-Resumable": "1.0.0", "Upload-Length": String(file.size), "Upload-Metadata": metadata, "x-upsert": "false" } });
+        if (!created.ok) throw new Error(await storageError(created));
+        const location = created.headers.get("Location");
+        if (!location) throw new Error("Хранилище не вернуло адрес загрузки.");
+        const uploadUrl = new URL(location, endpoint).toString();
+        const chunkSize = 6 * 1024 * 1024;
+        let offset = 0;
+
+        while (offset < file.size) {
+          const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
+          let response: Response | null = null;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+              response = await fetch(uploadUrl, { method: "PATCH", headers: { ...authHeaders, "Tus-Resumable": "1.0.0", "Upload-Offset": String(offset), "Content-Type": "application/offset+octet-stream" }, body: chunk });
+              if (response.ok) break;
+              if (response.status < 500 && response.status !== 429) throw new Error(await storageError(response));
+            } catch (cause) {
+              if (attempt === 2 || (cause instanceof Error && !/fetch|network|load/i.test(cause.message))) throw cause;
+            }
+            await new Promise((resolve) => window.setTimeout(resolve, 700 * (attempt + 1)));
+          }
+          if (!response?.ok) throw new Error(response ? await storageError(response) : "Соединение с хранилищем прервано.");
+          offset = Number(response.headers.get("Upload-Offset")) || offset + chunk.size;
+          const percent = Math.min(100, Math.round((offset / file.size) * 100));
+          setUploadProgress(percent);
+          setMessage(`Загрузка видео: ${percent}% · не закрывай страницу`);
+        }
+      } else {
+        const { error } = await supabase.storage.from("article-media").upload(filePath, file, { upsert: false, contentType: file.type, cacheControl: "31536000" });
+        if (error) throw error;
+      }
       setMessage(kind === "video" ? "Видео загружено. Не забудь сохранить публикацию." : "Изображение загружено.");
       return supabase.storage.from("article-media").getPublicUrl(filePath).data.publicUrl;
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Не удалось загрузить файл.");
       throw cause;
+    } finally {
+      if (kind === "video") setUploadProgress(null);
     }
   };
   const save = async (status: "draft" | "published") => {
@@ -204,9 +263,10 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     </div>
   </div></div>
   {sections.map((section, sectionIndex) => <div className="editor-section" key={section.id}><div className="editor-section-head"><input value={section.label} onChange={(event) => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, label: event.target.value, id: slugify(event.target.value) || item.id } : item))}/><button className="editor-icon-button" onClick={() => setSections(sections.filter((_, index) => index !== sectionIndex))}><Trash2 size={15}/></button></div>
-    {section.blocks.map((block, blockIndex) => <div className="editor-block" key={block.id}><div className="editor-block-tools"><span>{block.type === "video" && <Video size={13}/>} {blockNames[block.type]}</span><span className="editor-block-actions">{article.edition === "essence" && <select className={`editor-scope ${block.scope || "all"}`} value={block.scope || "all"} onChange={(event) => updateBlock(sectionIndex, blockIndex, { ...block, scope: event.target.value as ArticleAudience })}><option value="all">Общий</option><option value="essence">Только Essence</option><option value="special-project">Только Special</option></select>}<button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, -1)}><ArrowUp size={14}/></button><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, 1)}><ArrowDown size={14}/></button><button className="editor-icon-button" onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: item.blocks.filter((_, childIndex) => childIndex !== blockIndex) } : item))}><Trash2 size={14}/></button></span></div><BlockFields block={block} onChange={(next) => updateBlock(sectionIndex, blockIndex, next)} uploadMedia={uploadMedia}/></div>)}
+    {section.blocks.map((block, blockIndex) => <div className="editor-block" key={block.id}><div className="editor-block-tools"><span>{block.type === "video" && <Video size={13}/>} {blockNames[block.type]}</span><span className="editor-block-actions">{article.edition === "essence" && <select className={`editor-scope ${block.scope || "all"}`} value={block.scope || "all"} onChange={(event) => updateBlock(sectionIndex, blockIndex, { ...block, scope: event.target.value as ArticleAudience })}><option value="all">Общий</option><option value="essence">Только Essence</option><option value="special-project">Только Special</option></select>}<button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, -1)}><ArrowUp size={14}/></button><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, 1)}><ArrowDown size={14}/></button><button className="editor-icon-button" onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: item.blocks.filter((_, childIndex) => childIndex !== blockIndex) } : item))}><Trash2 size={14}/></button></span></div><BlockFields block={block} onChange={(next) => updateBlock(sectionIndex, blockIndex, next)} uploadMedia={uploadMedia} uploadProgress={uploadProgress}/></div>)}
     <div className="block-library">{(Object.keys(blockNames) as ArticleBlock["type"][]).map((type) => <button key={type} onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: [...item.blocks, makeBlock(type)] } : item))}><Plus size={12}/> {blockNames[type]}</button>)}</div>
   </div>)}
-  <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
+  <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving || uploadProgress !== null} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving || uploadProgress !== null} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving || uploadProgress !== null} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
+  {message && <div className={`admin-toast${uploadProgress !== null ? " is-progress" : ""}`}>{uploadProgress !== null && <span style={{ width: `${uploadProgress}%` }}/>}<p>{message}</p></div>}
   <aside className="editor-panel editor-preview"><div className="editor-preview-head"><strong><Eye size={15}/> Предпросмотр</strong><span className="admin-status">{article.status || "draft"}</span></div><div className="article-body">{sections.map((section) => <section id={section.id} key={section.id}><ArticleBlockRenderer blocks={section.blocks}/></section>)}</div></aside></div>;
 }
