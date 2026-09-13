@@ -81,6 +81,38 @@ async function storageError(response: Response) {
   }
 }
 
+async function assertBrowserPlayableVideo(file: File) {
+  if (file.size > 50 * 1024 * 1024) throw new Error("Видео больше 50 МБ. Сожми файл перед загрузкой.");
+
+  const objectUrl = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "metadata";
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("Не удалось прочитать видеодорожку. Перекодируй файл в H.264/AVC.")), 8000);
+      const finish = (cause?: Error) => {
+        window.clearTimeout(timeout);
+        cause ? reject(cause) : resolve();
+      };
+
+      video.onerror = () => finish(new Error("Браузер не поддерживает кодек этого видео. Используй MP4 с H.264/AVC или WebM с VP9."));
+      video.onloadedmetadata = () => window.setTimeout(() => {
+        if (video.videoWidth > 0 && video.videoHeight > 0) finish();
+        else finish(new Error("В MP4 обнаружен неподдерживаемый видеокодек (обычно H.265/HEVC). Перекодируй ролик в H.264/AVC."));
+      }, 150);
+      video.src = objectUrl;
+      video.load();
+    });
+  } finally {
+    video.removeAttribute("src");
+    video.load();
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 function BlockFields({ block, onChange, uploadMedia, uploadProgress }: { block: ArticleBlock; onChange: (next: ArticleBlock) => void; uploadMedia: (file: File, kind: "image" | "video") => Promise<string>; uploadProgress: number | null }) {
   const input = (value: string, change: (value: string) => void, placeholder = "") => <input value={value} placeholder={placeholder} onChange={(event) => change(event.target.value)}/>;
   const area = (value: string, change: (value: string) => void, placeholder = "") => <textarea rows={4} value={value} placeholder={placeholder} onChange={(event) => change(event.target.value)}/>;
@@ -105,7 +137,8 @@ function BlockFields({ block, onChange, uploadMedia, uploadProgress }: { block: 
         <label className="admin-field"><span>Описание</span>{area(block.text, (text) => onChange({ ...block, text }))}</label>
         {source === "youtube" ? <label className="admin-field"><span>Ссылка на ролик YouTube</span>{input(block.url, (url) => onChange({ ...block, url }), "https://youtu.be/...")}<small>Подойдут обычные ссылки, Shorts, Live и youtu.be.</small></label> : <>
           <label className="admin-field"><span>Адрес загруженного видео</span>{input(block.url, (url) => onChange({ ...block, url }), "Появится после загрузки")}</label>
-          <label className={`admin-secondary admin-upload-video${uploadProgress !== null ? " is-uploading" : ""}`}><Upload size={15}/> {uploadProgress !== null ? `Загрузка ${uploadProgress}%` : "Загрузить MP4 или WebM"}<input hidden disabled={uploadProgress !== null} type="file" accept="video/mp4,video/webm,video/ogg" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; try { onChange({ ...block, url: await uploadMedia(file, "video"), source: "file" }); } finally { event.target.value = ""; } }}/></label>
+          <label className={`admin-secondary admin-upload-video${uploadProgress !== null ? " is-uploading" : ""}`}><Upload size={15}/> {uploadProgress !== null ? `Загрузка ${uploadProgress}%` : "Загрузить MP4 или WebM"}<input hidden disabled={uploadProgress !== null} type="file" accept="video/mp4,video/webm,video/ogg" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; try { onChange({ ...block, url: await uploadMedia(file, "video"), source: "file" }); } catch { /* uploadMedia already shows a detailed error */ } finally { event.target.value = ""; } }}/></label>
+          <small>Для стабильного воспроизведения: MP4 с H.264/AVC или WebM с VP9, до 50 МБ. H.265/HEVC не поддерживается большинством браузеров.</small>
         </>}
         <label className="admin-field"><span>Подпись под видео</span>{input(block.caption || "", (caption) => onChange({ ...block, caption }), "Необязательно")}</label>
       </>;
@@ -151,6 +184,15 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
   const uploadMedia = async (file: File, kind: "image" | "video") => {
     if (kind === "video" && !["video/mp4", "video/webm", "video/ogg"].includes(file.type)) {
       throw new Error("Поддерживаются видео MP4, WebM и OGG.");
+    }
+    if (kind === "video") {
+      setMessage(`Проверяю совместимость видео: ${file.name}`);
+      try {
+        await assertBrowserPlayableVideo(file);
+      } catch (cause) {
+        setMessage(cause instanceof Error ? cause.message : "Видео не поддерживается браузером.");
+        throw cause;
+      }
     }
     setMessage(kind === "video" ? `Подготовка видео: ${file.name}` : "Загружаю изображение…");
     const supabase = createClient();
