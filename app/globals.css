@@ -47,3 +47,10 @@ html,body{overflow-x:clip}
 .hero-oni{right:0;width:min(56vw,900px);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.18) 7%,rgba(0,0,0,.72) 18%,#000 31%,#000 100%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.18) 7%,rgba(0,0,0,.72) 18%,#000 31%,#000 100%)}
 @media(max-width:1100px){.hero-oni{right:-8%;width:78vw;mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.38) 13%,#000 31%,#000 100%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.38) 13%,#000 31%,#000 100%)}}
 @media(max-width:760px){.hero-oni{right:-48%;width:150vw;mask-image:linear-gradient(0deg,#000 48%,#000 82%,transparent 100%);-webkit-mask-image:linear-gradient(0deg,#000 48%,#000 82%,transparent 100%)}}
+
+
+/* Hero world visibility refinement */
+.hero-video{inset:-14%;width:128%;height:128%;object-position:50% 46%;filter:brightness(.62) saturate(.86) contrast(1.08);transform:scale(1.08)}
+.hero-video-tint{background:radial-gradient(circle at 57% 46%,#8e17252b,transparent 42%),linear-gradient(90deg,#080a0ff0 0%,#080a0fc7 29%,#080a0f62 50%,#080a0f20 73%,#080a0f38 100%)}
+.hero-vignette{background:linear-gradient(90deg,#080a0ff5 0%,#080a0fdf 25%,#080a0f55 47%,transparent 67%),linear-gradient(0deg,#080a0fd0 0%,transparent 34%,#080a0f38 100%)}
+@media(max-width:1100px){.hero-video{inset:-10%;width:120%;height:120%;filter:brightness(.56) saturate(.82) contrast(1.08)}.hero-vignette{background:linear-gradient(90deg,#080a0ff4 0%,#080a0fdc 37%,#080a0f58 70%,#080a0f58 100%),linear-gradient(0deg,#080a0fc8,transparent 45%)}}
