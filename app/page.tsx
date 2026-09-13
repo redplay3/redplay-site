@@ -145,7 +145,7 @@ export default function Home() {
     <section id="top" className="hero-stage">
       <img src={heroCover} alt="" className="hero-publication-backdrop" aria-hidden="true"/>
       <img src={heroCover} alt={latestHero?.cover?.alt || heroTitle} className="hero-publication-image"/>
-      <div className="hero-publication-shade"/>
+      <div className="hero-publication-shade"/>\n      <img src="/oni-redplay.webp" alt="" className="hero-oni-signature" aria-hidden="true"/>
       <div className="relative z-10 mx-auto flex min-h-[650px] max-w-[1500px] items-center px-4 py-16 sm:px-6 lg:px-8">
         <div className="w-full lg:max-w-[60%]">
           <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">{heroEdition} · {heroCategory}</p></div>
