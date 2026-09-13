@@ -31,8 +31,19 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
   const fullscreenTarget = useRef<HTMLDivElement>(null);
 
   const openFullscreen = async () => {
-    if (fullscreenTarget.current?.requestFullscreen) {
-      await fullscreenTarget.current.requestFullscreen();
+    const target = fullscreenTarget.current as (HTMLDivElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    }) | null;
+
+    try {
+      if (target?.requestFullscreen) {
+        await target.requestFullscreen();
+      } else if (target?.webkitRequestFullscreen) {
+        await target.webkitRequestFullscreen();
+      }
+    } catch {
+      // Some mobile and embedded browsers deny the Fullscreen API. The large
+      // dialog remains available as a reliable expanded-player fallback.
     }
   };
 
