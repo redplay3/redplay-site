@@ -54,3 +54,12 @@ html,body{overflow-x:clip}
 .hero-video-tint{background:radial-gradient(circle at 57% 46%,#8e17252b,transparent 42%),linear-gradient(90deg,#080a0ff0 0%,#080a0fc7 29%,#080a0f62 50%,#080a0f20 73%,#080a0f38 100%)}
 .hero-vignette{background:linear-gradient(90deg,#080a0ff5 0%,#080a0fdf 25%,#080a0f55 47%,transparent 67%),linear-gradient(0deg,#080a0fd0 0%,transparent 34%,#080a0f38 100%)}
 @media(max-width:1100px){.hero-video{inset:-10%;width:120%;height:120%;filter:brightness(.56) saturate(.82) contrast(1.08)}.hero-vignette{background:linear-gradient(90deg,#080a0ff4 0%,#080a0fdc 37%,#080a0f58 70%,#080a0f58 100%),linear-gradient(0deg,#080a0fc8,transparent 45%)}}
+
+
+/* Latest publication hero */
+.hero-publication-image{position:absolute;z-index:0;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 32%;filter:saturate(1.04) contrast(1.04)}
+.hero-publication-shade{position:absolute;z-index:2;inset:0;background:linear-gradient(90deg,#080a0ffd 0%,#080a0ff0 27%,#080a0f9e 48%,#080a0f35 72%,#080a0f50 100%),linear-gradient(0deg,#080a0fd6 0%,transparent 38%,#080a0f38 100%)}
+.hero-article-title{display:-webkit-box;overflow:hidden;max-width:900px;color:#fff;font-size:clamp(2.65rem,5vw,5.7rem);font-weight:950;line-height:.94;letter-spacing:-.055em;text-wrap:balance;text-shadow:0 12px 60px #000;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.hero-article-description{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+@media(max-width:1100px){.hero-publication-shade{background:linear-gradient(90deg,#080a0ffc 0%,#080a0fe8 40%,#080a0f72 74%,#080a0f70 100%),linear-gradient(0deg,#080a0fd0,transparent 45%)}}
+@media(max-width:760px){.hero-stage{background-image:none}.hero-publication-image{display:block;opacity:.72;object-position:64% center}.hero-publication-shade{display:block;background:linear-gradient(0deg,#080a0ffd 0%,#080a0fe8 49%,#080a0f58 100%),linear-gradient(90deg,#080a0fb0,transparent)}.hero-article-title{font-size:clamp(2.45rem,12vw,4rem);-webkit-line-clamp:4}}

@@ -16,7 +16,14 @@ type Video = { id: string; title: string; url: string; thumbnail: string; publis
 type OnlineServer = { name: string; online: number };
 type OnlineEdition = "Main" | "Special Project" | "Essence";
 type OnlineGroups = Record<OnlineEdition, OnlineServer[]>;
-type PublishedArticle = { id: string; title: string; description: string; edition: "main" | "essence" | "special-project"; category: string; slug: string; tags: string[] | null; published_at: string | null; updated_at: string };
+type PublishedArticle = { id: string; title: string; description: string; label: string; cover: { src?: string; alt?: string } | null; edition: "main" | "essence" | "special-project"; category: string; slug: string; tags: string[] | null; published_at: string | null; updated_at: string };
+const fallbackHero = {
+  title: "Forged in Battle в Lineage 2: все классы, умения и точные изменения",
+  description: "Полный разбор большого обновления: классы, новые зоны, предметы, крафт и различия Essence и Special Project.",
+  label: "Большое обновление",
+  cover: "https://vpsocmwsvwyavrmduzth.supabase.co/storage/v1/object/public/article-media/2026/3764614b-53ac-42eb-aacb-5a43c563c0ea-forged-in-battle-cover.png",
+  href: "/lineage-2/essence/updates/forged-in-battle-vse-klassy-i-umeniya",
+};
 const fallbackOnline: OnlineGroups = {
   Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063}],
   "Special Project": [{name:"Wolf1",online:1813},{name:"Wolf2",online:2047},{name:"Eva1",online:1943},{name:"Eva2",online:1690},{name:"Samurai1",online:1728},{name:"Samurai2",online:1438}],
@@ -62,7 +69,7 @@ export default function Home() {
     }).catch(() => undefined);
     try {
       const supabase = createClient();
-      supabase.from("articles").select("id,title,description,edition,category,slug,tags,published_at,updated_at").eq("status", "published").order("published_at", { ascending: false }).limit(20).then(({ data }) => {
+      supabase.from("articles").select("id,title,description,label,cover,edition,category,slug,tags,published_at,updated_at").eq("status", "published").order("published_at", { ascending: false }).limit(20).then(({ data }) => {
         if (data?.length) setPublishedArticles(data as PublishedArticle[]);
       });
     } catch {
@@ -93,6 +100,15 @@ export default function Home() {
   const selectedServers = onlineGroups[onlineEdition];
   const totalOnline = selectedServers.reduce((sum, server) => sum + server.online, 0);
   const maxOnline = Math.max(...selectedServers.map(server => server.online), 1);
+  const latestHero = publishedArticles[0];
+  const heroHref = latestHero ? `/lineage-2/${latestHero.edition}/${latestHero.category}/${latestHero.slug}` : fallbackHero.href;
+  const heroCover = latestHero?.cover?.src || fallbackHero.cover;
+  const heroTitle = latestHero?.title || fallbackHero.title;
+  const heroDescription = latestHero?.description || fallbackHero.description;
+  const heroEdition = latestHero ? (latestHero.edition === "main" ? "Lineage 2 Main" : latestHero.edition === "essence" ? "Lineage 2 Essence" : "Lineage 2 Special Project") : "Lineage 2 Essence";
+  const heroCategory = latestHero ? articleCategories.find((item) => item.value === latestHero.category)?.label || latestHero.label : fallbackHero.label;
+  const heroTags = latestHero?.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 3) || ["Классы и умения", "Зоны и предметы"];
+  const heroDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(latestHero?.published_at || latestHero?.updated_at || Date.now()));
 
   const editionPath = edition === "Main" ? "main" : "essence";
 
@@ -127,19 +143,15 @@ export default function Home() {
     </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {setBonusOpen(true);setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/main/guides"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
     <section id="top" className="hero-stage">
-      <video className="hero-video" autoPlay muted loop playsInline preload="auto" poster="/redplay-world-poster.webp" aria-hidden="true">
-        <source src="/redplay-world.mp4" type="video/mp4"/>
-      </video>
-      <div className="hero-video-tint"/>
-      <img src="/oni-redplay.webp" alt="Они – демонесса RedPlay" className="hero-oni"/>
-      <div className="hero-vignette"/>
+      <img src={heroCover} alt={latestHero?.cover?.alt || heroTitle} className="hero-publication-image"/>
+      <div className="hero-publication-shade"/>
       <div className="relative z-10 mx-auto flex min-h-[650px] max-w-[1500px] items-center px-4 py-16 sm:px-6 lg:px-8">
         <div className="w-full lg:max-w-[60%]">
-          <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">Lineage 2 Essence · большое обновление</p></div>
-          <p className="hero-title mt-4" role="heading" aria-level={2}>FORGED<br/>IN BATTLE</p>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">Полный разбор обновления 21 октября: изменения классов, новые зоны, предметы, крафт и различия Essence и Special Project.</p>
-          <div className="mt-8 flex flex-wrap gap-3"><Link href="/lineage-2/essence/updates/forged-in-battle-vse-klassy-i-umeniya" className="hero-primary">Читать полный разбор <ArrowRight size={18}/></Link><Link href="/lineage-2/essence/updates" className="hero-secondary"><Newspaper size={17}/> Все обновления</Link></div>
-          <div className="hero-context"><span>21 октября</span><span>Классы и умения</span><span>Зоны и предметы</span></div>
+          <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">{heroEdition} · {heroCategory}</p></div>
+          <p className="hero-article-title mt-4" role="heading" aria-level={2}>{heroTitle}</p>
+          <p className="hero-article-description mt-5 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">{heroDescription}</p>
+          <div className="mt-8 flex flex-wrap gap-3"><Link href={heroHref} className="hero-primary">Читать публикацию <ArrowRight size={18}/></Link><Link href="/lineage-2/essence/updates" className="hero-secondary"><Newspaper size={17}/> Все обновления</Link></div>
+          <div className="hero-context"><span>{heroDate}</span>{heroTags.map((tag) => <span key={tag}>{tag}</span>)}</div>
         </div>
       </div>
     </section>
