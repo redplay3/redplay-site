@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, Eye, MessageCircle, Send, Share2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Copy, Eye, MessageCircle, Send, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type Props = { pageKey: string; title: string; initialViews?: number };
+type ViewProps = { pageKey: string; initialViews?: number };
+type ShareProps = { title: string };
 const DAY = 24 * 60 * 60 * 1000;
 
-export function ArticleEngagement({ pageKey, title, initialViews = 0 }: Props) {
+export function ArticleViewCount({ pageKey, initialViews = 0 }: ViewProps) {
   const [views, setViews] = useState(initialViews);
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,40 +32,40 @@ export function ArticleEngagement({ pageKey, title, initialViews = 0 }: Props) {
     return () => { active = false; };
   }, [pageKey]);
 
-  useEffect(() => {
-    const close = (event: MouseEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, []);
+  return <span className="article-view-count" title="Просмотры публикации"><Eye size={15}/>{new Intl.NumberFormat("ru-RU").format(views)}</span>;
+}
 
-  const url = typeof window === "undefined" ? "" : window.location.href;
+export function ArticleSharePanel({ title }: ShareProps) {
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => setUrl(window.location.href), []);
+
   const copy = async () => {
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(url || window.location.href);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2200);
   };
+  const shareDiscord = async () => {
+    window.open("https://discord.com/channels/@me", "_blank", "noopener,noreferrer");
+    await copy();
+  };
   const shareNative = async () => {
     const nativeShare = (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share;
-    if (nativeShare) await nativeShare.call(navigator, { title, url });
-    else setOpen((value) => !value);
-  };
-  const shareDiscord = async () => {
-    await copy();
-    window.open("https://discord.com/channels/@me", "_blank", "noopener,noreferrer");
+    if (nativeShare) {
+      try { await nativeShare.call(navigator, { title, url: url || window.location.href }); } catch {}
+    } else {
+      await copy();
+    }
   };
 
-  return <div className="article-engagement" ref={root}>
-    <span className="article-view-count" title="Просмотры публикации"><Eye size={15}/>{new Intl.NumberFormat("ru-RU").format(views)}</span>
-    <div className="article-share-wrap">
-      <button type="button" className="article-share-button" onClick={() => setOpen((value) => !value)}><Share2 size={15}/> Поделиться <ChevronDown size={13}/></button>
-      {open && <div className="article-share-menu">
-        <a href={`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}><Send size={16}/> Telegram</a>
-        <button type="button" onClick={shareDiscord}><MessageCircle size={16}/> Discord</button>
-        <button type="button" onClick={copy}>{copied ? <Check size={16}/> : <Copy size={16}/>} {copied ? "Ссылка скопирована" : "Скопировать ссылку"}</button>
-        <button type="button" onClick={shareNative}><Share2 size={16}/> Другие приложения</button>
-      </div>}
+  return <section className="article-share-panel" aria-label="Поделиться публикацией">
+    <div className="article-share-copy"><span>Поделиться материалом</span><strong>Полезный разбор? Отправь друзьям</strong><p>Сохрани ссылку или поделись публикацией там, где общается твоя группа.</p></div>
+    <div className="article-share-actions">
+      <a className="share-telegram" href={`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`} target="_blank" rel="noopener noreferrer"><Send size={17}/> Telegram</a>
+      <button className="share-discord" type="button" onClick={shareDiscord}><MessageCircle size={17}/> Discord</button>
+      <button type="button" onClick={copy}>{copied ? <Check size={17}/> : <Copy size={17}/>} {copied ? "Скопировано" : "Копировать"}</button>
+      <button type="button" onClick={shareNative}><Share2 size={17}/> Ещё</button>
     </div>
-  </div>;
+  </section>;
 }
