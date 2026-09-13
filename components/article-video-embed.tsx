@@ -30,16 +30,17 @@ function YoutubeFrame({ videoId, title }: ArticleVideoEmbedProps) {
 export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
   const fullscreenTarget = useRef<HTMLDivElement>(null);
 
-  const openFullscreen = async () => {
+  const openFullscreen = () => {
     const target = fullscreenTarget.current as (HTMLDivElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
     }) | null;
 
     try {
       if (target?.requestFullscreen) {
-        await target.requestFullscreen();
+        void target.requestFullscreen().catch(() => undefined);
       } else if (target?.webkitRequestFullscreen) {
-        await target.webkitRequestFullscreen();
+        const fullscreenRequest = target.webkitRequestFullscreen();
+        if (fullscreenRequest) void fullscreenRequest.catch(() => undefined);
       }
     } catch {
       // Some mobile and embedded browsers deny the Fullscreen API. The large
