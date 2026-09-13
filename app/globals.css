@@ -74,6 +74,6 @@ html,body{overflow-x:clip}
 
 
 /* RedPlay Oni signature in the latest-publication hero */
-.hero-oni-signature{position:absolute;z-index:3;left:-2%;top:-7%;width:min(31vw,530px);height:114%;object-fit:cover;object-position:50% 15%;opacity:.32;filter:blur(.55px) brightness(.78) saturate(1.22) contrast(1.08);mix-blend-mode:screen;mask-image:radial-gradient(ellipse 61% 75% at 50% 48%,#000 24%,rgba(0,0,0,.86) 49%,rgba(0,0,0,.25) 70%,transparent 86%);-webkit-mask-image:radial-gradient(ellipse 61% 75% at 50% 48%,#000 24%,rgba(0,0,0,.86) 49%,rgba(0,0,0,.25) 70%,transparent 86%);pointer-events:none}
-@media(max-width:1100px){.hero-oni-signature{left:-7%;width:44vw;opacity:.27}}
+.hero-oni-signature{position:absolute;z-index:0;left:clamp(-360px,-21vw,-220px);top:-7%;width:min(33vw,530px);height:114%;object-fit:cover;object-position:50% 15%;opacity:.34;filter:blur(.55px) brightness(.78) saturate(1.22) contrast(1.08);mix-blend-mode:screen;mask-image:radial-gradient(ellipse 61% 75% at 50% 48%,#000 24%,rgba(0,0,0,.86) 49%,rgba(0,0,0,.25) 70%,transparent 86%);-webkit-mask-image:radial-gradient(ellipse 61% 75% at 50% 48%,#000 24%,rgba(0,0,0,.86) 49%,rgba(0,0,0,.25) 70%,transparent 86%);pointer-events:none}
+@media(max-width:1100px){.hero-oni-signature{left:-20vw;width:44vw;opacity:.27}}
 @media(max-width:760px){.hero-oni-signature{display:none}}
