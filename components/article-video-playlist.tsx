@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import styles from "./article-video-playlist.module.css";
+import { ArticleVideoEmbed } from "./article-video-embed";
 
 function youtubeVideoId(value: string) {
   const trimmed = value.trim();
@@ -23,6 +24,14 @@ function youtubeVideoId(value: string) {
 
 type VideoItem = { title: string; url: string; text?: string };
 
+function youtubeOrientation(value: string) {
+  try {
+    return new URL(value.trim()).pathname.startsWith("/shorts/") ? "vertical" as const : "horizontal" as const;
+  } catch {
+    return "horizontal" as const;
+  }
+}
+
 export function ArticleVideoPlaylist({ title, text, items }: { title: string; text?: string; items: VideoItem[] }) {
   const videos = useMemo(() => items.map((item) => ({ ...item, id: youtubeVideoId(item.url) })).filter((item): item is VideoItem & { id: string } => Boolean(item.id)), [items]);
   const [selected, setSelected] = useState(0);
@@ -36,7 +45,7 @@ export function ArticleVideoPlaylist({ title, text, items }: { title: string; te
       {text && <p>{text}</p>}
     </div>
     <div className={styles.frame}>
-      <iframe key={active.id} src={`https://www.youtube-nocookie.com/embed/${active.id}`} title={active.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/>
+      <ArticleVideoEmbed key={active.id} videoId={active.id} title={active.title} orientation={youtubeOrientation(active.url)}/>
     </div>
     <div className={styles.tabs} role="tablist" aria-label={title}>
       {videos.map((video, index) => <button type="button" role="tab" aria-selected={index === selected} className={index === selected ? styles.active : undefined} onClick={() => setSelected(index)} key={`${video.id}-${index}`}>
