@@ -31,7 +31,8 @@ const newId = () => typeof crypto !== "undefined" ? crypto.randomUUID() : `${Dat
 
 const blockNames: Record<ArticleBlock["type"], string> = {
   paragraph: "Текст", heading: "Заголовок", list: "Список", facts: "Цифры", note: "Плашка",
-  warning: "Предупреждение", cards: "Карточки", table: "Таблица", flow: "Маршрут",
+  warning: "Предупреждение", cards: "Карточки", "audience-cards": "Карточки версий",
+  checklist: "Чек-лист", "cta-cards": "Карточки-ссылки", table: "Таблица", flow: "Маршрут",
   image: "Изображение", disclosure: "Выпадающий блок", opinion: "Мнение Они",
   video: "Видео", telegram: "Telegram",
 };
@@ -46,6 +47,13 @@ function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
     case "note": return { id, type, title: "Важно", text: "Дополнительное пояснение для читателя.", icon: "alert" };
     case "warning": return { id, type, title: "Обрати внимание", text: "Важное предупреждение или ограничение." };
     case "cards": return { id, type, items: [{ title: "Ключевое изменение", text: "Коротко объясни его влияние.", icon: "sparkles" }] };
+    case "audience-cards": return { id, type, items: [
+      { scope: "all", title: "Что важно всем", text: "Короткая рекомендация для всех игроков." },
+      { scope: "essence", title: "Что важно в Essence", text: "Рекомендация только для Essence." },
+      { scope: "special-project", title: "Что важно в Special", text: "Рекомендация только для Special Project." },
+    ] };
+    case "checklist": return { id, type, items: [{ scope: "all", title: "Первый шаг", text: "Что именно нужно сделать и зачем." }] };
+    case "cta-cards": return { id, type, items: [{ scope: "essence", title: "Lineage 2 Essence", text: "Бонус для нового старта.", action: "Получить бонус", url: "https://" }] };
     case "table": return { id, type, columns: ["Параметр", "Значение"], rows: [["Уровень", "120+"]] };
     case "flow": return { id, type, items: [{ title: "Первый этап", subtitle: "Начало" }, { title: "Второй этап", subtitle: "Финал" }] };
     case "image": return { id, type, src: "", alt: "", caption: "" };
@@ -63,6 +71,35 @@ function slugify(value: string) {
 
 function pairs(value: string) {
   return value.split("\n").filter(Boolean).map((line) => { const [first, ...rest] = line.split("|"); return [first.trim(), rest.join("|").trim()]; });
+}
+
+const audienceLabels: Record<ArticleAudience, string> = { all: "Общий", essence: "Essence", "special-project": "Special" };
+
+function audienceValue(value: string): ArticleAudience {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "essence" || normalized === "только essence") return "essence";
+  if (normalized === "special" || normalized === "special project" || normalized === "только special") return "special-project";
+  return "all";
+}
+
+function scopedRows(value: string) {
+  return value.split("\n").filter(Boolean).map((line) => {
+    const [scope, title, ...text] = line.split("|");
+    return { scope: audienceValue(scope), title: title?.trim() || "Без заголовка", text: text.join("|").trim() };
+  });
+}
+
+function ctaRows(value: string) {
+  return value.split("\n").filter(Boolean).map((line) => {
+    const [scope, title, text, action, ...url] = line.split("|");
+    return {
+      scope: audienceValue(scope),
+      title: title?.trim() || "Без заголовка",
+      text: text?.trim() || "",
+      action: action?.trim() || "Открыть",
+      url: url.join("|").trim(),
+    };
+  });
 }
 
 async function storageError(response: Response) {
@@ -124,6 +161,9 @@ function BlockFields({ block, onChange, uploadMedia, uploadProgress }: { block: 
     case "note": return <><label className="admin-field"><span>Заголовок</span>{input(block.title, (title) => onChange({ ...block, title }))}</label><label className="admin-field"><span>Пояснение</span>{area(block.text, (text) => onChange({ ...block, text }))}</label></>;
     case "warning": return <><label className="admin-field"><span>Заголовок</span>{input(block.title, (title) => onChange({ ...block, title }))}</label><label className="admin-field"><span>Предупреждение</span>{area(block.text, (text) => onChange({ ...block, text }))}</label></>;
     case "cards": return <label className="admin-field"><span>Заголовок | описание, одна карточка на строку</span>{area(block.items.map((item) => `${item.title} | ${item.text}`).join("\n"), (value) => onChange({ ...block, items: pairs(value).map(([title, text]) => ({ title, text, icon: "sparkles" as const })) }))}</label>;
+    case "audience-cards": return <label className="admin-field"><span>Версия | заголовок | описание, одна карточка на строку</span>{area(block.items.map((item) => `${audienceLabels[item.scope]} | ${item.title} | ${item.text}`).join("\n"), (value) => onChange({ ...block, items: scopedRows(value) }))}<small>Версия: Общий, Essence или Special. Метка появится внутри карточки.</small></label>;
+    case "checklist": return <label className="admin-field"><span>Версия | действие | пояснение, один шаг на строку</span>{area(block.items.map((item) => `${audienceLabels[item.scope]} | ${item.title} | ${item.text}`).join("\n"), (value) => onChange({ ...block, items: scopedRows(value) }))}<small>Шаги автоматически нумеруются и фильтруются по выбранной версии.</small></label>;
+    case "cta-cards": return <label className="admin-field"><span>Версия | заголовок | описание | кнопка | URL</span>{area(block.items.map((item) => `${audienceLabels[item.scope]} | ${item.title} | ${item.text} | ${item.action} | ${item.url}`).join("\n"), (value) => onChange({ ...block, items: ctaRows(value) }))}<small>Карточка и кнопка будут вести по указанной ссылке.</small></label>;
     case "table": return <><label className="admin-field"><span>Колонки через |</span>{input(block.columns.join(" | "), (value) => onChange({ ...block, columns: value.split("|").map((item) => item.trim()) }))}</label><label className="admin-field"><span>Каждая строка отдельно, ячейки через |</span>{area(block.rows.map((row) => row.join(" | ")).join("\n"), (value) => onChange({ ...block, rows: value.split("\n").map((row) => row.split("|").map((cell) => cell.trim())) }))}</label></>;
     case "flow": return <label className="admin-field"><span>Этап | подпись, один этап на строку</span>{area(block.items.map((item) => `${item.title} | ${item.subtitle || ""}`).join("\n"), (value) => onChange({ ...block, items: pairs(value).map(([title, subtitle]) => ({ title, subtitle })) }))}</label>;
     case "image": return <><label className="admin-field"><span>Адрес изображения</span>{input(block.src, (src) => onChange({ ...block, src }))}</label><label className="admin-field"><span>Описание изображения</span>{input(block.alt, (alt) => onChange({ ...block, alt }))}</label><label className="admin-field"><span>Подпись под изображением</span>{input(block.caption || "", (caption) => onChange({ ...block, caption }))}</label><label className="admin-secondary"><ImagePlus size={15}/> Загрузить файл<input hidden type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (file) onChange({ ...block, src: await uploadMedia(file, "image"), alt: block.alt || file.name }); }}/></label></>;

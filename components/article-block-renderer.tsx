@@ -1,5 +1,5 @@
 import {
-  ArrowUpRight, Bell, ChevronRight, CircleAlert, Crosshair, Gem, Globe2,
+  ArrowUpRight, Bell, ChevronRight, CircleAlert, Crosshair, Gem, Gift, Globe2,
   Layers3, Map, Play, Send, Shield, Sparkles, Swords,
 } from "lucide-react";
 import { Fragment } from "react";
@@ -41,7 +41,26 @@ function youtubeVideoId(value: string) {
   }
 }
 
-function RenderBlock({ block }: { block: ArticleBlock }) {
+function visibleForAudience(scope: ArticleAudience, audience: ArticleAudience) {
+  return audience === "all" || scope === "all" || scope === audience;
+}
+
+function audienceLabel(scope: ArticleAudience) {
+  if (scope === "essence") return "Только Essence";
+  if (scope === "special-project") return "Только Special";
+  return "Общий";
+}
+
+function safeOutboundUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "#";
+  } catch {
+    return "#";
+  }
+}
+
+function RenderBlock({ block, audience }: { block: ArticleBlock; audience: ArticleAudience }) {
     switch (block.type) {
       case "paragraph":
         return <p key={block.id} className={block.lead ? "article-lead" : undefined}>{block.text}</p>;
@@ -65,6 +84,12 @@ function RenderBlock({ block }: { block: ArticleBlock }) {
         return <div key={block.id} className="article-warning"><strong>{block.title}</strong><span>{block.text}</span></div>;
       case "cards":
         return <div key={block.id} className="key-grid">{block.items.map((item, index) => <div key={`${block.id}-${index}`}>{item.icon && <BlockIcon name={item.icon}/>}<strong>{item.title}</strong><p>{item.text}</p></div>)}</div>;
+      case "audience-cards":
+        return <div key={block.id} className="audience-grid">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <div className={item.scope} key={`${block.id}-${index}`}><span>{audienceLabel(item.scope)}</span><strong>{item.title}</strong><p>{item.text}</p></div>)}</div>;
+      case "checklist":
+        return <ol key={block.id} className="prepare-list">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <li className={item.scope} key={`${block.id}-${index}`}><span>{index + 1}</span><div><small>{audienceLabel(item.scope)}</small><strong>{item.title}</strong><p>{item.text}</p></div></li>)}</ol>;
+      case "cta-cards":
+        return <div key={block.id} className="article-link-grid">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <a className={`article-link-card ${item.scope}`} href={safeOutboundUrl(item.url)} target="_blank" rel="sponsored noopener noreferrer" key={`${block.id}-${index}`}><Gift size={24}/><div><small>{audienceLabel(item.scope)}</small><strong>{item.title}</strong><p>{item.text}</p><span>{item.action} <ArrowUpRight size={15}/></span></div></a>)}</div>;
       case "table":
         return <div key={block.id} className="article-data-table-wrap"><table className={`article-data-table${block.compact ? " is-compact" : ""}`}><thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={`${block.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${block.id}-${rowIndex}-${cellIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
       case "flow":
@@ -95,6 +120,6 @@ function RenderBlock({ block }: { block: ArticleBlock }) {
 export function ArticleBlockRenderer({ blocks, audience = "all" }: { blocks: ArticleBlock[]; audience?: ArticleAudience }) {
   return blocks.filter((block) => audience === "all" || !block.scope || block.scope === "all" || block.scope === audience).map((block) => <Fragment key={block.id}>
     {audience === "all" && block.scope && block.scope !== "all" && <span className={`article-scope-badge ${block.scope}`}>{block.scope === "essence" ? "ESSENCE" : "SPECIAL"}</span>}
-    <RenderBlock block={block}/>
+    <RenderBlock block={block} audience={audience}/>
   </Fragment>);
 }

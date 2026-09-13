@@ -32,6 +32,9 @@ type ArticleBlockContent =
   | { id: string; type: "note"; title: string; text: string; icon?: ArticleIcon; compact?: boolean }
   | { id: string; type: "warning"; title: string; text: string }
   | { id: string; type: "cards"; items: Array<{ title: string; text: string; icon?: ArticleIcon }> }
+  | { id: string; type: "audience-cards"; items: Array<{ scope: ArticleAudience; title: string; text: string }> }
+  | { id: string; type: "checklist"; items: Array<{ scope: ArticleAudience; title: string; text: string }> }
+  | { id: string; type: "cta-cards"; items: Array<{ scope: ArticleAudience; title: string; text: string; action: string; url: string }> }
   | { id: string; type: "table"; columns: string[]; rows: string[][]; compact?: boolean }
   | { id: string; type: "flow"; items: Array<{ title: string; subtitle?: string }> }
   | { id: string; type: "image"; src: string; alt: string; caption?: string }
