@@ -66,6 +66,18 @@ function cleanReferenceLine(value: string) {
   return value.trim().replace(/^•\s*/, "").replace(/^\d+\.\s*/, "").replace(/\.\.(?=\s|$)/g, ".");
 }
 
+function cleanTableCell(value: string) {
+  const cleaned = value.trim().replace(/\.\.(?=\s|$)/g, ".");
+  if (cleaned === "Прогрессия") return "Параметры по уровню";
+  const legacyProgression = cleaned.match(/^Уровень персонажа\s*•\s*исходный параметр:\s*([^•]+)\s*•\s*Значения:\s*(.+)$/i);
+  if (!legacyProgression) return cleaned;
+  const level = legacyProgression[1].trim();
+  const values = legacyProgression[2].replace(/\.$/, "").split("•").map((item) => item.trim());
+  if (values.length === 1) return `Изучение: ${level} уровень персонажа; физ. атака +${values[0]}`;
+  if (values.length === 5) return `Изучение: ${level} уровень персонажа; физ. защита +${values[0]}; физ. уклонение +${values[1]}; шанс получения крит. ударов ${values[2]}; мощность всех умений +${values[3]}; макс. HP +${values[4]}`;
+  return `Изучение: ${level} уровень персонажа; параметры: ${values.join(" · ")}`;
+}
+
 function isReferenceHeading(value: string) {
   const trimmed = value.trim();
   if (!trimmed || trimmed.startsWith("•") || trimmed.length > 120 || trimmed.includes(" — ")) return false;
@@ -153,7 +165,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "cta-cards":
         return <div key={block.id} className="article-link-grid">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <a className={`article-link-card ${item.scope}`} href={safeOutboundUrl(item.url)} target="_blank" rel="sponsored noopener noreferrer" key={`${block.id}-${index}`}><Gift size={24}/><div><small>{audienceLabel(item.scope)}</small><strong>{item.title}</strong><p>{item.text}</p><span>{item.action} <ArrowUpRight size={15}/></span></div></a>)}</div>;
       case "table":
-        return <div key={block.id} className="article-data-table-wrap"><table className={`article-data-table${block.compact ? " is-compact" : ""}`}><thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={`${block.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${block.id}-${rowIndex}-${cellIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div>;
+        return <div key={block.id} className="article-data-table-wrap"><table className={`article-data-table${block.compact ? " is-compact" : ""}`}><thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={`${block.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${block.id}-${rowIndex}-${cellIndex}`}>{cleanTableCell(cell)}</td>)}</tr>)}</tbody></table></div>;
       case "flow":
         return <div key={block.id} className="replica-flow">{block.items.flatMap((item, index) => [<div key={`${block.id}-item-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</div>, ...(index < block.items.length - 1 ? [<ChevronRight key={`${block.id}-arrow-${index}`}/>] : [])])}</div>;
       case "image":
