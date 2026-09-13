@@ -147,9 +147,11 @@ export default function Home() {
       <img src={heroCover} alt={latestHero?.cover?.alt || heroTitle} className="hero-publication-image"/>
       <div className="hero-publication-shade"/>
       <div className="relative z-10 mx-auto flex min-h-[650px] max-w-[1500px] items-center px-4 py-16 sm:px-6 lg:px-8">
-        <img src="/oni-signature.webp" alt="" className="hero-oni-signature" aria-hidden="true"/>
         <div className="relative z-10 w-full lg:max-w-[60%]">
-          <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">{heroEdition} · {heroCategory}</p></div>
+          <div className="hero-kicker-row">
+            <img src="/oni-signature.webp" alt="" className="hero-oni-signature" aria-hidden="true"/>
+            <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">{heroEdition} · {heroCategory}</p></div>
+          </div>
           <p className="hero-article-title mt-4" role="heading" aria-level={2}>{heroTitle}</p>
           <p className="hero-article-description mt-5 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">{heroDescription}</p>
           <div className="mt-8 flex flex-wrap gap-3"><Link href={heroHref} className="hero-primary">Читать публикацию <ArrowRight size={18}/></Link><Link href="/lineage-2/essence/updates" className="hero-secondary"><Newspaper size={17}/> Все обновления</Link></div>
