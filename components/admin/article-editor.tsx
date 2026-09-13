@@ -68,8 +68,14 @@ function pairs(value: string) {
 async function storageError(response: Response) {
   const fallback = `Ошибка загрузки (${response.status}).`;
   try {
-    const body = await response.json() as { message?: string; error?: string };
-    return body.message || body.error || fallback;
+    const raw = await response.text();
+    if (!raw) return fallback;
+    try {
+      const body = JSON.parse(raw) as { message?: string; error?: string };
+      return body.message || body.error || raw;
+    } catch {
+      return raw;
+    }
   } catch {
     return fallback;
   }
@@ -158,7 +164,9 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
         if (!config || !sessionData.session?.access_token) throw new Error("Сессия редактора истекла. Обнови страницу и войди снова.");
 
         const encodeMetadata = (value: string) => btoa(Array.from(new TextEncoder().encode(value), (byte) => String.fromCharCode(byte)).join(""));
-        const endpoint = `${config.url}/storage/v1/upload/resumable`;
+        const projectUrl = new URL(config.url);
+        const storageHost = projectUrl.hostname.replace(/\.supabase\.co$/, ".storage.supabase.co");
+        const endpoint = `${projectUrl.protocol}//${storageHost}/storage/v1/upload/resumable`;
         const metadata = [
           ["bucketName", "article-media"],
           ["objectName", filePath],
