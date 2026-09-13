@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Expand, Maximize2, X } from "lucide-react";
 
 type ArticleVideoEmbedProps = {
@@ -13,39 +13,43 @@ type VideoGeometry = {
   top: number;
   width: number;
   height: number;
+  translateX: number;
+  translateY: number;
+  scale: number;
 };
 
 const EXPAND_DURATION = 420;
 
-function getExpandedGeometry(): VideoGeometry {
+function getExpandedGeometry(compactRect: DOMRect): VideoGeometry {
   const viewportGap = window.innerWidth < 760 ? 12 : 32;
   const maxWidth = Math.min(620, window.innerWidth - viewportGap * 2);
   const maxHeight = Math.min(820, window.innerHeight * (window.innerWidth < 760 ? .82 : .76));
   const height = Math.min(maxHeight, maxWidth * 16 / 9);
   const width = height * 9 / 16;
 
+  const targetLeft = (window.innerWidth - width) / 2;
+  const targetTop = (window.innerHeight - height) / 2;
+  const scale = Math.min(width / compactRect.width, height / compactRect.height);
+
   return {
-    left: (window.innerWidth - width) / 2,
-    top: (window.innerHeight - height) / 2,
-    width,
-    height,
+    left: compactRect.left,
+    top: compactRect.top,
+    width: compactRect.width,
+    height: compactRect.height,
+    translateX: targetLeft - compactRect.left,
+    translateY: targetTop - compactRect.top,
+    scale,
   };
-}
-
-function rectToGeometry(rect: DOMRect): VideoGeometry {
-  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
-}
-
-function transformBetweenRects(from: VideoGeometry, to: VideoGeometry) {
-  return `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`;
 }
 
 export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
-  const openingRectRef = useRef<VideoGeometry | null>(null);
-  const animationRef = useRef<Animation | null>(null);
+  const openFrameRef = useRef<number | null>(null);
+  const settleFrameRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const [geometry, setGeometry] = useState<VideoGeometry | null>(null);
+  const [isVisuallyOpen, setIsVisuallyOpen] = useState(false);
   const isExpanded = geometry !== null;
 
   const motionDuration = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXPAND_DURATION;
@@ -54,45 +58,26 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
     const compactRect = shellRef.current?.getBoundingClientRect();
     if (!compactRect) return;
 
-    openingRectRef.current = rectToGeometry(compactRect);
-    setGeometry(getExpandedGeometry());
+    setGeometry(getExpandedGeometry(compactRect));
+
+    // Keep the player at its exact compact rectangle for one painted frame.
+    // Only then start the transform, so embedded video surfaces can never flash
+    // at the target size before their clipping rectangle is ready.
+    openFrameRef.current = window.requestAnimationFrame(() => {
+      settleFrameRef.current = window.requestAnimationFrame(() => setIsVisuallyOpen(true));
+    });
   };
 
   const closeExpanded = () => {
-    const player = playerRef.current;
-    const compactRect = shellRef.current?.getBoundingClientRect();
-    if (!player || !compactRect || !geometry) return;
+    if (!geometry) return;
 
-    const currentRect = rectToGeometry(player.getBoundingClientRect());
-    animationRef.current?.cancel();
-    const animation = player.animate([
-      { transform: transformBetweenRects(currentRect, geometry), borderRadius: "1rem" },
-      { transform: transformBetweenRects(rectToGeometry(compactRect), geometry), borderRadius: ".8rem" },
-    ], { duration: motionDuration(), easing: "cubic-bezier(.22,1,.36,1)", fill: "both" });
-    animationRef.current = animation;
-    void animation.finished.then(() => {
-      if (animationRef.current === animation) {
-        animationRef.current = null;
-        setGeometry(null);
-      }
-    }).catch(() => undefined);
+    setIsVisuallyOpen(false);
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => {
+      setGeometry(null);
+      closeTimerRef.current = null;
+    }, motionDuration());
   };
-
-  useLayoutEffect(() => {
-    const player = playerRef.current;
-    const openingRect = openingRectRef.current;
-    if (!isExpanded || !player || !geometry || !openingRect) return;
-
-    openingRectRef.current = null;
-    const animation = player.animate([
-      { transform: transformBetweenRects(openingRect, geometry), borderRadius: ".8rem" },
-      { transform: "none", borderRadius: "1rem" },
-    ], { duration: motionDuration(), easing: "cubic-bezier(.22,1,.36,1)", fill: "both" });
-    animationRef.current = animation;
-    void animation.finished.then(() => {
-      if (animationRef.current === animation) animationRef.current = null;
-    }).catch(() => undefined);
-  }, [isExpanded, geometry]);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -110,7 +95,11 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
     };
   }, [isExpanded]);
 
-  useEffect(() => () => animationRef.current?.cancel(), []);
+  useEffect(() => () => {
+    if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
+    if (settleFrameRef.current !== null) window.cancelAnimationFrame(settleFrameRef.current);
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+  }, []);
 
   const openFullscreen = () => {
     const target = playerRef.current as (HTMLDivElement & {
@@ -134,6 +123,9 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
     "--video-top": `${geometry.top}px`,
     "--video-width": `${geometry.width}px`,
     "--video-height": `${geometry.height}px`,
+    "--video-x": `${geometry.translateX}px`,
+    "--video-y": `${geometry.translateY}px`,
+    "--video-scale": geometry.scale,
   } as CSSProperties) : undefined;
 
   return <>
@@ -142,7 +134,7 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
     <div ref={shellRef} className="article-video-shell">
       <div
         ref={playerRef}
-        className={`article-korean-video-frame${isExpanded ? " is-expanded" : ""}`}
+        className={`article-korean-video-frame${isExpanded ? " is-expanded" : ""}${isVisuallyOpen ? " is-visually-open" : ""}`}
         style={playerStyle}
         role={isExpanded ? "dialog" : undefined}
         aria-modal={isExpanded ? true : undefined}
