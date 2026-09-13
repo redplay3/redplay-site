@@ -63,3 +63,11 @@ html,body{overflow-x:clip}
 .hero-article-description{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 @media(max-width:1100px){.hero-publication-shade{background:linear-gradient(90deg,#080a0ffc 0%,#080a0fe8 40%,#080a0f72 74%,#080a0f70 100%),linear-gradient(0deg,#080a0fd0,transparent 45%)}}
 @media(max-width:760px){.hero-stage{background-image:none}.hero-publication-image{display:block;opacity:.72;object-position:64% center}.hero-publication-shade{display:block;background:linear-gradient(0deg,#080a0ffd 0%,#080a0fe8 49%,#080a0f58 100%),linear-gradient(90deg,#080a0fb0,transparent)}.hero-article-title{font-size:clamp(2.45rem,12vw,4rem);-webkit-line-clamp:4}}
+
+
+/* Harmonious scaling for publication artwork */
+.hero-publication-backdrop{position:absolute;z-index:0;inset:-4%;width:108%;height:108%;object-fit:cover;object-position:center 58%;filter:blur(20px) brightness(.46) saturate(.9);transform:scale(1.05)}
+.hero-publication-image{z-index:1;object-fit:contain;object-position:right center;filter:saturate(1.05) contrast(1.03)}
+.hero-publication-shade{z-index:2;background:linear-gradient(90deg,#080a0fff 0%,#080a0ff8 25%,#080a0fd7 41%,#080a0f6e 57%,#080a0f18 76%,#080a0f38 100%),linear-gradient(0deg,#080a0fc7 0%,transparent 35%,#080a0f2e 100%)}
+@media(max-width:1100px){.hero-publication-image{object-fit:cover;object-position:68% 56%}.hero-publication-shade{background:linear-gradient(90deg,#080a0ffc 0%,#080a0fea 39%,#080a0f7d 72%,#080a0f60 100%),linear-gradient(0deg,#080a0fcf,transparent 45%)}}
+@media(max-width:760px){.hero-publication-backdrop{display:block;filter:blur(14px) brightness(.42) saturate(.88)}.hero-publication-image{opacity:.72;object-fit:cover;object-position:72% 58%}}
