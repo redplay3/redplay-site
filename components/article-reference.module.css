@@ -1,0 +1,21 @@
+.archive{margin:1.8rem 0 2.6rem}
+.intro{border-radius:1rem 1rem 0 0;background:linear-gradient(135deg,#11131a,#26131a);padding:1.35rem 1.5rem;color:#fff}
+.intro span{display:block;color:#ff6072;font-size:.65rem;font-weight:950;letter-spacing:.11em;text-transform:uppercase}
+.intro strong{display:block;margin-top:.45rem;font-size:1.15rem;font-weight:950}
+.intro p{margin-top:.4rem!important;color:#ffffff82!important;font-size:.76rem!important;line-height:1.55!important}
+.navigation{display:flex;flex-wrap:wrap;gap:.45rem;border:1px solid #e0e3e9;border-top:0;background:#fff;padding:1rem}
+.navigation a{border-radius:999px;background:#f2f3f6;padding:.48rem .68rem;color:#5e6470;font-size:.66rem;font-weight:850;transition:.18s}
+.navigation a:hover{background:#ffedf0;color:#d71930}
+.groups{display:grid;gap:1rem;margin-top:1rem}
+.group{scroll-margin-top:6rem!important;margin:0!important;border:1px solid #dfe2e8;border-radius:1rem;background:#fff;box-shadow:0 10px 32px #1519230a}
+.groupHeading{display:grid;grid-template-columns:2.4rem minmax(0,1fr);align-items:center;gap:.75rem;border-bottom:1px solid #e7e9ed;padding:1rem 1.15rem}
+.groupHeading span{display:grid;width:2.2rem;height:2.2rem;place-items:center;border-radius:.65rem;background:#ffedf0;color:#d71930;font-size:.65rem;font-weight:950}
+.groupHeading h3{margin:0!important;font-size:1rem!important;font-weight:950!important;line-height:1.25!important}
+.rows{display:grid}
+.parameter{display:grid;grid-template-columns:minmax(180px,.85fr) minmax(0,1.65fr);gap:1.1rem;border-bottom:1px solid #edf0f3;padding:.8rem 1.15rem}
+.parameter:last-child,.explanation:last-child{border-bottom:0}
+.parameter strong{font-size:.76rem;font-weight:900;line-height:1.45}
+.parameter span{color:#656b76;font-size:.76rem;line-height:1.5}
+.explanation{position:relative;margin:0!important;border-bottom:1px solid #edf0f3;padding:.85rem 1.15rem .85rem 2rem;color:#606672!important;font-size:.78rem!important;line-height:1.62!important}
+.explanation::before{position:absolute;top:1.23rem;left:1.15rem;width:.36rem;height:.36rem;border-radius:50%;background:#ed3046;content:""}
+@media(max-width:760px){.intro{padding:1.1rem}.navigation{display:grid;grid-template-columns:1fr}.navigation a{border-radius:.55rem}.groupHeading{padding:.85rem}.parameter{grid-template-columns:1fr;gap:.3rem;padding:.75rem .85rem}.explanation{padding:.8rem .85rem .8rem 1.7rem}.explanation::before{left:.85rem}}

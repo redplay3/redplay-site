@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { Fragment } from "react";
 import type { ArticleAudience, ArticleBlock, ArticleIcon } from "@/lib/articles/types";
+import referenceStyles from "./article-reference.module.css";
 
 const icons = {
   alert: CircleAlert,
@@ -60,6 +61,66 @@ function safeOutboundUrl(value: string) {
   }
 }
 
+function cleanReferenceLine(value: string) {
+  return value.trim().replace(/^•\s*/, "").replace(/^\d+\.\s*/, "");
+}
+
+function isReferenceHeading(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith("•") || trimmed.length > 120 || trimmed.includes(" — ")) return false;
+  const letters = trimmed.match(/[A-Za-zА-Яа-яЁё]/g) || [];
+  const uppercase = trimmed.match(/[A-ZА-ЯЁ]/g) || [];
+  return letters.length >= 4 && uppercase.length / letters.length > 0.78;
+}
+
+function groupReferenceItems(items: string[]) {
+  const groups: Array<{ title: string; items: string[] }> = [];
+  let current = { title: "Подробные изменения", items: [] as string[] };
+
+  for (const rawItem of items) {
+    const item = rawItem.trim();
+    if (!item) continue;
+    if (isReferenceHeading(item)) {
+      if (current.items.length) groups.push(current);
+      current = { title: item, items: [] };
+      continue;
+    }
+    current.items.push(cleanReferenceLine(item));
+  }
+
+  if (current.items.length) groups.push(current);
+  return groups;
+}
+
+function ReferenceArchive({ title, items }: { title: string; items: string[] }) {
+  const groups = groupReferenceItems(items);
+  return <div className={referenceStyles.archive}>
+    <div className={referenceStyles.intro}>
+      <span>Полные данные</span>
+      <strong>{title}</strong>
+      <p>Материал разделён по темам: параметры, награды и механики больше не смешаны в одном списке.</p>
+    </div>
+    <nav className={referenceStyles.navigation} aria-label={`Разделы: ${title}`}>
+      {groups.map((group, index) => <a href={`#${encodeURIComponent(`${title}-${index}`)}`} key={`${group.title}-${index}`}>{group.title}</a>)}
+    </nav>
+    <div className={referenceStyles.groups}>
+      {groups.map((group, groupIndex) => <section className={referenceStyles.group} id={encodeURIComponent(`${title}-${groupIndex}`)} key={`${group.title}-${groupIndex}`}>
+        <div className={referenceStyles.groupHeading}><span>{String(groupIndex + 1).padStart(2, "0")}</span><h3>{group.title}</h3></div>
+        <div className={referenceStyles.rows}>
+          {group.items.map((item, itemIndex) => {
+            const parts = item.split(/\s+—\s+/).map((part) => part.trim()).filter(Boolean);
+            const isParameter = parts.length >= 2 && parts.length <= 5 && item.length <= 280;
+            if (isParameter) return <div className={referenceStyles.parameter} key={`${groupIndex}-${itemIndex}`}>
+              <strong>{parts[0]}</strong><span>{parts.slice(1).join(" · ")}</span>
+            </div>;
+            return <p className={referenceStyles.explanation} key={`${groupIndex}-${itemIndex}`}>{item}</p>;
+          })}
+        </div>
+      </section>)}
+    </div>
+  </div>;
+}
+
 function RenderBlock({ block, audience }: { block: ArticleBlock; audience: ArticleAudience }) {
     switch (block.type) {
       case "paragraph":
@@ -97,7 +158,9 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "image":
         return <figure key={block.id} className="article-wide-image"><img src={block.src} alt={block.alt}/>{block.caption && <figcaption>{block.caption}</figcaption>}</figure>;
       case "disclosure":
-        return <details key={block.id} className="article-disclosure"><summary>{block.title}<span>{block.items.length}</span></summary><div className="class-chip-grid">{block.items.map((item) => <span key={item}>{item}</span>)}</div></details>;
+        return block.items.length >= 20
+          ? <ReferenceArchive key={block.id} title={block.title} items={block.items}/>
+          : <details key={block.id} className="article-disclosure"><summary>{block.title}<span>{block.items.length}</span></summary><div className="class-chip-grid">{block.items.map((item, index) => <span key={`${block.id}-${index}`}>{item}</span>)}</div></details>;
       case "opinion":
         return <figure key={block.id} className="oni-insight"><img src={block.image || "/oni-redplay.webp"} alt="Они – персонаж RedPlay"/><div><span>{block.label || "Мнение RedPlay"}</span><blockquote>{block.text}</blockquote></div></figure>;
       case "video": {
