@@ -74,6 +74,6 @@ html,body{overflow-x:clip}
 
 
 /* RedPlay Oni signature in the latest-publication hero */
-.hero-oni-signature{position:absolute;z-index:0;left:clamp(-360px,-21vw,-220px);top:-7%;width:min(33vw,530px);height:114%;object-fit:cover;object-position:50% 15%;opacity:.34;filter:blur(.55px) brightness(.78) saturate(1.22) contrast(1.08);mix-blend-mode:screen;mask-image:radial-gradient(ellipse 61% 75% at 50% 48%,#000 24%,rgba(0,0,0,.86) 49%,rgba(0,0,0,.25) 70%,transparent 86%);-webkit-mask-image:radial-gradient(ellipse 61% 75% at 50% 48%,#000 24%,rgba(0,0,0,.86) 49%,rgba(0,0,0,.25) 70%,transparent 86%);pointer-events:none}
-@media(max-width:1100px){.hero-oni-signature{left:-20vw;width:44vw;opacity:.27}}
+.hero-oni-signature{position:absolute;z-index:0;right:calc(100% - 230px);left:auto;top:-8%;width:auto;height:148%;object-fit:contain;object-position:center top;opacity:.72;filter:brightness(.9) saturate(1.08) contrast(1.04) drop-shadow(0 0 34px rgba(213,25,49,.28));mix-blend-mode:normal;mask-image:linear-gradient(180deg,#000 0%,#000 57%,rgba(0,0,0,.9) 65%,rgba(0,0,0,.38) 74%,transparent 84%);-webkit-mask-image:linear-gradient(180deg,#000 0%,#000 57%,rgba(0,0,0,.9) 65%,rgba(0,0,0,.38) 74%,transparent 84%);pointer-events:none}
+@media(max-width:1100px){.hero-oni-signature{right:calc(100% - 170px);height:132%;opacity:.58}}
 @media(max-width:760px){.hero-oni-signature{display:none}}
