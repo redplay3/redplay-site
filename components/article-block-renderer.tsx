@@ -166,6 +166,10 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
         return <figure key={block.id} className="oni-insight"><img src={block.image || "/oni-redplay.webp"} alt="Они – персонаж RedPlay"/><div><span>{block.label || "Мнение RedPlay"}</span><blockquote>{block.text}</blockquote></div></figure>;
       case "video": {
         const youtubeId = block.source !== "file" ? youtubeVideoId(block.url) : null;
+        if (youtubeId === "jiOzNaL7njw") return <ArticleVideoPlaylist key={block.id} title="Гномы после Iron Masters" text="Две официальные демонстрации помогают увидеть новый темп боя обоих переработанных гномьих классов." items={[
+          { title: "Искатель сокровищ", url: "https://www.youtube.com/watch?v=jiOzNaL7njw", text: "Кости, джекпот и снятие усилений" },
+          { title: "Маэстро", url: "https://www.youtube.com/watch?v=PBzcJ_gaLbg", text: "Молот, усиления и Разрушенная броня" },
+        ]}/>;
         if (youtubeId) return <figure key={block.id} className="article-video-player">
           <div className="article-video-frame"><iframe src={`https://www.youtube-nocookie.com/embed/${youtubeId}`} title={block.title || "Видео RedPlay"} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/></div>
           {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <p>{block.text}</p>}{block.caption && <small>{block.caption}</small>}</figcaption>}
