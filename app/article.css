@@ -55,3 +55,26 @@
 @keyframes articleVideoControlsIn{to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.article-video-shell .article-korean-video-frame{transition-duration:0s}.article-video-backdrop,.article-video-expanded-bar{animation-duration:0s;animation-delay:0s}}
 @media(max-width:760px){.article-video-shell.is-vertical{width:min(100%,280px)}.article-video-shell .article-korean-video-frame{width:100%;margin:0}.article-video-expanded-bar{align-items:flex-end;flex-direction:column}.article-video-expanded-bar strong{width:100%;font-size:.68rem}.article-video-expanded-bar>div{width:100%}.article-video-expanded-bar button{flex:1}}
+
+/* Replica location video atlas */
+.replica-location-showcase{display:grid;gap:1rem;margin:2rem 0}
+.replica-location-card{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);align-items:stretch;overflow:hidden;border:1px solid #dfe2e8;border-radius:1rem;background:linear-gradient(145deg,#fff,#f7f8fa);box-shadow:0 16px 45px #15192312}
+.replica-location-card.is-reversed{grid-template-columns:minmax(280px,.85fr) minmax(0,1.15fr)}
+.replica-location-card.is-reversed .replica-location-media{order:2}
+.replica-location-card.is-reversed figcaption{order:1}
+.replica-location-media{display:flex;align-items:center;background:#07090e;padding:1px}
+.replica-location-media .article-video-shell{width:100%}
+.replica-location-card figcaption{display:flex;min-width:0;flex-direction:column;justify-content:center;padding:1.25rem 1.35rem}
+.replica-location-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:.85rem}
+.replica-location-heading span{display:block;color:#d71930;font-size:.62rem;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+.replica-location-heading h3{margin:.35rem 0 0!important;font-size:1.25rem!important;line-height:1.15!important}
+.replica-location-heading>strong{flex:none;border-radius:999px;background:#171922;padding:.48rem .68rem;color:#fff;font-size:.68rem;font-weight:900}
+.replica-location-card figcaption>p{margin-top:.75rem!important;color:#676d78!important;font-size:.78rem!important;line-height:1.58!important}
+.replica-location-card figcaption>ul{display:grid;gap:.32rem;margin:.75rem 0 0!important;padding:0!important;list-style:none!important}
+.replica-location-card figcaption>ul li{position:relative;padding-left:1rem;color:#343943;font-size:.7rem;line-height:1.45}
+.replica-location-card figcaption>ul li:before{position:absolute;top:.48em;left:0;width:.38rem;height:.38rem;border-radius:50%;background:#f22d43;box-shadow:0 0 0 3px #f22d4317;content:""}
+.replica-location-rewards{margin-top:.85rem;border-top:1px solid #e2e5ea;padding-top:.75rem}
+.replica-location-rewards small{display:block;color:#9197a1;font-size:.58rem;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+.replica-location-rewards>div{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}
+.replica-location-rewards span{border:1px solid #f0cbd0;border-radius:999px;background:#fff2f4;padding:.38rem .52rem;color:#a81528;font-size:.6rem;font-weight:850;line-height:1.25}
+@media(max-width:900px){.replica-location-card,.replica-location-card.is-reversed{grid-template-columns:1fr}.replica-location-card.is-reversed .replica-location-media,.replica-location-card.is-reversed figcaption{order:initial}.replica-location-media{order:1!important}.replica-location-card figcaption{order:2!important}.replica-location-card figcaption{padding:1.05rem 1rem 1.15rem}}
