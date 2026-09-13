@@ -6,6 +6,7 @@ import { Fragment } from "react";
 import type { ArticleAudience, ArticleBlock, ArticleIcon } from "@/lib/articles/types";
 import referenceStyles from "./article-reference.module.css";
 import { ArticleVideoPlaylist } from "./article-video-playlist";
+import { ForgedDwarfSkillShowcase } from "./forged-dwarf-skill-showcase";
 import { ArticleVideoEmbed } from "./article-video-embed";
 
 const icons = {
@@ -188,7 +189,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "video": {
         const youtubeId = block.source !== "file" ? youtubeVideoId(block.url) : null;
         if (youtubeId === "jiOzNaL7njw") return <ArticleVideoPlaylist key={block.id} title="Гномы после Iron Masters" text="Две официальные демонстрации помогают увидеть новый темп боя обоих переработанных гномьих классов." items={[
-          { title: "Искатель сокровищ", url: "https://www.youtube.com/watch?v=jiOzNaL7njw", text: "Кости, джекпот и снятие усилений" },
+          { title: "Искатель Удачи", url: "https://www.youtube.com/watch?v=jiOzNaL7njw", text: "Кости, джекпот и снятие усилений" },
           { title: "Маэстро", url: "https://www.youtube.com/watch?v=PBzcJ_gaLbg", text: "Молот, усиления и Разрушенная броня" },
         ]}/>;
         if (youtubeId) return <figure key={block.id} className="article-video-player">
@@ -208,8 +209,9 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
     }
 }
 
-export function ArticleBlockRenderer({ blocks, audience = "all" }: { blocks: ArticleBlock[]; audience?: ArticleAudience }) {
+export function ArticleBlockRenderer({ blocks, audience = "all", insertDwarfSkillShowcase = false }: { blocks: ArticleBlock[]; audience?: ArticleAudience; insertDwarfSkillShowcase?: boolean }) {
   return blocks.filter((block) => audience === "all" || !block.scope || block.scope === "all" || block.scope === audience).map((block) => <Fragment key={block.id}>
+    {insertDwarfSkillShowcase && block.type === "heading" && block.text.trim().toLowerCase() === "гномы: общее" && <ForgedDwarfSkillShowcase/>}
     {audience === "all" && block.scope && block.scope !== "all" && <span className={`article-scope-badge ${block.scope}`}>{block.scope === "essence" ? "ESSENCE" : "SPECIAL"}</span>}
     <RenderBlock block={block} audience={audience}/>
   </Fragment>);
