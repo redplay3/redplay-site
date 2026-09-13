@@ -63,7 +63,7 @@ function safeOutboundUrl(value: string) {
 }
 
 function cleanReferenceLine(value: string) {
-  return value.trim().replace(/^•\s*/, "").replace(/^\d+\.\s*/, "");
+  return value.trim().replace(/^•\s*/, "").replace(/^\d+\.\s*/, "").replace(/\.\.(?=\s|$)/g, ".");
 }
 
 function isReferenceHeading(value: string) {
