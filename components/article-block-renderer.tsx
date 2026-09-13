@@ -6,6 +6,7 @@ import { Fragment } from "react";
 import type { ArticleAudience, ArticleBlock, ArticleIcon } from "@/lib/articles/types";
 import referenceStyles from "./article-reference.module.css";
 import { ArticleVideoPlaylist } from "./article-video-playlist";
+import { ArticleVideoEmbed } from "./article-video-embed";
 
 const icons = {
   alert: CircleAlert,
@@ -40,6 +41,14 @@ function youtubeVideoId(value: string) {
     return /^[a-zA-Z0-9_-]{11}$/.test(candidate) ? candidate : null;
   } catch {
     return null;
+  }
+}
+
+function youtubeOrientation(value: string) {
+  try {
+    return new URL(value.trim()).pathname.startsWith("/shorts/") ? "vertical" as const : "horizontal" as const;
+  } catch {
+    return "horizontal" as const;
   }
 }
 
@@ -183,11 +192,11 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
           { title: "Маэстро", url: "https://www.youtube.com/watch?v=PBzcJ_gaLbg", text: "Молот, усиления и Разрушенная броня" },
         ]}/>;
         if (youtubeId) return <figure key={block.id} className="article-video-player">
-          <div className="article-video-frame"><iframe src={`https://www.youtube-nocookie.com/embed/${youtubeId}`} title={block.title || "Видео RedPlay"} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/></div>
+          <ArticleVideoEmbed videoId={youtubeId} title={block.title || "Видео RedPlay"} orientation={youtubeOrientation(block.url)}/>
           {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <p>{block.text}</p>}{block.caption && <small>{block.caption}</small>}</figcaption>}
         </figure>;
         if (block.source === "file") return block.url ? <figure key={block.id} className="article-video-player">
-          <video controls playsInline preload="metadata" poster={block.poster || undefined}><source src={block.url}/><a href={block.url}>Открыть видео</a></video>
+          <ArticleVideoEmbed source="file" src={block.url} title={block.title || "Видео RedPlay"} poster={block.poster || undefined} orientation="auto"/>
           {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <p>{block.text}</p>}{block.caption && <small>{block.caption}</small>}</figcaption>}
         </figure> : null;
         return block.url ? <a key={block.id} className="article-video-teaser" href={block.url} target="_blank" rel="noopener noreferrer"><span className="video-teaser-icon"><Play size={22} fill="currentColor"/></span><span><small>{block.label || "Видеоверсия"}</small><strong>{block.title}</strong><p>{block.text}</p></span><span className="video-teaser-action">{block.action || "Смотреть"} <ArrowUpRight size={15}/></span></a> : null;
