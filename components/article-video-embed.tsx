@@ -19,10 +19,10 @@ const EXPAND_DURATION = 420;
 
 function getExpandedGeometry(): VideoGeometry {
   const viewportGap = window.innerWidth < 760 ? 12 : 32;
-  const maxWidth = Math.min(720, window.innerWidth - viewportGap * 2);
-  const maxHeight = window.innerHeight - viewportGap * 2;
-  const width = Math.min(maxWidth, maxHeight * 9 / 16);
-  const height = width * 16 / 9;
+  const maxWidth = Math.min(620, window.innerWidth - viewportGap * 2);
+  const maxHeight = Math.min(820, window.innerHeight * (window.innerWidth < 760 ? .82 : .76));
+  const height = Math.min(maxHeight, maxWidth * 16 / 9);
+  const width = height * 9 / 16;
 
   return {
     left: (window.innerWidth - width) / 2,
@@ -36,10 +36,15 @@ function rectToGeometry(rect: DOMRect): VideoGeometry {
   return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
 }
 
+function transformBetweenRects(from: VideoGeometry, to: VideoGeometry) {
+  return `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`;
+}
+
 export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
+  const openingRectRef = useRef<VideoGeometry | null>(null);
+  const animationRef = useRef<Animation | null>(null);
   const [geometry, setGeometry] = useState<VideoGeometry | null>(null);
   const isExpanded = geometry !== null;
 
@@ -49,25 +54,45 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
     const compactRect = shellRef.current?.getBoundingClientRect();
     if (!compactRect) return;
 
-    setGeometry(rectToGeometry(compactRect));
+    openingRectRef.current = rectToGeometry(compactRect);
+    setGeometry(getExpandedGeometry());
   };
 
   const closeExpanded = () => {
+    const player = playerRef.current;
     const compactRect = shellRef.current?.getBoundingClientRect();
-    if (!compactRect) return;
+    if (!player || !compactRect || !geometry) return;
 
-    setGeometry(rectToGeometry(compactRect));
-    closeTimerRef.current = window.setTimeout(() => {
-      setGeometry(null);
-    }, motionDuration());
+    const currentRect = rectToGeometry(player.getBoundingClientRect());
+    animationRef.current?.cancel();
+    const animation = player.animate([
+      { transform: transformBetweenRects(currentRect, geometry), borderRadius: "1rem" },
+      { transform: transformBetweenRects(rectToGeometry(compactRect), geometry), borderRadius: ".8rem" },
+    ], { duration: motionDuration(), easing: "cubic-bezier(.22,1,.36,1)", fill: "both" });
+    animationRef.current = animation;
+    void animation.finished.then(() => {
+      if (animationRef.current === animation) {
+        animationRef.current = null;
+        setGeometry(null);
+      }
+    }).catch(() => undefined);
   };
 
   useLayoutEffect(() => {
-    if (!isExpanded) return;
+    const player = playerRef.current;
+    const openingRect = openingRectRef.current;
+    if (!isExpanded || !player || !geometry || !openingRect) return;
 
-    const animationFrame = window.requestAnimationFrame(() => setGeometry(getExpandedGeometry()));
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [isExpanded]);
+    openingRectRef.current = null;
+    const animation = player.animate([
+      { transform: transformBetweenRects(openingRect, geometry), borderRadius: ".8rem" },
+      { transform: "none", borderRadius: "1rem" },
+    ], { duration: motionDuration(), easing: "cubic-bezier(.22,1,.36,1)", fill: "both" });
+    animationRef.current = animation;
+    void animation.finished.then(() => {
+      if (animationRef.current === animation) animationRef.current = null;
+    }).catch(() => undefined);
+  }, [isExpanded, geometry]);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -85,9 +110,7 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
     };
   }, [isExpanded]);
 
-  useEffect(() => () => {
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-  }, []);
+  useEffect(() => () => animationRef.current?.cancel(), []);
 
   const openFullscreen = () => {
     const target = playerRef.current as (HTMLDivElement & {
