@@ -35,7 +35,7 @@
 
 /* Continuity-preserving expansion for vertical article videos */
 .article-video-shell{position:relative;width:100%;aspect-ratio:9/16}
-.article-video-shell .article-korean-video-frame{position:absolute;inset:0;width:100%;height:100%;margin:0;transition:left .42s cubic-bezier(.22,1,.36,1),top .42s cubic-bezier(.22,1,.36,1),width .42s cubic-bezier(.22,1,.36,1),height .42s cubic-bezier(.22,1,.36,1),border-radius .42s ease,box-shadow .42s ease}
+.article-video-shell .article-korean-video-frame{position:absolute;inset:0;width:100%;height:100%;margin:0;transform-origin:top left;transition:none}
 .article-video-shell .article-korean-video-frame.is-expanded{position:fixed;z-index:102;inset:auto;left:var(--video-left);top:var(--video-top);width:var(--video-width);height:var(--video-height);margin:0;border-radius:1rem;box-shadow:0 34px 100px #000c}
 .article-video-backdrop{position:fixed;z-index:101;inset:0;border:0;background:#ffffff08;backdrop-filter:blur(14px);animation:articleVideoBackdropIn .35s ease both}
 .article-video-expanded-bar{position:absolute;z-index:3;top:0;right:0;left:0;display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem;background:linear-gradient(180deg,#080a10ee,transparent);color:#fff;opacity:0;animation:articleVideoControlsIn .25s .2s ease forwards;pointer-events:none}
