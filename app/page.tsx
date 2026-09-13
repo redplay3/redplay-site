@@ -139,7 +139,7 @@ export default function Home() {
           <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">Lineage 2 Essence · большое обновление</p></div>
           <p className="hero-title mt-4" role="heading" aria-level={2}>FORGED<br/>IN BATTLE</p>
           <p className="mt-5 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">Полный разбор обновления 21 октября: изменения классов, новые зоны, предметы, крафт и различия Essence и Special Project.</p>
-          <div className="mt-8 flex flex-wrap gap-3"><Link href="/lineage-2/essence/updates/forged-in-battle" className="hero-primary">Читать полный разбор <ArrowRight size={18}/></Link><Link href="/lineage-2/essence/updates" className="hero-secondary"><Newspaper size={17}/> Все обновления</Link></div>
+          <div className="mt-8 flex flex-wrap gap-3"><Link href="/lineage-2/essence/updates/forged-in-battle-vse-klassy-i-umeniya" className="hero-primary">Читать полный разбор <ArrowRight size={18}/></Link><Link href="/lineage-2/essence/updates" className="hero-secondary"><Newspaper size={17}/> Все обновления</Link></div>
           <div className="hero-context"><span>21 октября</span><span>Классы и умения</span><span>Зоны и предметы</span></div>
         </div>
       </div>
