@@ -5,6 +5,7 @@ import {
 import { Fragment } from "react";
 import type { ArticleAudience, ArticleBlock, ArticleIcon } from "@/lib/articles/types";
 import referenceStyles from "./article-reference.module.css";
+import { ArticleVideoPlaylist } from "./article-video-playlist";
 
 const icons = {
   alert: CircleAlert,
@@ -175,6 +176,8 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
         </figure> : null;
         return block.url ? <a key={block.id} className="article-video-teaser" href={block.url} target="_blank" rel="noopener noreferrer"><span className="video-teaser-icon"><Play size={22} fill="currentColor"/></span><span><small>{block.label || "Видеоверсия"}</small><strong>{block.title}</strong><p>{block.text}</p></span><span className="video-teaser-action">{block.action || "Смотреть"} <ArrowUpRight size={15}/></span></a> : null;
       }
+      case "video-playlist":
+        return <ArticleVideoPlaylist key={block.id} title={block.title} text={block.text} items={block.items}/>;
       case "telegram":
         return <aside key={block.id} className="telegram-callout"><span className="telegram-callout-icon"><Send size={22}/></span><div><small>{block.label || "RedPlay в Telegram"}</small><strong>{block.title}</strong><p>{block.text}</p></div><a href={block.url || "https://t.me/redplay2022"} target="_blank" rel="noopener noreferrer">{block.action || "Присоединиться"} <ArrowUpRight size={15}/></a></aside>;
     }

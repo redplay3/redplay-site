@@ -34,7 +34,7 @@ const blockNames: Record<ArticleBlock["type"], string> = {
   warning: "Предупреждение", cards: "Карточки", "audience-cards": "Карточки версий",
   checklist: "Чек-лист", "cta-cards": "Карточки-ссылки", table: "Таблица", flow: "Маршрут",
   image: "Изображение", disclosure: "Выпадающий блок", opinion: "Мнение Они",
-  video: "Видео", telegram: "Telegram",
+  video: "Видео", "video-playlist": "Видеоподборка", telegram: "Telegram",
 };
 
 function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
@@ -60,6 +60,7 @@ function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
     case "disclosure": return { id, type, title: "Показать полный список", items: ["Первый пункт"] };
     case "opinion": return { id, type, text: "Редакционный вывод RedPlay.", label: "Мнение RedPlay" };
     case "video": return { id, type, title: "Видеоразбор", text: "Главные изменения и выводы в видео.", url: "", source: "youtube" };
+    case "video-playlist": return { id, type, title: "Видео классов", text: "Переключай ролики по названию класса.", items: [{ title: "Первое видео", url: "", text: "" }] };
     case "telegram": return { id, type, title: "Следи за обновлениями", text: "Финальные данные и обсуждение в Telegram.", action: "Получить уведомление" };
   }
 }
@@ -183,6 +184,11 @@ function BlockFields({ block, onChange, uploadMedia, uploadProgress }: { block: 
         <label className="admin-field"><span>Подпись под видео</span>{input(block.caption || "", (caption) => onChange({ ...block, caption }), "Необязательно")}</label>
       </>;
     }
+    case "video-playlist": return <>
+      <label className="admin-field"><span>Заголовок подборки</span>{input(block.title, (title) => onChange({ ...block, title }))}</label>
+      <label className="admin-field"><span>Описание</span>{area(block.text || "", (text) => onChange({ ...block, text }))}</label>
+      <label className="admin-field"><span>Название | ссылка YouTube | пояснение, одно видео на строку</span>{area(block.items.map((item) => `${item.title} | ${item.url} | ${item.text || ""}`).join("\n"), (value) => onChange({ ...block, items: value.split("\n").map((row) => row.split("|").map((part) => part.trim())).filter(([title, url]) => title || url).map(([title, url, ...rest]) => ({ title, url, text: rest.join(" | ") })) }))}<small>На странице появится один плеер и кнопки-переключатели. Поддерживаются обычные ссылки YouTube, Shorts, Live и youtu.be.</small></label>
+    </>;
     case "telegram": return <><label className="admin-field"><span>Заголовок</span>{input(block.title, (title) => onChange({ ...block, title }))}</label><label className="admin-field"><span>Описание</span>{area(block.text, (text) => onChange({ ...block, text }))}</label></>;
   }
 }
