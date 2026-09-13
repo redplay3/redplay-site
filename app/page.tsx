@@ -44,7 +44,6 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [bonusOpen, setBonusOpen] = useState(false);
-  const [activeHero, setActiveHero] = useState(0);
   const [videos, setVideos] = useState<Video[]>(fallbackVideos);
   const [onlineEdition, setOnlineEdition] = useState<OnlineEdition>("Main");
   const [onlineGroups, setOnlineGroups] = useState<OnlineGroups>(fallbackOnline);
@@ -91,11 +90,9 @@ export default function Home() {
     const value = query.trim().toLocaleLowerCase("ru");
     return value ? posts.filter((post) => [post.title, post.category, post.summary].some((text) => text.toLocaleLowerCase("ru").includes(value))) : posts;
   }, [edition, publishedArticles, query]);
-  const slide = heroSlides[activeHero];
   const selectedServers = onlineGroups[onlineEdition];
   const totalOnline = selectedServers.reduce((sum, server) => sum + server.online, 0);
   const maxOnline = Math.max(...selectedServers.map(server => server.online), 1);
-  const nextHero = (step: number) => setActiveHero((activeHero + step + heroSlides.length) % heroSlides.length);
 
   const editionPath = edition === "Main" ? "main" : "essence";
 
@@ -122,30 +119,33 @@ export default function Home() {
     <header className="portal-header sticky top-0 z-40"><div className="mx-auto flex h-[70px] max-w-[1500px] items-center gap-6 px-4 sm:px-6 lg:px-8">
       <a href="#top" className="flex shrink-0 items-center gap-3" aria-label="RedPlay — главная"><span className="redplay-mark">R</span><span><span className="redplay-word block">REDPLAY</span><span className="block text-[9px] font-bold uppercase tracking-[.28em] text-white/35">Игровой портал</span></span></a>
       <span className="hidden h-7 w-px bg-white/10 md:block"/>
-      <nav className="hidden items-center gap-6 text-sm font-bold text-white/65 lg:flex"><a className="nav-link" href="#updates">Новости</a><a className="nav-link" href="#updates">Статьи</a><a className="nav-link" href="#knowledge">Игры</a><a className="nav-link" href="#knowledge">База знаний</a><a className="nav-link" href="#videos">Видео</a></nav>
+      <nav className="hidden items-center gap-6 text-sm font-bold text-white/65 lg:flex"><Link className="nav-link" href="/lineage-2/main">Main</Link><Link className="nav-link" href="/lineage-2/essence">Essence / Special Project</Link><Link className="nav-link" href="/lineage-2/main/guides">Гайды</Link><a className="nav-link" href="#knowledge">База знаний</a><a className="nav-link" href="#videos">Видео</a></nav>
       <label className="header-search ml-auto hidden items-center gap-2 xl:flex"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по порталу" /></label>
-      <a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Send size={17}/></a>
+      <a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer" aria-label="YouTube RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Youtube size={17}/></a><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer" aria-label="Telegram RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Send size={17}/></a>
       <button onClick={() => setBonusOpen(true)} className="bonus-button hidden sm:flex"><Gift size={16}/> Играть</button>
       <button className="ml-auto grid size-10 place-items-center rounded-full bg-white/8 text-white lg:hidden sm:ml-0" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}>{menuOpen ? <X size={20}/> : <Menu size={20}/>}</button>
-    </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {setBonusOpen(true);setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Новости","#updates"],["Статьи","#updates"],["Игры","#knowledge"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
+    </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {setBonusOpen(true);setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/main/guides"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
     <section id="top" className="hero-stage">
-      <div className={`hero-glow hero-glow-${slide.tone}`} />
-      <img src="/oni-redplay.webp" alt="Они — демонесса RedPlay" className="hero-oni" />
-      <div className="hero-vignette" />
-      <div className="relative z-10 mx-auto flex min-h-[650px] max-w-[1500px] items-end px-4 pb-8 pt-12 sm:px-6 lg:items-center lg:px-8 lg:py-16">
-        <div className="w-full lg:max-w-[62%]">
-          <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">{slide.kicker}</p></div>
-          <p className="hero-title mt-4" role="heading" aria-level={2}>{slide.title}</p>
-          <p className="mt-5 max-w-xl text-base leading-7 text-white/64 sm:text-lg">{slide.text}</p>
-          <div className="mt-8 flex flex-wrap gap-3"><button onClick={() => activeHero === 2 ? setBonusOpen(true) : document.querySelector(activeHero === 1 ? "#videos" : "#updates")?.scrollIntoView()} className="hero-primary">{slide.cta}<ArrowRight size={18}/></button><a href="#knowledge" className="hero-secondary"><Database size={17}/> База знаний</a></div>
-          <div className="mt-10 flex items-center gap-3"><button onClick={() => nextHero(-1)} className="hero-arrow" aria-label="Предыдущий слайд"><ChevronLeft size={19}/></button><div className="flex gap-2">{heroSlides.map((item,index)=><button key={item.title} onClick={()=>setActiveHero(index)} aria-label={`Слайд ${index+1}`} className={`hero-dot ${index===activeHero?"hero-dot-active":""}`}/>)}</div><button onClick={() => nextHero(1)} className="hero-arrow" aria-label="Следующий слайд"><ChevronRight size={19}/></button><span className="ml-2 text-xs font-bold tracking-widest text-white/35">0{activeHero+1} / 0{heroSlides.length}</span></div>
+      <video className="hero-video" autoPlay muted loop playsInline preload="metadata" poster="/redplay-world-poster.webp" aria-hidden="true">
+        <source src="/redplay-world.webm" type="video/webm"/>
+        <source src="/redplay-world.mp4" type="video/mp4"/>
+      </video>
+      <div className="hero-video-tint"/>
+      <img src="/oni-redplay.webp" alt="Они – демонесса RedPlay" className="hero-oni"/>
+      <div className="hero-vignette"/>
+      <div className="relative z-10 mx-auto flex min-h-[650px] max-w-[1500px] items-center px-4 py-16 sm:px-6 lg:px-8">
+        <div className="w-full lg:max-w-[60%]">
+          <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">Lineage 2 Essence · большое обновление</p></div>
+          <p className="hero-title mt-4" role="heading" aria-level={2}>FORGED<br/>IN BATTLE</p>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">Полный разбор обновления 21 октября: изменения классов, новые зоны, предметы, крафт и различия Essence и Special Project.</p>
+          <div className="mt-8 flex flex-wrap gap-3"><Link href="/lineage-2/essence/updates/forged-in-battle" className="hero-primary">Читать полный разбор <ArrowRight size={18}/></Link><Link href="/lineage-2/essence/updates" className="hero-secondary"><Newspaper size={17}/> Все обновления</Link></div>
+          <div className="hero-context"><span>21 октября</span><span>Классы и умения</span><span>Зоны и предметы</span></div>
         </div>
-        <div className="hero-rail hidden w-[350px] lg:ml-auto lg:grid">{heroSlides.map((item,index)=><button key={item.title} onClick={()=>setActiveHero(index)} className={`hero-rail-item ${index===activeHero?"is-active":""}`}><span>0{index+1}</span><span><small>{item.kicker}</small><strong>{item.title}</strong></span><ChevronRight size={17}/></button>)}</div>
       </div>
     </section>
 
-    <div className="edition-bar"><div className="mx-auto flex max-w-[1500px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8"><span className="mr-2 hidden shrink-0 text-[11px] font-black uppercase tracking-[.16em] text-white/35 sm:block">Сейчас в фокусе</span>{editions.map(item => <button key={item} onClick={() => setEdition(item)} className={`edition-tab ${edition===item?"edition-tab-active":""}`}><span className="edition-signal"/>{item}</button>)}<span className="ml-auto hidden shrink-0 items-center gap-2 text-xs text-white/35 lg:flex"><Flame size={14} className="text-[#ff344b]"/> Обновлено сегодня</span></div></div>
+    <div className="edition-bar"><div className="mx-auto flex max-w-[1500px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8"><span className="mr-2 hidden shrink-0 text-[11px] font-black uppercase tracking-[.16em] text-white/35 sm:block">Материалы по версии</span>{editions.map(item => <button key={item} onClick={() => setEdition(item)} className={`edition-tab ${edition===item?"edition-tab-active":""}`}><span className="edition-signal"/>{item}</button>)}<span className="ml-auto hidden shrink-0 items-center gap-2 text-xs text-white/35 lg:flex"><Flame size={14} className="text-[#ff344b]"/> Обновлено сегодня</span></div></div>
 
     <section id="updates" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
       <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> В центре внимания</p><h2>Актуальное в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={`Поиск в ${edition}`} /></label><Link className="section-more" href={`/lineage-2/${editionPath}/news`}>Все материалы <ArrowRight size={16}/></Link></div></div>
