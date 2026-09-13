@@ -194,12 +194,6 @@ export function ForgedDwarfSkillShowcase() {
           </button>)}
         </div>
 
-        <div className={styles.description} aria-live="polite">
-          <span>Как работает</span><strong>{activeSkill.title}</strong>
-          {activeSkill.originalTitle && <small>{activeSkill.originalTitle}</small>}
-          <p>{activeSkill.summary}</p>
-          {activeSkill.details?.map((detail) => <p key={detail}>{detail}</p>)}
-        </div>
       </aside>
 
       <div className={styles.player}>
@@ -208,6 +202,12 @@ export function ForgedDwarfSkillShowcase() {
         </video>
         <div className={styles.playerCaption}>
           <span>{activeClass.title}</span><strong>{activeSkill.title}</strong><small>{String(activeSkillIndex + 1).padStart(2, "0")} / {String(activeClass.skills.length).padStart(2, "0")}</small>
+        </div>
+        <div className={styles.description} aria-live="polite">
+          <span>Как работает</span>
+          {activeSkill.originalTitle && <small>{activeSkill.originalTitle}</small>}
+          <p>{activeSkill.summary}</p>
+          {activeSkill.details?.map((detail) => <p key={detail}>{detail}</p>)}
         </div>
       </div>
     </div>
