@@ -4,8 +4,12 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Expand, Maximize2, X } from "lucide-react";
 
 type ArticleVideoEmbedProps = {
-  videoId: string;
+  videoId?: string;
+  src?: string;
+  source?: "youtube" | "file";
   title: string;
+  poster?: string;
+  orientation?: "vertical" | "horizontal" | "auto";
 };
 
 type VideoGeometry = {
@@ -22,10 +26,11 @@ const EXPAND_DURATION = 420;
 
 function getExpandedGeometry(compactRect: DOMRect): VideoGeometry {
   const viewportGap = window.innerWidth < 760 ? 12 : 32;
-  const maxWidth = Math.min(620, window.innerWidth - viewportGap * 2);
+  const aspectRatio = compactRect.width / compactRect.height;
+  const maxWidth = Math.min(aspectRatio > 1 ? 1100 : 620, window.innerWidth - viewportGap * 2);
   const maxHeight = Math.min(820, window.innerHeight * (window.innerWidth < 760 ? .82 : .76));
-  const height = Math.min(maxHeight, maxWidth * 16 / 9);
-  const width = height * 9 / 16;
+  const width = Math.min(maxWidth, maxHeight * aspectRatio);
+  const height = width / aspectRatio;
 
   const targetLeft = (window.innerWidth - width) / 2;
   const targetTop = (window.innerHeight - height) / 2;
@@ -42,7 +47,7 @@ function getExpandedGeometry(compactRect: DOMRect): VideoGeometry {
   };
 }
 
-export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
+export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, poster, orientation = "vertical" }: ArticleVideoEmbedProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const openFrameRef = useRef<number | null>(null);
@@ -50,7 +55,9 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
   const closeTimerRef = useRef<number | null>(null);
   const [geometry, setGeometry] = useState<VideoGeometry | null>(null);
   const [isVisuallyOpen, setIsVisuallyOpen] = useState(false);
+  const [detectedOrientation, setDetectedOrientation] = useState<"vertical" | "horizontal">("horizontal");
   const isExpanded = geometry !== null;
+  const resolvedOrientation = orientation === "auto" ? detectedOrientation : orientation;
 
   const motionDuration = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXPAND_DURATION;
 
@@ -131,7 +138,7 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
   return <>
     {isExpanded && <button type="button" className="article-video-backdrop" aria-label="Закрыть увеличенное видео" onClick={closeExpanded}/>}
 
-    <div ref={shellRef} className="article-video-shell">
+    <div ref={shellRef} className={`article-video-shell is-${resolvedOrientation}`}>
       <div
         ref={playerRef}
         className={`article-korean-video-frame${isExpanded ? " is-expanded" : ""}${isVisuallyOpen ? " is-visually-open" : ""}`}
@@ -140,13 +147,27 @@ export function ArticleVideoEmbed({ videoId, title }: ArticleVideoEmbedProps) {
         aria-modal={isExpanded ? true : undefined}
         aria-label={isExpanded ? title : undefined}
       >
-        <iframe
-          src={`https://www.youtube.com/embed/${videoId}`}
+        {source === "file" ? <video
+          controls
+          playsInline
+          preload="metadata"
+          poster={poster}
+          onLoadedMetadata={(event) => {
+            if (orientation !== "auto") return;
+            const video = event.currentTarget;
+            setDetectedOrientation(video.videoHeight > video.videoWidth ? "vertical" : "horizontal");
+          }}
+        >
+          <source src={src}/>
+          {src && <a href={src}>Открыть видео</a>}
+        </video> : <iframe
+          src={`https://www.youtube-nocookie.com/embed/${videoId}`}
           title={title}
           loading="lazy"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
-        />
+        />}
 
         {!isExpanded ? <button type="button" className="article-video-expand" aria-label={`Увеличить видео: ${title}`} onClick={openExpanded}>
           <Expand size={16}/> <span>Увеличить</span>
