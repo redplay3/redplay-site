@@ -64,7 +64,7 @@ export function ArticleVideoPlaylist({ title, text, items }: { title: string; te
     <div className={styles.frame}>
       {active.kind === "youtube"
         ? <ArticleVideoEmbed key={active.id} videoId={active.id} title={active.title} orientation={youtubeOrientation(active.url)}/>
-        : <video key={active.src} controls playsInline preload="metadata" src={active.src} aria-label={active.title}/>
+        : <ArticleVideoEmbed key={active.src} source="file" src={active.src} title={active.title} orientation="auto"/>
       }
     </div>
     <div className={styles.tabs} role="tablist" aria-label={title}>

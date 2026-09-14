@@ -10,6 +10,10 @@ type ArticleVideoEmbedProps = {
   title: string;
   poster?: string;
   orientation?: "vertical" | "horizontal" | "auto";
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  preload?: "none" | "metadata" | "auto";
 };
 
 type VideoGeometry = {
@@ -47,7 +51,7 @@ function getExpandedGeometry(compactRect: DOMRect): VideoGeometry {
   };
 }
 
-export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, poster, orientation = "vertical" }: ArticleVideoEmbedProps) {
+export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, poster, orientation = "vertical", autoPlay = false, loop = false, muted = false, preload = "metadata" }: ArticleVideoEmbedProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const openFrameRef = useRef<number | null>(null);
@@ -171,8 +175,11 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
         {source === "file" ? <video
           controls
           playsInline
-          preload="metadata"
+          preload={preload}
           poster={poster}
+          autoPlay={autoPlay}
+          loop={loop}
+          muted={muted}
           onLoadedMetadata={(event) => {
             if (orientation !== "auto") return;
             const video = event.currentTarget;

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import styles from "./forged-dwarf-skill-showcase.module.css";
+import { ArticleVideoEmbed } from "./article-video-embed";
 
 type DwarfClassId = "fortune-seeker" | "maestro";
 
@@ -197,9 +198,7 @@ export function ForgedDwarfSkillShowcase() {
       </aside>
 
       <div className={styles.player}>
-        <video key={activeSkill.video} controls playsInline preload="metadata" autoPlay={hasInteracted} loop>
-          <source src={activeSkill.video} type="video/mp4"/><a href={activeSkill.video}>Открыть видео умения</a>
-        </video>
+        <ArticleVideoEmbed key={activeSkill.video} source="file" src={activeSkill.video} title={`${activeClass.title}: ${activeSkill.title}`} orientation="horizontal" autoPlay={hasInteracted} loop/>
         <div className={styles.playerCaption}>
           <span>{activeClass.title}</span><strong>{activeSkill.title}</strong><small>{String(activeSkillIndex + 1).padStart(2, "0")} / {String(activeClass.skills.length).padStart(2, "0")}</small>
         </div>
