@@ -5,6 +5,24 @@ create table if not exists public.article_views (
   updated_at timestamptz not null default now()
 );
 
+-- Дневные просмотры нужны для честного блока «Популярное за 30 дней».
+create table if not exists public.article_view_daily (
+  page_key text not null check (length(page_key) between 1 and 220 and page_key ~ '^/lineage-2/[a-z0-9/-]+$'),
+  view_date date not null default current_date,
+  view_count bigint not null default 0 check (view_count >= 0),
+  primary key (page_key, view_date)
+);
+
+alter table public.article_view_daily enable row level security;
+drop policy if exists "Public can read daily article views" on public.article_view_daily;
+create policy "Public can read daily article views" on public.article_view_daily for select to anon, authenticated using (true);
+grant select on public.article_view_daily to anon, authenticated;
+
+-- При первом обновлении сохраняем накопленные просмотры как стартовую точку.
+insert into public.article_view_daily (page_key, view_date, view_count)
+select page_key, current_date, view_count from public.article_views
+on conflict (page_key, view_date) do nothing;
+
 alter table public.article_views enable row level security;
 drop policy if exists "Public can read article views" on public.article_views;
 create policy "Public can read article views" on public.article_views for select to anon, authenticated using (true);
@@ -24,6 +42,8 @@ begin
   insert into public.article_views (page_key, view_count) values (p_page_key, 1)
   on conflict (page_key) do update set view_count = public.article_views.view_count + 1, updated_at = now()
   returning view_count into next_count;
+  insert into public.article_view_daily (page_key, view_date, view_count) values (p_page_key, current_date, 1)
+  on conflict (page_key, view_date) do update set view_count = public.article_view_daily.view_count + 1;
   return next_count;
 end;
 $$;
