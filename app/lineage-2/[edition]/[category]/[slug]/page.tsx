@@ -6,6 +6,7 @@ import { ArticleBlockRenderer } from "@/components/article-block-renderer";
 import { ArticleSharePanel, ArticleViewCount } from "@/components/article-engagement";
 import { ArticleAudienceContent } from "@/components/article-audience-content";
 import { ArticleNavigation } from "@/components/article-navigation";
+import { RememberEditionPreference } from "@/components/remember-edition-preference";
 import { articleCategories, articleEditions } from "@/lib/articles/catalog";
 import { getArticleViewCount } from "@/lib/articles/views";
 import type { ArticleCategory, ArticleEdition, ArticleIcon, ArticleSection } from "@/lib/articles/types";
@@ -136,6 +137,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
   };
 
   return <main className="article-page">
+    <RememberEditionPreference edition={article.edition}/>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>
     <header className="article-header"><div className="mx-auto flex h-[68px] max-w-[1460px] items-center gap-5 px-4 sm:px-6 lg:px-8">
       <Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link>
