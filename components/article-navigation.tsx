@@ -30,8 +30,13 @@ export function ArticleNavigation({ items }: { items: ArticleNavItem[] }) {
   }, [items]);
 
   const goTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (window.innerWidth < 761) setOpen(false);
+    const scrollToSection = () => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (window.innerWidth < 761) {
+      setOpen(false);
+      window.setTimeout(scrollToSection, 0);
+      return;
+    }
+    scrollToSection();
   };
 
   const activeIndex = Math.max(0, items.findIndex((item) => item.id === active));
