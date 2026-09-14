@@ -5,7 +5,7 @@ import {
   Clock3, Crosshair, Database, Flame, Gift, Map, Menu, Newspaper, Play, Search,
   Send, Shield, Sparkles, Swords, Video as Youtube, X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { editions, featuredUpdate, knowledgeSections, latestPosts, type Edition } from "@/lib/content";
@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 type Video = { id: string; title: string; url: string; thumbnail: string; published: string };
 type OnlineServer = { name: string; online: number };
 type OnlineEdition = "Main" | "Special Project" | "Essence";
+type BonusGroup = "Main" | "Essence / Special Project";
 type OnlineGroups = Record<OnlineEdition, OnlineServer[]>;
 type PublishedArticle = { id: string; title: string; description: string; label: string; cover: { src?: string; alt?: string } | null; edition: "main" | "essence" | "special-project"; category: string; slug: string; tags: string[] | null; published_at: string | null; updated_at: string };
 const fallbackHero = {
@@ -23,6 +24,7 @@ const fallbackHero = {
   label: "Большое обновление",
   cover: "https://vpsocmwsvwyavrmduzth.supabase.co/storage/v1/object/public/article-media/2026/3764614b-53ac-42eb-aacb-5a43c563c0ea-forged-in-battle-cover.png",
   href: "/lineage-2/essence/updates/forged-in-battle-vse-klassy-i-umeniya",
+  publishedAt: "2026-09-13T00:00:00.000Z",
 };
 const fallbackOnline: OnlineGroups = {
   Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063}],
@@ -51,15 +53,20 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [bonusOpen, setBonusOpen] = useState(false);
+  const [bonusPromptOpen, setBonusPromptOpen] = useState(false);
+  const [bonusGroup, setBonusGroup] = useState<BonusGroup>("Main");
   const [videos, setVideos] = useState<Video[]>(fallbackVideos);
   const [onlineEdition, setOnlineEdition] = useState<OnlineEdition>("Main");
   const [onlineGroups, setOnlineGroups] = useState<OnlineGroups>(fallbackOnline);
   const [onlineUpdated, setOnlineUpdated] = useState("обновляем сейчас");
   const [publishedArticles, setPublishedArticles] = useState<PublishedArticle[]>([]);
+  const editionRef = useRef(edition);
 
   useEffect(() => {
-    const lastSeen = Number(localStorage.getItem("redplay-bonus-seen") || 0);
-    if (Date.now() - lastSeen > 7 * 24 * 60 * 60 * 1000) queueMicrotask(() => setBonusOpen(true));
+    editionRef.current = edition;
+  }, [edition]);
+
+  useEffect(() => {
     fetch("/api/youtube").then((response) => response.ok ? response.json() : null).then((data) => {
       if (data?.videos?.length) setVideos(data.videos.slice(0, 3));
     }).catch(() => undefined);
@@ -77,10 +84,90 @@ export default function Home() {
     }
   }, []);
 
+  useEffect(() => {
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const dismissedAt = Number(localStorage.getItem("redplay-bonus-seen") || 0);
+    const convertedAt = Number(localStorage.getItem("redplay-bonus-converted") || 0);
+
+    if (
+      sessionStorage.getItem("redplay-bonus-auto-shown") === "1" ||
+      now - dismissedAt < sevenDays ||
+      now - convertedAt < thirtyDays
+    ) return;
+
+    let activeSeconds = 0;
+    let hasReachedScrollDepth = false;
+    let handled = false;
+
+    const showOffer = () => {
+      if (handled || sessionStorage.getItem("redplay-bonus-auto-shown") === "1") return;
+      if (activeSeconds < 25 || (!hasReachedScrollDepth && activeSeconds < 75)) return;
+
+      handled = true;
+      sessionStorage.setItem("redplay-bonus-auto-shown", "1");
+      const preferredGroup: BonusGroup = editionRef.current === "Main" ? "Main" : "Essence / Special Project";
+      setBonusGroup(preferredGroup);
+
+      if (window.matchMedia("(max-width: 760px)").matches) setBonusPromptOpen(true);
+      else setBonusOpen(true);
+    };
+
+    const checkScrollDepth = () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollableHeight > 0 && window.scrollY / scrollableHeight >= 0.45) hasReachedScrollDepth = true;
+      showOffer();
+    };
+
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") activeSeconds += 1;
+      showOffer();
+    }, 1000);
+
+    window.addEventListener("scroll", checkScrollDepth, { passive: true });
+    checkScrollDepth();
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("scroll", checkScrollDepth);
+    };
+  }, []);
+
+  const openBonus = (group?: BonusGroup) => {
+    const selectedGroup = group || (edition === "Main" ? "Main" : "Essence / Special Project");
+    setBonusGroup(selectedGroup);
+    localStorage.setItem("redplay-bonus-group", selectedGroup);
+    sessionStorage.setItem("redplay-bonus-auto-shown", "1");
+    setBonusPromptOpen(false);
+    setBonusOpen(true);
+  };
+
   const closeBonus = (open: boolean) => {
     setBonusOpen(open);
-    if (!open) localStorage.setItem("redplay-bonus-seen", String(Date.now()));
+    if (!open) {
+      setBonusPromptOpen(false);
+      localStorage.setItem("redplay-bonus-seen", String(Date.now()));
+    }
   };
+
+  const closeBonusPrompt = () => {
+    setBonusPromptOpen(false);
+    localStorage.setItem("redplay-bonus-seen", String(Date.now()));
+  };
+
+  const selectBonusGroup = (group: BonusGroup) => {
+    setBonusGroup(group);
+    localStorage.setItem("redplay-bonus-group", group);
+  };
+
+  const followBonusLink = (gameName: string) => () => {
+      const group: BonusGroup = gameName === "Main" ? "Main" : "Essence / Special Project";
+      localStorage.setItem("redplay-bonus-converted", String(Date.now()));
+      localStorage.setItem("redplay-bonus-group", group);
+      setBonusPromptOpen(false);
+      setBonusOpen(false);
+    };
   const results = useMemo(() => {
     const dynamicPosts = publishedArticles.filter((article) => edition === "Main" ? article.edition === "main" : article.edition === "essence" || article.edition === "special-project").map((article) => {
       const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
@@ -108,7 +195,7 @@ export default function Home() {
   const heroEdition = latestHero ? (latestHero.edition === "main" ? "Lineage 2 Main" : latestHero.edition === "essence" ? "Lineage 2 Essence" : "Lineage 2 Special Project") : "Lineage 2 Essence";
   const heroCategory = latestHero ? articleCategories.find((item) => item.value === latestHero.category)?.label || latestHero.label : fallbackHero.label;
   const heroTags = latestHero?.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 3) || ["Классы и умения", "Зоны и предметы"];
-  const heroDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(latestHero?.published_at || latestHero?.updated_at || Date.now()));
+  const heroDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(latestHero?.published_at || latestHero?.updated_at || fallbackHero.publishedAt));
 
   const editionPath = edition === "Main" ? "main" : "essence";
 
@@ -118,18 +205,32 @@ export default function Home() {
       <DialogContent className="bonus-dialog max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-5xl" aria-describedby="bonus-description">
         <div className="bonus-dialog-head px-6 py-7 sm:px-8">
           <p className="portal-kicker"><Gift size={14}/> Бонус новым и вернувшимся</p>
-          <DialogHeader className="mt-3 text-left"><DialogTitle className="text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">Выбери свою Lineage 2</DialogTitle><DialogDescription id="bonus-description" className="mt-2 max-w-2xl text-sm leading-6 text-white/60">Три версии – три разных стиля игры. Выбери подходящий мир и начни с бонусом: новые и вернувшиеся после 90 дней игроки получают месяц расходуемых предметов.</DialogDescription></DialogHeader>
+          <DialogHeader className="mt-3 text-left"><DialogTitle className="text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">Выбери свою Lineage 2</DialogTitle><DialogDescription id="bonus-description" className="mt-2 max-w-2xl text-sm leading-6 text-white/60">Main — отдельная версия. Essence и Special Project работают на общей основе, но предлагают разные правила серверов и отдельные ссылки регистрации.</DialogDescription></DialogHeader>
         </div>
-        <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-6">{gameLinks.map(game => <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>)}</div>
-        <p className="px-7 pb-6 text-xs leading-5 text-white/35">Переходы ведут по партнёрским ссылкам RedPlay. Условия бонуса определяет 4game.</p>
+        <div className="bonus-mobile-tabs" aria-label="Выбор версии">
+          {(["Main", "Essence / Special Project"] as BonusGroup[]).map((group) => <button key={group} type="button" className={bonusGroup === group ? "active" : ""} onClick={() => selectBonusGroup(group)}>{group}</button>)}
+        </div>
+        <div className="bonus-desktop-groups" aria-hidden="true"><span>Main</span><span>Essence / Special Project</span></div>
+        <div className="bonus-dialog-cards grid gap-3 p-4 sm:grid-cols-3 sm:p-6">{gameLinks.map(game => {
+          const group: BonusGroup = game.name === "Main" ? "Main" : "Essence / Special Project";
+          return <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""} ${bonusGroup !== group ? "bonus-choice-mobile-hidden" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>;
+        })}</div>
+        <div className="bonus-dialog-footer"><p>Переходы ведут по партнёрским ссылкам RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
       </DialogContent>
     </Dialog>
 
-    <aside className="social-dock" aria-label="Ссылки RedPlay">
+    {bonusPromptOpen && <aside className="bonus-mobile-prompt" role="dialog" aria-label="Бонус для игроков Lineage 2">
+      <button type="button" className="bonus-prompt-close" onClick={closeBonusPrompt} aria-label="Закрыть предложение"><X size={19}/></button>
+      <span className="bonus-prompt-icon"><Gift size={20}/></span>
+      <span className="bonus-prompt-copy"><strong>Бонус на старте</strong><small>Выбери Main или два варианта Essence</small></span>
+      <button type="button" className="bonus-prompt-action" onClick={() => openBonus()}>Выбрать <ArrowRight size={16}/></button>
+    </aside>}
+
+    <aside className={`social-dock ${bonusPromptOpen ? "social-dock-suspended" : ""}`} aria-label="Ссылки RedPlay">
       <div className="social-dock-brand"><span className="redplay-mark small">R</span><span><strong>REDPLAY</strong><small>Всегда на связи</small></span></div>
       <a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer"><span className="dock-icon youtube"><Youtube size={19}/></span><span><strong>YouTube</strong><small>Ролики и стримы</small></span><ArrowUpRight size={14}/></a>
       <a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer"><span className="dock-icon telegram"><Send size={18}/></span><span><strong>Telegram</strong><small>Новости и общение</small></span><ArrowUpRight size={14}/></a>
-      <button onClick={() => setBonusOpen(true)}><span className="dock-icon gift"><Gift size={18}/></span><span><strong>Бонусы</strong><small>Выбрать версию</small></span><ChevronRight size={14}/></button>
+      <button onClick={() => openBonus()}><span className="dock-icon gift"><Gift size={18}/></span><span><strong>Бонусы</strong><small>Выбрать версию</small></span><ChevronRight size={14}/></button>
     </aside>
 
     <header className="portal-header sticky top-0 z-40"><div className="mx-auto flex h-[70px] max-w-[1500px] items-center gap-6 px-4 sm:px-6 lg:px-8">
@@ -138,9 +239,9 @@ export default function Home() {
       <nav className="hidden items-center gap-6 text-sm font-bold text-white/65 lg:flex"><Link className="nav-link" href="/lineage-2/main">Main</Link><Link className="nav-link" href="/lineage-2/essence">Essence / Special Project</Link><Link className="nav-link" href="/lineage-2/main/guides">Гайды</Link><a className="nav-link" href="#knowledge">База знаний</a><a className="nav-link" href="#videos">Видео</a></nav>
       <label className="header-search ml-auto hidden items-center gap-2 xl:flex"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по порталу" /></label>
       <a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer" aria-label="YouTube RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Youtube size={17}/></a><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer" aria-label="Telegram RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Send size={17}/></a>
-      <button onClick={() => setBonusOpen(true)} className="bonus-button hidden sm:flex"><Gift size={16}/> Играть</button>
+      <button onClick={() => openBonus()} className="bonus-button hidden sm:flex"><Gift size={16}/> Играть</button>
       <button className="ml-auto grid size-10 place-items-center rounded-full bg-white/8 text-white lg:hidden sm:ml-0" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}>{menuOpen ? <X size={20}/> : <Menu size={20}/>}</button>
-    </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {setBonusOpen(true);setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/main/guides"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
+    </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {openBonus();setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/main/guides"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
     <section id="top" className="hero-stage">
       <img src={heroCover} alt="" className="hero-publication-backdrop" aria-hidden="true"/>
@@ -177,7 +278,7 @@ export default function Home() {
     <section id="knowledge" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8"><div className="section-heading"><div><p className="portal-kicker dark"><Database size={14}/> База знаний</p><h2>Всё, что нужно для игры</h2></div><p className="max-w-md text-sm leading-6 text-[#777c88]">Lineage 2 – первая большая глава. Архитектура портала готова принимать новые игры и разделы.</p></div><div className="knowledge-grid mt-8">{knowledgeSections.map((section,index)=>{const Icon=iconMap[section.icon];return <Link key={section.title} href={`/lineage-2/${editionPath}/${section.href}`} className="knowledge-card"><span className="knowledge-number">0{index+1}</span><span className="knowledge-icon"><Icon size={23}/></span><h3>{section.title}</h3><p>{section.description}</p><span className="knowledge-link">Открыть раздел <ArrowUpRight size={16}/></span></Link>})}</div></div></section>
 
     <section className="portal-section pt-0"><div className="mx-auto grid max-w-[1500px] gap-5 px-4 sm:px-6 lg:grid-cols-[1.15fr_.85fr] lg:px-8">
-      <div className="bonus-strip"><div><p className="portal-kicker"><Gift size={14}/> Для новых и вернувшихся игроков</p><h2>Месяц расходников — на старте</h2><p>Выбери подходящую версию игры и начни с подарками от RedPlay.</p></div><button onClick={()=>setBonusOpen(true)}>Выбрать версию <ArrowRight size={17}/></button></div>
+      <div className="bonus-strip"><div><p className="portal-kicker"><Gift size={14}/> Для новых и вернувшихся игроков</p><h2>Месяц расходников — на старте</h2><p>Выбери подходящую версию игры и начни с подарками от RedPlay.</p></div><button onClick={()=>openBonus()}>Выбрать версию <ArrowRight size={17}/></button></div>
       <div id="tools" className="tools-panel"><div className="flex items-center justify-between"><div><p className="portal-kicker dark"><Calculator size={14}/> Инструменты</p><h3>Сначала посчитай</h3></div><span className="soon">Скоро</span></div><div className="tool-list">{[{icon:Crosshair,title:"Фарм"},{icon:Shield,title:"Классы"},{icon:Sparkles,title:"Заточка"},{icon:Clock3,title:"Прокачка"}].map(({icon:Icon,title})=><a key={title} href="#tools"><Icon size={17}/><span>{title}</span></a>)}</div></div>
     </div></section>
 
