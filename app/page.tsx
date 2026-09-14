@@ -6,6 +6,7 @@ import {
   Send, Shield, Sparkles, Swords, Video as Youtube, X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { editions, featuredUpdate, knowledgeSections, latestPosts, type Edition } from "@/lib/content";
@@ -55,6 +56,7 @@ export default function Home() {
   const [bonusOpen, setBonusOpen] = useState(false);
   const [bonusPromptOpen, setBonusPromptOpen] = useState(false);
   const [bonusGroup, setBonusGroup] = useState<BonusGroup>("Main");
+  const [isMobile, setIsMobile] = useState(false);
   const [videos, setVideos] = useState<Video[]>(fallbackVideos);
   const [onlineEdition, setOnlineEdition] = useState<OnlineEdition>("Main");
   const [onlineGroups, setOnlineGroups] = useState<OnlineGroups>(fallbackOnline);
@@ -65,6 +67,17 @@ export default function Home() {
   useEffect(() => {
     editionRef.current = edition;
   }, [edition]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const update = () => setIsMobile(media.matches);
+    const initialUpdate = window.setTimeout(update, 0);
+    media.addEventListener("change", update);
+    return () => {
+      window.clearTimeout(initialUpdate);
+      media.removeEventListener("change", update);
+    };
+  }, []);
 
   useEffect(() => {
     fetch("/api/youtube").then((response) => response.ok ? response.json() : null).then((data) => {
@@ -103,7 +116,10 @@ export default function Home() {
 
     const showOffer = () => {
       if (handled || sessionStorage.getItem("redplay-bonus-auto-shown") === "1") return;
-      if (activeSeconds < 25 || (!hasReachedScrollDepth && activeSeconds < 75)) return;
+      const mobile = window.matchMedia("(max-width: 760px)").matches;
+      const minimumSeconds = mobile ? 7 : 15;
+      const maximumSeconds = mobile ? 25 : 40;
+      if (activeSeconds < minimumSeconds || (!hasReachedScrollDepth && activeSeconds < maximumSeconds)) return;
 
       handled = true;
       sessionStorage.setItem("redplay-bonus-auto-shown", "1");
@@ -116,7 +132,9 @@ export default function Home() {
 
     const checkScrollDepth = () => {
       const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (scrollableHeight > 0 && window.scrollY / scrollableHeight >= 0.45) hasReachedScrollDepth = true;
+      const mobile = window.matchMedia("(max-width: 760px)").matches;
+      const requiredDepth = mobile ? 0.2 : 0.3;
+      if (scrollableHeight > 0 && window.scrollY / scrollableHeight >= requiredDepth) hasReachedScrollDepth = true;
       showOffer();
     };
 
@@ -168,6 +186,20 @@ export default function Home() {
       setBonusPromptOpen(false);
       setBonusOpen(false);
     };
+
+  useEffect(() => {
+    if (!bonusOpen || !isMobile) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeBonus(false);
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [bonusOpen, isMobile]);
   const results = useMemo(() => {
     const dynamicPosts = publishedArticles.filter((article) => edition === "Main" ? article.edition === "main" : article.edition === "essence" || article.edition === "special-project").map((article) => {
       const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
@@ -201,23 +233,36 @@ export default function Home() {
 
   return <main className="min-h-screen overflow-hidden bg-background text-foreground">
     <h1 className="sr-only">Lineage 2 – новости, обновления, гайды и база знаний</h1>
-    <Dialog open={bonusOpen} onOpenChange={closeBonus}>
+    {!isMobile && <Dialog open={bonusOpen} onOpenChange={closeBonus}>
       <DialogContent className="bonus-dialog max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-5xl" aria-describedby="bonus-description">
         <div className="bonus-dialog-head px-6 py-7 sm:px-8">
           <p className="portal-kicker"><Gift size={14}/> Бонус новым и вернувшимся</p>
           <DialogHeader className="mt-3 text-left"><DialogTitle className="text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">Выбери свою Lineage 2</DialogTitle><DialogDescription id="bonus-description" className="mt-2 max-w-2xl text-sm leading-6 text-white/60">Main — отдельная версия. Essence и Special Project работают на общей основе, но предлагают разные правила серверов и отдельные ссылки регистрации.</DialogDescription></DialogHeader>
         </div>
-        <div className="bonus-mobile-tabs" aria-label="Выбор версии">
-          {(["Main", "Essence / Special Project"] as BonusGroup[]).map((group) => <button key={group} type="button" className={bonusGroup === group ? "active" : ""} onClick={() => selectBonusGroup(group)}>{group}</button>)}
-        </div>
         <div className="bonus-desktop-groups" aria-hidden="true"><span>Main</span><span>Essence / Special Project</span></div>
         <div className="bonus-dialog-cards grid gap-3 p-4 sm:grid-cols-3 sm:p-6">{gameLinks.map(game => {
-          const group: BonusGroup = game.name === "Main" ? "Main" : "Essence / Special Project";
-          return <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""} ${bonusGroup !== group ? "bonus-choice-mobile-hidden" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>;
+          return <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>;
         })}</div>
         <div className="bonus-dialog-footer"><p>Переходы ведут по партнёрским ссылкам RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
       </DialogContent>
-    </Dialog>
+    </Dialog>}
+
+    {isMobile && bonusOpen && createPortal(<div className="bonus-sheet-portal">
+      <button type="button" className="bonus-sheet-overlay" onClick={() => closeBonus(false)} aria-label="Закрыть выбор версии"/>
+      <section className="bonus-sheet" role="dialog" aria-modal="true" aria-labelledby="bonus-sheet-title" aria-describedby="bonus-sheet-description">
+        <div className="bonus-sheet-head">
+          <p className="portal-kicker"><Gift size={14}/> Бонус новым и вернувшимся</p>
+          <h2 id="bonus-sheet-title">Выбери свою Lineage 2</h2>
+          <p id="bonus-sheet-description">Main — отдельная версия. Essence и Special Project имеют разные правила серверов и отдельные ссылки регистрации.</p>
+          <button type="button" className="bonus-sheet-close" onClick={() => closeBonus(false)} aria-label="Закрыть окно"><X size={20}/></button>
+        </div>
+        <div className="bonus-sheet-tabs" aria-label="Выбор версии">
+          {(["Main", "Essence / Special Project"] as BonusGroup[]).map((group) => <button key={group} type="button" className={bonusGroup === group ? "active" : ""} onClick={() => selectBonusGroup(group)}>{group}</button>)}
+        </div>
+        <div className="bonus-sheet-cards">{gameLinks.filter((game) => bonusGroup === "Main" ? game.name === "Main" : game.name !== "Main").map((game) => <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>)}</div>
+        <div className="bonus-sheet-footer"><p>Партнёрские ссылки RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
+      </section>
+    </div>, document.body)}
 
     {bonusPromptOpen && <aside className="bonus-mobile-prompt" role="dialog" aria-label="Бонус для игроков Lineage 2">
       <button type="button" className="bonus-prompt-close" onClick={closeBonusPrompt} aria-label="Закрыть предложение"><X size={19}/></button>
