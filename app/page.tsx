@@ -5,12 +5,13 @@ import {
   Clock3, Crosshair, Database, Flame, Gift, Map, Menu, Newspaper, Play, Search,
   Send, Shield, Sparkles, Swords, Video as Youtube, X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { editions, featuredUpdate, knowledgeSections, latestPosts, type Edition } from "@/lib/content";
+import { editions, knowledgeSections, type Edition } from "@/lib/content";
 import { articleCategories } from "@/lib/articles/catalog";
+import { readEditionPreference, saveEditionPreference, type EditionPreference } from "@/lib/edition-preference";
 import { createClient } from "@/lib/supabase/client";
 
 type Video = { id: string; title: string; url: string; thumbnail: string; published: string };
@@ -19,6 +20,17 @@ type OnlineEdition = "Main" | "Special Project" | "Essence";
 type BonusGroup = "Main" | "Essence / Special Project";
 type OnlineGroups = Record<OnlineEdition, OnlineServer[]>;
 type PublishedArticle = { id: string; title: string; description: string; label: string; cover: { src?: string; alt?: string } | null; edition: "main" | "essence" | "special-project"; category: string; slug: string; tags: string[] | null; published_at: string | null; updated_at: string };
+const editionLabels: Record<EditionPreference, Edition> = {
+  all: "Все версии",
+  main: "Main",
+  essence: "Essence / Special Project",
+};
+const editionValues: Record<Edition, EditionPreference> = {
+  "Все версии": "all",
+  Main: "main",
+  "Essence / Special Project": "essence",
+};
+const subscribeToEditionPreference = () => () => undefined;
 const fallbackHero = {
   title: "Forged in Battle в Lineage 2: все классы, умения и точные изменения",
   description: "Полный разбор большого обновления: классы, новые зоны, предметы, крафт и различия Essence и Special Project.",
@@ -26,6 +38,32 @@ const fallbackHero = {
   cover: "https://vpsocmwsvwyavrmduzth.supabase.co/storage/v1/object/public/article-media/2026/3764614b-53ac-42eb-aacb-5a43c563c0ea-forged-in-battle-cover.png",
   href: "/lineage-2/essence/updates/forged-in-battle-vse-klassy-i-umeniya",
   publishedAt: "2026-09-13T00:00:00.000Z",
+};
+const replicaArticle: PublishedArticle = {
+  id: "replica-static",
+  title: "Replica для Lineage 2 Main: межсерверные вторжения, Гора Богов и 13 новых агатионов",
+  description: "Разбираем главное обновление осени: как работает Реплика, что изменится в Свержении, какие зоны откроются на 120–132 уровнях и к чему готовиться заранее.",
+  label: "Перевод из Кореи",
+  cover: { src: "/replica-hero.webp", alt: "Обновление Replica для Lineage 2 Main" },
+  edition: "main",
+  category: "updates",
+  slug: "replica",
+  tags: ["Main", "Replica", "Гора Богов", "Новые зоны"],
+  published_at: "2026-09-12T10:30:00+03:00",
+  updated_at: "2026-09-13T16:45:00+03:00",
+};
+const forgedArticle: PublishedArticle = {
+  id: "forged-static-fallback",
+  title: fallbackHero.title,
+  description: fallbackHero.description,
+  label: fallbackHero.label,
+  cover: { src: fallbackHero.cover, alt: fallbackHero.title },
+  edition: "essence",
+  category: "updates",
+  slug: "forged-in-battle-vse-klassy-i-umeniya",
+  tags: ["Essence", "Special Project", "Классы и умения", "Зоны и предметы"],
+  published_at: fallbackHero.publishedAt,
+  updated_at: fallbackHero.publishedAt,
 };
 const fallbackOnline: OnlineGroups = {
   Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063}],
@@ -50,7 +88,13 @@ const heroSlides = [
 ];
 
 export default function Home() {
-  const [edition, setEdition] = useState<Edition>("Main");
+  const savedEdition = useSyncExternalStore(
+    subscribeToEditionPreference,
+    () => editionLabels[readEditionPreference()],
+    () => "Все версии",
+  );
+  const [selectedEdition, setSelectedEdition] = useState<Edition | null>(null);
+  const edition = selectedEdition || savedEdition;
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [bonusOpen, setBonusOpen] = useState(false);
@@ -67,6 +111,11 @@ export default function Home() {
   useEffect(() => {
     editionRef.current = edition;
   }, [edition]);
+
+  const selectEdition = (selectedEdition: Edition) => {
+    setSelectedEdition(selectedEdition);
+    saveEditionPreference(editionValues[selectedEdition]);
+  };
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
@@ -200,22 +249,37 @@ export default function Home() {
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [bonusOpen, isMobile]);
+  const editionArticles = useMemo(() => {
+    const pool = [...publishedArticles, forgedArticle, replicaArticle]
+      .filter((article, index, all) => {
+        const href = `/lineage-2/${article.edition}/${article.category}/${article.slug}`;
+        return all.findIndex((item) => `/lineage-2/${item.edition}/${item.category}/${item.slug}` === href) === index;
+      })
+      .sort((left, right) => new Date(right.published_at || right.updated_at).getTime() - new Date(left.published_at || left.updated_at).getTime());
+
+    return pool.filter((article) => {
+      if (edition === "Все версии") return true;
+      if (edition === "Main") return article.edition === "main";
+      return article.edition === "essence" || article.edition === "special-project";
+    });
+  }, [edition, publishedArticles]);
+
+  const featuredStory = editionArticles[0] || (edition === "Main" ? replicaArticle : forgedArticle);
   const results = useMemo(() => {
-    const dynamicPosts = publishedArticles.filter((article) => edition === "Main" ? article.edition === "main" : article.edition === "essence" || article.edition === "special-project").map((article) => {
+    const posts = editionArticles.slice(1, 4).map((article) => {
       const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
       const targetLabel = targets.length === 2 ? "Essence + Special" : targets[0];
       return {
-      category: `${articleCategories.find((item) => item.value === article.category)?.label || article.category}${targetLabel ? ` · ${targetLabel}` : ""}`,
-      date: new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(article.published_at || article.updated_at)),
-      title: article.title,
-      summary: article.description,
-      href: `/lineage-2/${article.edition}/${article.category}/${article.slug}`,
-    }});
-    const fallbackPosts = latestPosts.filter((post) => post.edition === edition).map((post) => ({ ...post, href: post.title.startsWith("Replica:") ? "/lineage-2/main/updates/replica" : "#updates" }));
-    const posts = [...dynamicPosts, ...fallbackPosts].filter((post, index, all) => all.findIndex((item) => item.title === post.title) === index).slice(0, 5);
+        category: `${articleCategories.find((item) => item.value === article.category)?.label || article.category}${targetLabel ? ` · ${targetLabel}` : ""}`,
+        date: new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(article.published_at || article.updated_at)),
+        title: article.title,
+        summary: article.description,
+        href: `/lineage-2/${article.edition}/${article.category}/${article.slug}`,
+      };
+    });
     const value = query.trim().toLocaleLowerCase("ru");
     return value ? posts.filter((post) => [post.title, post.category, post.summary].some((text) => text.toLocaleLowerCase("ru").includes(value))) : posts;
-  }, [edition, publishedArticles, query]);
+  }, [editionArticles, query]);
   const selectedServers = onlineGroups[onlineEdition];
   const totalOnline = selectedServers.reduce((sum, server) => sum + server.online, 0);
   const maxOnline = Math.max(...selectedServers.map(server => server.online), 1);
@@ -228,8 +292,14 @@ export default function Home() {
   const heroCategory = latestHero ? articleCategories.find((item) => item.value === latestHero.category)?.label || latestHero.label : fallbackHero.label;
   const heroTags = latestHero?.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 3) || ["Классы и умения", "Зоны и предметы"];
   const heroDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(latestHero?.published_at || latestHero?.updated_at || fallbackHero.publishedAt));
+  const featuredHref = `/lineage-2/${featuredStory.edition}/${featuredStory.category}/${featuredStory.slug}`;
+  const featuredCover = featuredStory.cover?.src || (featuredStory.edition === "main" ? "/game-main.webp" : featuredStory.edition === "essence" ? "/game-essence.webp" : "/game-special.webp");
+  const featuredCategory = articleCategories.find((item) => item.value === featuredStory.category)?.label || featuredStory.label;
+  const featuredDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(featuredStory.published_at || featuredStory.updated_at));
+  const featuredEdition = featuredStory.edition === "main" ? "Main" : featuredStory.edition === "essence" ? "Essence" : "Special Project";
+  const featuredTags = featuredStory.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 4) || [];
 
-  const editionPath = edition === "Main" ? "main" : "essence";
+  const editionPath = edition === "Essence / Special Project" ? "essence" : "main";
 
   return <main className="min-h-screen overflow-hidden bg-background text-foreground">
     <h1 className="sr-only">Lineage 2 – новости, обновления, гайды и база знаний</h1>
@@ -303,13 +373,13 @@ export default function Home() {
       </div>
     </section>
 
-    <div className="edition-bar"><div className="mx-auto flex max-w-[1500px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8"><span className="mr-2 hidden shrink-0 text-[11px] font-black uppercase tracking-[.16em] text-white/35 sm:block">Материалы по версии</span>{editions.map(item => <button key={item} onClick={() => setEdition(item)} className={`edition-tab ${edition===item?"edition-tab-active":""}`}><span className="edition-signal"/>{item}</button>)}<span className="ml-auto hidden shrink-0 items-center gap-2 text-xs text-white/35 lg:flex"><Flame size={14} className="text-[#ff344b]"/> Обновлено сегодня</span></div></div>
+    <div className="edition-bar"><div className="mx-auto flex max-w-[1500px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8"><span className="mr-2 hidden shrink-0 text-[11px] font-black uppercase tracking-[.16em] text-white/35 sm:block">Материалы по версии</span>{editions.map(item => <button key={item} onClick={() => selectEdition(item)} className={`edition-tab ${edition===item?"edition-tab-active":""}`}><span className="edition-signal"/>{item}</button>)}<span className="ml-auto hidden shrink-0 items-center gap-2 text-xs text-white/35 lg:flex"><Flame size={14} className="text-[#ff344b]"/> Обновлено сегодня</span></div></div>
 
     <section id="updates" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
-      <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> В центре внимания</p><h2>Актуальное в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={`Поиск в ${edition}`} /></label><Link className="section-more" href={`/lineage-2/${editionPath}/news`}>Все материалы <ArrowRight size={16}/></Link></div></div>
-      <div className="news-layout mt-7">
-        <article className="feature-story"><div className="story-art"><img src="/game-main.webp" alt=""/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Перевод из Кореи</span><span>{featuredUpdate.date}</span><span>• {featuredUpdate.readTime}</span></div><h3>{featuredUpdate.title}</h3><p>{featuredUpdate.summary}</p><div className="mt-5 flex flex-wrap gap-2">{featuredUpdate.tags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div><Link href="/lineage-2/main/updates/replica" className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article>
-        <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><div className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></div><h3>{post.title}</h3><p>{post.summary}</p><span className="mt-auto flex items-center gap-2 pt-4 text-xs font-black uppercase tracking-[.08em]">Читать <ArrowRight size={14}/></span></Link>)}</div>
+      <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> В центре внимания</p><h2>Актуальное в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={edition === "Все версии" ? "Поиск по всем версиям" : `Поиск в ${edition}`} /></label>{edition !== "Все версии" && <Link className="section-more" href={`/lineage-2/${editionPath}/news`}>Все материалы <ArrowRight size={16}/></Link>}</div></div>
+      <div className={`news-layout mt-7 ${results.length ? "" : "news-layout-single"}`}>
+        <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span></div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article>
+        {results.length > 0 && <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><div className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></div><h3>{post.title}</h3><p>{post.summary}</p><span className="mt-auto flex items-center gap-2 pt-4 text-xs font-black uppercase tracking-[.08em]">Читать <ArrowRight size={14}/></span></Link>)}</div>}
       </div>
     </div></section>
 
