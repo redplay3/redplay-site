@@ -75,7 +75,9 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
   const [detectedOrientation, setDetectedOrientation] = useState<"vertical" | "horizontal">("horizontal");
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isViewportFullscreen, setIsViewportFullscreen] = useState(false);
   const isExpanded = geometry !== null;
+  const isFullscreenMode = isFullscreen || isViewportFullscreen;
   const resolvedOrientation = orientation === "auto" ? detectedOrientation : orientation;
 
   const motionDuration = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : window.innerWidth < 761 ? 280 : EXPAND_DURATION;
@@ -120,6 +122,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
 
   const closeExpanded = () => {
     if (!geometry) return;
+    setIsViewportFullscreen(false);
 
     if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
     if (settleFrameRef.current !== null) window.cancelAnimationFrame(settleFrameRef.current);
@@ -187,7 +190,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     };
   }, []);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
     const target = playerRef.current as (HTMLDivElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
     }) | null;
@@ -197,22 +200,30 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     };
 
     try {
+      if (isViewportFullscreen) {
+        setIsViewportFullscreen(false);
+        showControls();
+        return;
+      }
       if (document.fullscreenElement || fullscreenDocument.webkitFullscreenElement) {
-        if (document.exitFullscreen) void document.exitFullscreen().catch(() => undefined);
+        if (document.exitFullscreen) await document.exitFullscreen();
         else if (fullscreenDocument.webkitExitFullscreen) {
           const exitRequest = fullscreenDocument.webkitExitFullscreen();
-          if (exitRequest) void exitRequest.catch(() => undefined);
+          if (exitRequest) await exitRequest;
         }
         return;
       }
       if (target?.requestFullscreen) {
-        void target.requestFullscreen().catch(() => undefined);
+        await target.requestFullscreen();
       } else if (target?.webkitRequestFullscreen) {
         const fullscreenRequest = target.webkitRequestFullscreen();
-        if (fullscreenRequest) void fullscreenRequest.catch(() => undefined);
-      }
+        if (fullscreenRequest) await fullscreenRequest;
+      } else setIsViewportFullscreen(true);
     } catch {
-      // The smoothly expanded player remains available when fullscreen is denied.
+      // iOS and embedded mobile browsers often deny fullscreen for a div.
+      // A viewport-sized player keeps the same controls and always has an exit button.
+      setIsViewportFullscreen(true);
+      showControls();
     }
   };
 
@@ -243,7 +254,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     <div ref={shellRef} className={`article-video-shell is-${resolvedOrientation}`}>
       <div
         ref={playerRef}
-        className={`article-korean-video-frame${isExpanded ? " is-expanded" : ""}${isVisuallyOpen ? " is-visually-open" : ""}${isSettled ? " is-settled" : ""}`}
+        className={`article-korean-video-frame${isExpanded ? " is-expanded" : ""}${isVisuallyOpen ? " is-visually-open" : ""}${isSettled ? " is-settled" : ""}${isViewportFullscreen ? " is-viewport-fullscreen" : ""}`}
         style={playerStyle}
         role={isExpanded ? "dialog" : undefined}
         aria-modal={isExpanded ? true : undefined}
@@ -277,10 +288,10 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
 
         {!isExpanded ? <button type="button" className="article-video-expand" aria-label={`Увеличить видео: ${title}`} onClick={openExpanded}>
           <Expand size={16}/> <span>Увеличить</span>
-        </button> : <div className={`article-video-expanded-bar ${(controlsVisible || isFullscreen) && isSettled ? "is-visible" : ""}`}>
+        </button> : <div className={`article-video-expanded-bar ${(controlsVisible || isFullscreenMode) && isSettled ? "is-visible" : ""}`}>
           <strong>{title}</strong>
           <div>
-            <button type="button" aria-label={isFullscreen ? "Выйти из полноэкранного режима" : "Открыть видео во весь экран"} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17}/> : <Maximize2 size={17}/>}<span>{isFullscreen ? "Свернуть" : "Во весь экран"}</span></button>
+            <button type="button" aria-label={isFullscreenMode ? "Выйти из полноэкранного режима" : "Открыть видео во весь экран"} onClick={toggleFullscreen}>{isFullscreenMode ? <Minimize2 size={17}/> : <Maximize2 size={17}/>}<span>{isFullscreenMode ? "Свернуть" : "Во весь экран"}</span></button>
             <button type="button" aria-label="Закрыть видео" onClick={closeExpanded}><X size={18}/><span>Закрыть</span></button>
           </div>
         </div>}
