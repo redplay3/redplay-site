@@ -218,7 +218,11 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
       } else if (target?.webkitRequestFullscreen) {
         const fullscreenRequest = target.webkitRequestFullscreen();
         if (fullscreenRequest) await fullscreenRequest;
-      } else setIsViewportFullscreen(true);
+      } else {
+        setIsViewportFullscreen(true);
+        return;
+      }
+      if (!document.fullscreenElement && !fullscreenDocument.webkitFullscreenElement) setIsViewportFullscreen(true);
     } catch {
       // iOS and embedded mobile browsers often deny fullscreen for a div.
       // A viewport-sized player keeps the same controls and always has an exit button.
