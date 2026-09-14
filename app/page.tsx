@@ -2,7 +2,7 @@
 
 import {
   Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Box, Calculator, ChevronLeft, ChevronRight,
-  Clock3, Crosshair, Database, Flame, Gift, Map, Menu, Newspaper, Play, Search,
+  Clock3, Crosshair, Database, Eye, Flame, Gift, Map, Menu, Newspaper, Play, Search,
   Send, Shield, Sparkles, Swords, Video as Youtube, X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -20,6 +20,7 @@ type OnlineEdition = "Main" | "Special Project" | "Essence";
 type BonusGroup = "Main" | "Essence / Special Project";
 type OnlineGroups = Record<OnlineEdition, OnlineServer[]>;
 type PublishedArticle = { id: string; title: string; description: string; label: string; cover: { src?: string; alt?: string } | null; edition: "main" | "essence" | "special-project"; category: string; slug: string; tags: string[] | null; published_at: string | null; updated_at: string };
+type ArticleViewRow = { page_key: string; view_count: number | string; updated_at?: string; view_date?: string };
 const editionLabels: Record<EditionPreference, Edition> = {
   all: "Все версии",
   main: "Main",
@@ -106,6 +107,7 @@ export default function Home() {
   const [onlineGroups, setOnlineGroups] = useState<OnlineGroups>(fallbackOnline);
   const [onlineUpdated, setOnlineUpdated] = useState("обновляем сейчас");
   const [publishedArticles, setPublishedArticles] = useState<PublishedArticle[]>([]);
+  const [articleViews, setArticleViews] = useState<Record<string, number>>({});
   const editionRef = useRef(edition);
 
   useEffect(() => {
@@ -140,6 +142,18 @@ export default function Home() {
       const supabase = createClient();
       supabase.from("articles").select("id,title,description,label,cover,edition,category,slug,tags,published_at,updated_at").eq("status", "published").order("published_at", { ascending: false }).limit(20).then(({ data }) => {
         if (data?.length) setPublishedArticles(data as PublishedArticle[]);
+      });
+      const popularitySince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      supabase.from("article_view_daily").select("page_key,view_count,view_date").gte("view_date", popularitySince).then(async ({ data, error }) => {
+        let rows = data as ArticleViewRow[] | null;
+        if (error) {
+          const fallbackSince = new Date(`${popularitySince}T00:00:00.000Z`).toISOString();
+          const fallback = await supabase.from("article_views").select("page_key,view_count,updated_at").gte("updated_at", fallbackSince);
+          rows = fallback.data as ArticleViewRow[] | null;
+        }
+        const totals: Record<string, number> = {};
+        for (const row of rows || []) totals[row.page_key] = (totals[row.page_key] || 0) + Number(row.view_count || 0);
+        setArticleViews(totals);
       });
     } catch {
       // The hand-picked cards below remain available if Supabase is temporarily unavailable.
@@ -264,9 +278,23 @@ export default function Home() {
     });
   }, [edition, publishedArticles]);
 
-  const featuredStory = editionArticles[0] || (edition === "Main" ? replicaArticle : forgedArticle);
+  const latestHero = publishedArticles[0] || forgedArticle;
+  const latestHeroHref = `/lineage-2/${latestHero.edition}/${latestHero.category}/${latestHero.slug}`;
+  const featuredStory = useMemo(() => {
+    const candidates = editionArticles.filter((article) => `/lineage-2/${article.edition}/${article.category}/${article.slug}` !== latestHeroHref);
+    return candidates.sort((left, right) => {
+      const leftKey = `/lineage-2/${left.edition}/${left.category}/${left.slug}`;
+      const rightKey = `/lineage-2/${right.edition}/${right.category}/${right.slug}`;
+      const viewsDifference = (articleViews[rightKey] || 0) - (articleViews[leftKey] || 0);
+      if (viewsDifference) return viewsDifference;
+      return new Date(left.published_at || left.updated_at).getTime() - new Date(right.published_at || right.updated_at).getTime();
+    })[0] || null;
+  }, [articleViews, editionArticles, latestHeroHref]);
+  const featuredHref = featuredStory ? `/lineage-2/${featuredStory.edition}/${featuredStory.category}/${featuredStory.slug}` : "";
+  const featuredViews = featuredStory ? articleViews[featuredHref] || 0 : 0;
   const results = useMemo(() => {
-    const posts = editionArticles.slice(1, 4).map((article) => {
+    const excluded = new Set([latestHeroHref, featuredHref]);
+    const posts = editionArticles.filter((article) => !excluded.has(`/lineage-2/${article.edition}/${article.category}/${article.slug}`)).slice(0, 3).map((article) => {
       const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
       const targetLabel = targets.length === 2 ? "Essence + Special" : targets[0];
       return {
@@ -279,12 +307,11 @@ export default function Home() {
     });
     const value = query.trim().toLocaleLowerCase("ru");
     return value ? posts.filter((post) => [post.title, post.category, post.summary].some((text) => text.toLocaleLowerCase("ru").includes(value))) : posts;
-  }, [editionArticles, query]);
+  }, [editionArticles, featuredHref, latestHeroHref, query]);
   const selectedServers = onlineGroups[onlineEdition];
   const totalOnline = selectedServers.reduce((sum, server) => sum + server.online, 0);
   const maxOnline = Math.max(...selectedServers.map(server => server.online), 1);
-  const latestHero = publishedArticles[0];
-  const heroHref = latestHero ? `/lineage-2/${latestHero.edition}/${latestHero.category}/${latestHero.slug}` : fallbackHero.href;
+  const heroHref = `/lineage-2/${latestHero.edition}/${latestHero.category}/${latestHero.slug}`;
   const heroCover = latestHero?.cover?.src || fallbackHero.cover;
   const heroTitle = latestHero?.title || fallbackHero.title;
   const heroDescription = latestHero?.description || fallbackHero.description;
@@ -292,12 +319,11 @@ export default function Home() {
   const heroCategory = latestHero ? articleCategories.find((item) => item.value === latestHero.category)?.label || latestHero.label : fallbackHero.label;
   const heroTags = latestHero?.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 3) || ["Классы и умения", "Зоны и предметы"];
   const heroDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(latestHero?.published_at || latestHero?.updated_at || fallbackHero.publishedAt));
-  const featuredHref = `/lineage-2/${featuredStory.edition}/${featuredStory.category}/${featuredStory.slug}`;
-  const featuredCover = featuredStory.cover?.src || (featuredStory.edition === "main" ? "/game-main.webp" : featuredStory.edition === "essence" ? "/game-essence.webp" : "/game-special.webp");
-  const featuredCategory = articleCategories.find((item) => item.value === featuredStory.category)?.label || featuredStory.label;
-  const featuredDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(featuredStory.published_at || featuredStory.updated_at));
-  const featuredEdition = featuredStory.edition === "main" ? "Main" : featuredStory.edition === "essence" ? "Essence" : "Special Project";
-  const featuredTags = featuredStory.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 4) || [];
+  const featuredCover = featuredStory?.cover?.src || (featuredStory?.edition === "main" ? "/game-main.webp" : featuredStory?.edition === "special-project" ? "/game-special.webp" : "/game-essence.webp");
+  const featuredCategory = featuredStory ? articleCategories.find((item) => item.value === featuredStory.category)?.label || featuredStory.label : "";
+  const featuredDate = featuredStory ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(featuredStory.published_at || featuredStory.updated_at)) : "";
+  const featuredEdition = featuredStory?.edition === "main" ? "Main" : featuredStory?.edition === "essence" ? "Essence" : "Special Project";
+  const featuredTags = featuredStory?.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 4) || [];
 
   const editionPath = edition === "Essence / Special Project" ? "essence" : "main";
 
@@ -378,7 +404,7 @@ export default function Home() {
     <section id="updates" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
       <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> В центре внимания</p><h2>Актуальное в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={edition === "Все версии" ? "Поиск по всем версиям" : `Поиск в ${edition}`} /></label>{edition !== "Все версии" && <Link className="section-more" href={`/lineage-2/${editionPath}/news`}>Все материалы <ArrowRight size={16}/></Link>}</div></div>
       <div className={`news-layout mt-7 ${results.length ? "" : "news-layout-single"}`}>
-        <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span></div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article>
+        {featuredStory ? <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Популярное</span><span>{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span>{featuredViews > 0 && <span className="story-views"><Eye size={13}/>{new Intl.NumberFormat("ru-RU").format(featuredViews)}</span>}</div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article> : <div className="news-empty"><strong>Новые материалы уже готовятся</strong><p>Последняя публикация показана выше. Здесь появятся другие популярные статьи выбранной версии без повторов.</p></div>}
         {results.length > 0 && <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><div className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></div><h3>{post.title}</h3><p>{post.summary}</p><span className="mt-auto flex items-center gap-2 pt-4 text-xs font-black uppercase tracking-[.08em]">Читать <ArrowRight size={14}/></span></Link>)}</div>}
       </div>
     </div></section>
