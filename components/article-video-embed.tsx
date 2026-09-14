@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Expand, Maximize2, X } from "lucide-react";
+import { Expand, Maximize2, Minimize2, X } from "lucide-react";
 
 type ArticleVideoEmbedProps = {
   videoId?: string;
@@ -74,6 +74,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
   const [isSettled, setIsSettled] = useState(false);
   const [detectedOrientation, setDetectedOrientation] = useState<"vertical" | "horizontal">("horizontal");
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const isExpanded = geometry !== null;
   const resolvedOrientation = orientation === "auto" ? detectedOrientation : orientation;
 
@@ -171,12 +172,39 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
   }, []);
 
-  const openFullscreen = () => {
+  useEffect(() => {
+    const fullscreenDocument = document as Document & { webkitFullscreenElement?: Element | null };
+    const syncFullscreenState = () => {
+      const fullscreenElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement || null;
+      setIsFullscreen(fullscreenElement === playerRef.current);
+      if (fullscreenElement === playerRef.current) showControls();
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    document.addEventListener("webkitfullscreenchange", syncFullscreenState);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+      document.removeEventListener("webkitfullscreenchange", syncFullscreenState);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
     const target = playerRef.current as (HTMLDivElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
     }) | null;
+    const fullscreenDocument = document as Document & {
+      webkitFullscreenElement?: Element | null;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
 
     try {
+      if (document.fullscreenElement || fullscreenDocument.webkitFullscreenElement) {
+        if (document.exitFullscreen) void document.exitFullscreen().catch(() => undefined);
+        else if (fullscreenDocument.webkitExitFullscreen) {
+          const exitRequest = fullscreenDocument.webkitExitFullscreen();
+          if (exitRequest) void exitRequest.catch(() => undefined);
+        }
+        return;
+      }
       if (target?.requestFullscreen) {
         void target.requestFullscreen().catch(() => undefined);
       } else if (target?.webkitRequestFullscreen) {
@@ -249,10 +277,10 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
 
         {!isExpanded ? <button type="button" className="article-video-expand" aria-label={`Увеличить видео: ${title}`} onClick={openExpanded}>
           <Expand size={16}/> <span>Увеличить</span>
-        </button> : <div className={`article-video-expanded-bar ${controlsVisible && isSettled ? "is-visible" : ""}`}>
+        </button> : <div className={`article-video-expanded-bar ${(controlsVisible || isFullscreen) && isSettled ? "is-visible" : ""}`}>
           <strong>{title}</strong>
           <div>
-            <button type="button" aria-label="Открыть видео во весь экран" onClick={openFullscreen}><Maximize2 size={17}/><span>Во весь экран</span></button>
+            <button type="button" aria-label={isFullscreen ? "Выйти из полноэкранного режима" : "Открыть видео во весь экран"} onClick={toggleFullscreen}>{isFullscreen ? <Minimize2 size={17}/> : <Maximize2 size={17}/>}<span>{isFullscreen ? "Свернуть" : "Во весь экран"}</span></button>
             <button type="button" aria-label="Закрыть видео" onClick={closeExpanded}><X size={18}/><span>Закрыть</span></button>
           </div>
         </div>}
