@@ -24,6 +24,23 @@ function youtubeVideoId(value: string) {
 
 type VideoItem = { title: string; url: string; text?: string };
 
+type ResolvedVideo = VideoItem & (
+  | { kind: "youtube"; id: string }
+  | { kind: "file"; src: string }
+);
+
+function resolveVideo(item: VideoItem): ResolvedVideo | null {
+  const id = youtubeVideoId(item.url);
+  if (id) return { ...item, kind: "youtube", id };
+  try {
+    const url = new URL(item.url.trim());
+    if (/\.(?:mp4|webm|ogg)$/i.test(url.pathname)) return { ...item, kind: "file", src: url.toString() };
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function youtubeOrientation(value: string) {
   try {
     return new URL(value.trim()).pathname.startsWith("/shorts/") ? "vertical" as const : "horizontal" as const;
@@ -33,7 +50,7 @@ function youtubeOrientation(value: string) {
 }
 
 export function ArticleVideoPlaylist({ title, text, items }: { title: string; text?: string; items: VideoItem[] }) {
-  const videos = useMemo(() => items.map((item) => ({ ...item, id: youtubeVideoId(item.url) })).filter((item): item is VideoItem & { id: string } => Boolean(item.id)), [items]);
+  const videos = useMemo(() => items.map(resolveVideo).filter((item): item is ResolvedVideo => Boolean(item)), [items]);
   const [selected, setSelected] = useState(0);
   const active = videos[Math.min(selected, Math.max(0, videos.length - 1))];
   if (!active) return null;
@@ -45,10 +62,13 @@ export function ArticleVideoPlaylist({ title, text, items }: { title: string; te
       {text && <p>{text}</p>}
     </div>
     <div className={styles.frame}>
-      <ArticleVideoEmbed key={active.id} videoId={active.id} title={active.title} orientation={youtubeOrientation(active.url)}/>
+      {active.kind === "youtube"
+        ? <ArticleVideoEmbed key={active.id} videoId={active.id} title={active.title} orientation={youtubeOrientation(active.url)}/>
+        : <video key={active.src} controls playsInline preload="metadata" src={active.src} aria-label={active.title}/>
+      }
     </div>
     <div className={styles.tabs} role="tablist" aria-label={title}>
-      {videos.map((video, index) => <button type="button" role="tab" aria-selected={index === selected} className={index === selected ? styles.active : undefined} onClick={() => setSelected(index)} key={`${video.id}-${index}`}>
+      {videos.map((video, index) => <button type="button" role="tab" aria-selected={index === selected} className={index === selected ? styles.active : undefined} onClick={() => setSelected(index)} key={`${video.kind === "youtube" ? video.id : video.src}-${index}`}>
         <span>{String(index + 1).padStart(2, "0")}</span>
         <strong>{video.title}</strong>
         {video.text && <small>{video.text}</small>}
