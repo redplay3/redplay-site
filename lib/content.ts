@@ -1,4 +1,4 @@
-export const editions = ["Main", "Essence / Special Project"] as const;
+export const editions = ["Все версии", "Main", "Essence / Special Project"] as const;
 export type Edition = (typeof editions)[number];
 
 export const knowledgeSections = [
