@@ -41,7 +41,8 @@
 .article-video-shell .article-korean-video-frame>video{display:block;width:100%;height:100%;aspect-ratio:auto;background:#05060a;object-fit:contain}
 .article-video-shell .article-korean-video-frame.is-expanded{position:fixed;z-index:102;inset:auto;left:var(--video-left);top:var(--video-top);width:var(--video-width);height:var(--video-height);margin:0;transform:none;border-radius:.8rem;box-shadow:0 18px 55px #0008;transition:transform .42s cubic-bezier(.22,1,.36,1),border-radius .42s cubic-bezier(.22,1,.36,1),box-shadow .42s cubic-bezier(.22,1,.36,1)}
 .article-video-shell .article-korean-video-frame.is-expanded.is-visually-open{transform:translate(var(--video-x),var(--video-y)) scale(var(--video-scale));border-radius:1rem;box-shadow:0 34px 100px #000c}
-.article-video-backdrop{position:fixed;z-index:101;inset:0;border:0;background:#ffffff08;backdrop-filter:blur(14px);animation:articleVideoBackdropIn .35s ease both}
+.article-video-shell .article-korean-video-frame.is-expanded.is-visually-open.is-settled{left:var(--video-target-left);top:var(--video-target-top);width:var(--video-target-width);height:var(--video-target-height);transform:none;transition:none}
+.article-video-backdrop{position:fixed;z-index:101;inset:0;border:0;background:#05060ab8;backdrop-filter:none;animation:articleVideoBackdropIn .25s ease both}
 .article-video-expanded-bar{position:absolute;z-index:3;top:0;right:0;left:0;display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem;background:transparent;color:#fff;opacity:0;pointer-events:none;transition:opacity .2s ease}.article-video-expanded-bar.is-visible{opacity:1}
 .article-video-expanded-bar strong{overflow:hidden;font-size:.75rem;text-overflow:ellipsis;white-space:nowrap}
 .article-video-expanded-bar>div{display:flex;flex:none;gap:.45rem}
@@ -55,7 +56,7 @@
 @keyframes articleVideoBackdropIn{from{opacity:0}to{opacity:1}}
 @keyframes articleVideoControlsIn{to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.article-video-shell .article-korean-video-frame{transition-duration:0s}.article-video-backdrop,.article-video-expanded-bar{animation-duration:0s;animation-delay:0s}}
-@media(max-width:760px){.article-video-shell.is-vertical{width:min(100%,280px)}.article-video-shell .article-korean-video-frame{width:100%;margin:0}.article-video-expanded-bar{align-items:flex-start;flex-direction:row;padding:.55rem}.article-video-expanded-bar strong{min-width:0;flex:1;padding:.45rem .2rem;font-size:.68rem}.article-video-expanded-bar>div{width:auto;gap:.35rem}.article-video-expanded-bar button{width:2.75rem;height:2.75rem;flex:none;border-radius:50%;padding:0}.article-video-expanded-bar button span{display:none}}
+@media(max-width:760px){.article-video-shell.is-vertical{width:min(100%,280px)}.article-video-shell .article-korean-video-frame{width:100%;margin:0}.article-video-shell .article-korean-video-frame.is-expanded{transition-duration:.28s}.article-video-expanded-bar{align-items:flex-start;flex-direction:row;padding:.55rem}.article-video-expanded-bar strong{min-width:0;flex:1;padding:.45rem .2rem;font-size:.68rem}.article-video-expanded-bar>div{width:auto;gap:.35rem}.article-video-expanded-bar button{width:2.75rem;height:2.75rem;flex:none;border-radius:50%;padding:0}.article-video-expanded-bar button span{display:none}}
 
 /* Replica location video atlas */
 .replica-location-showcase{display:grid;gap:1rem;margin:2rem 0}

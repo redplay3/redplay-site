@@ -21,6 +21,10 @@ type VideoGeometry = {
   top: number;
   width: number;
   height: number;
+  targetLeft: number;
+  targetTop: number;
+  targetWidth: number;
+  targetHeight: number;
   translateX: number;
   translateY: number;
   scale: number;
@@ -45,6 +49,10 @@ function getExpandedGeometry(compactRect: DOMRect): VideoGeometry {
     top: compactRect.top,
     width: compactRect.width,
     height: compactRect.height,
+    targetLeft,
+    targetTop,
+    targetWidth: width,
+    targetHeight: height,
     translateX: targetLeft - compactRect.left,
     translateY: targetTop - compactRect.top,
     scale,
@@ -56,16 +64,25 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
   const playerRef = useRef<HTMLDivElement>(null);
   const openFrameRef = useRef<number | null>(null);
   const settleFrameRef = useRef<number | null>(null);
+  const closeFrameRef = useRef<number | null>(null);
+  const settleTimerRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const controlsTimerRef = useRef<number | null>(null);
+  const isSettledRef = useRef(false);
   const [geometry, setGeometry] = useState<VideoGeometry | null>(null);
   const [isVisuallyOpen, setIsVisuallyOpen] = useState(false);
+  const [isSettled, setIsSettled] = useState(false);
   const [detectedOrientation, setDetectedOrientation] = useState<"vertical" | "horizontal">("horizontal");
   const [controlsVisible, setControlsVisible] = useState(true);
   const isExpanded = geometry !== null;
   const resolvedOrientation = orientation === "auto" ? detectedOrientation : orientation;
 
-  const motionDuration = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXPAND_DURATION;
+  const motionDuration = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : window.innerWidth < 761 ? 280 : EXPAND_DURATION;
+
+  const updateSettled = (next: boolean) => {
+    isSettledRef.current = next;
+    setIsSettled(next);
+  };
 
   const showControls = () => {
     setControlsVisible(true);
@@ -80,6 +97,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     const compactRect = shellRef.current?.getBoundingClientRect();
     if (!compactRect) return;
 
+    updateSettled(false);
     setGeometry(getExpandedGeometry(compactRect));
     showControls();
 
@@ -87,20 +105,45 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     // Only then start the transform, so embedded video surfaces can never flash
     // at the target size before their clipping rectangle is ready.
     openFrameRef.current = window.requestAnimationFrame(() => {
-      settleFrameRef.current = window.requestAnimationFrame(() => setIsVisuallyOpen(true));
+      settleFrameRef.current = window.requestAnimationFrame(() => {
+        setIsVisuallyOpen(true);
+        const duration = motionDuration();
+        if (duration === 0) updateSettled(true);
+        else settleTimerRef.current = window.setTimeout(() => {
+          updateSettled(true);
+          settleTimerRef.current = null;
+        }, duration);
+      });
     });
   };
 
   const closeExpanded = () => {
     if (!geometry) return;
 
-    setIsVisuallyOpen(false);
+    if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
+    if (settleFrameRef.current !== null) window.cancelAnimationFrame(settleFrameRef.current);
+    if (closeFrameRef.current !== null) window.cancelAnimationFrame(closeFrameRef.current);
+    if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
     if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
-    closeTimerRef.current = window.setTimeout(() => {
-      setGeometry(null);
-      closeTimerRef.current = null;
-    }, motionDuration());
+    openFrameRef.current = null;
+    settleFrameRef.current = null;
+    closeFrameRef.current = null;
+    settleTimerRef.current = null;
+
+    const animateClosed = () => {
+      setIsVisuallyOpen(false);
+      closeTimerRef.current = window.setTimeout(() => {
+        setGeometry(null);
+        updateSettled(false);
+        closeTimerRef.current = null;
+      }, motionDuration());
+    };
+
+    if (isSettledRef.current) {
+      updateSettled(false);
+      closeFrameRef.current = window.requestAnimationFrame(animateClosed);
+    } else animateClosed();
   };
 
   useEffect(() => {
@@ -122,6 +165,8 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
   useEffect(() => () => {
     if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
     if (settleFrameRef.current !== null) window.cancelAnimationFrame(settleFrameRef.current);
+    if (closeFrameRef.current !== null) window.cancelAnimationFrame(closeFrameRef.current);
+    if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
     if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
   }, []);
@@ -143,20 +188,25 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     }
   };
 
+  const controlScale = geometry && !isSettled ? geometry.scale : 1;
   const playerStyle = geometry ? ({
     "--video-left": `${geometry.left}px`,
     "--video-top": `${geometry.top}px`,
     "--video-width": `${geometry.width}px`,
     "--video-height": `${geometry.height}px`,
+    "--video-target-left": `${geometry.targetLeft}px`,
+    "--video-target-top": `${geometry.targetTop}px`,
+    "--video-target-width": `${geometry.targetWidth}px`,
+    "--video-target-height": `${geometry.targetHeight}px`,
     "--video-x": `${geometry.translateX}px`,
     "--video-y": `${geometry.translateY}px`,
     "--video-scale": geometry.scale,
-    "--video-control-size": `${44 / geometry.scale}px`,
-    "--video-control-gap": `${5.6 / geometry.scale}px`,
-    "--video-control-padding": `${8.8 / geometry.scale}px`,
-    "--video-control-title-padding": `${7.2 / geometry.scale}px ${3.2 / geometry.scale}px`,
-    "--video-control-font-size": `${10.88 / geometry.scale}px`,
-    "--video-control-icon-size": `${17 / geometry.scale}px`,
+    "--video-control-size": `${44 / controlScale}px`,
+    "--video-control-gap": `${5.6 / controlScale}px`,
+    "--video-control-padding": `${8.8 / controlScale}px`,
+    "--video-control-title-padding": `${7.2 / controlScale}px ${3.2 / controlScale}px`,
+    "--video-control-font-size": `${10.88 / controlScale}px`,
+    "--video-control-icon-size": `${17 / controlScale}px`,
   } as CSSProperties) : undefined;
 
   return <>
@@ -165,7 +215,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     <div ref={shellRef} className={`article-video-shell is-${resolvedOrientation}`}>
       <div
         ref={playerRef}
-        className={`article-korean-video-frame${isExpanded ? " is-expanded" : ""}${isVisuallyOpen ? " is-visually-open" : ""}`}
+        className={`article-korean-video-frame${isExpanded ? " is-expanded" : ""}${isVisuallyOpen ? " is-visually-open" : ""}${isSettled ? " is-settled" : ""}`}
         style={playerStyle}
         role={isExpanded ? "dialog" : undefined}
         aria-modal={isExpanded ? true : undefined}
@@ -199,7 +249,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
 
         {!isExpanded ? <button type="button" className="article-video-expand" aria-label={`Увеличить видео: ${title}`} onClick={openExpanded}>
           <Expand size={16}/> <span>Увеличить</span>
-        </button> : <div className={`article-video-expanded-bar ${controlsVisible ? "is-visible" : ""}`}>
+        </button> : <div className={`article-video-expanded-bar ${controlsVisible && isSettled ? "is-visible" : ""}`}>
           <strong>{title}</strong>
           <div>
             <button type="button" aria-label="Открыть видео во весь экран" onClick={openFullscreen}><Maximize2 size={17}/><span>Во весь экран</span></button>
