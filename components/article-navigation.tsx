@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 export type ArticleNavItem = { id: string; label: string };
 
 export function ArticleNavigation({ items }: { items: ArticleNavItem[] }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [active, setActive] = useState(items[0]?.id || "");
   const [progress, setProgress] = useState(0);
   const [showTop, setShowTop] = useState(false);
@@ -34,13 +34,16 @@ export function ArticleNavigation({ items }: { items: ArticleNavItem[] }) {
     if (window.innerWidth < 761) setOpen(false);
   };
 
+  const activeIndex = Math.max(0, items.findIndex((item) => item.id === active));
+  const activeItem = items[activeIndex];
+
   return <>
     <span className="article-progress" style={{ width: `${progress}%` }} />
     <aside className={`article-toc ${open ? "is-open" : ""}`}>
-      <button className="article-toc-toggle" onClick={() => setOpen(value => !value)} aria-expanded={open}>
-        <span><List size={15}/> В этом материале</span><ChevronDown size={16}/>
+      <button className="article-toc-toggle" onClick={() => { if (window.innerWidth < 761) setOpen(value => !value); }} aria-expanded={open}>
+        <span><List size={15}/><span className="article-toc-label">В этом материале</span><span className="article-toc-current">{String(activeIndex + 1).padStart(2, "0")} / {String(items.length).padStart(2, "0")} · {activeItem?.label}</span></span><ChevronDown size={16}/>
       </button>
-      {open && <nav>{items.map((item, index) => <button key={item.id} onClick={() => goTo(item.id)} className={active === item.id ? "is-active" : ""}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</button>)}</nav>}
+      <nav>{items.map((item, index) => <button key={item.id} onClick={() => goTo(item.id)} className={active === item.id ? "is-active" : ""}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</button>)}</nav>
     </aside>
     <button className={`article-to-top ${showTop ? "is-visible" : ""}`} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Вернуться в начало статьи"><ArrowUp size={20}/></button>
   </>;

@@ -53,19 +53,31 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
   const openFrameRef = useRef<number | null>(null);
   const settleFrameRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const controlsTimerRef = useRef<number | null>(null);
   const [geometry, setGeometry] = useState<VideoGeometry | null>(null);
   const [isVisuallyOpen, setIsVisuallyOpen] = useState(false);
   const [detectedOrientation, setDetectedOrientation] = useState<"vertical" | "horizontal">("horizontal");
+  const [controlsVisible, setControlsVisible] = useState(true);
   const isExpanded = geometry !== null;
   const resolvedOrientation = orientation === "auto" ? detectedOrientation : orientation;
 
   const motionDuration = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXPAND_DURATION;
+
+  const showControls = () => {
+    setControlsVisible(true);
+    if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
+    if (window.innerWidth < 761) controlsTimerRef.current = window.setTimeout(() => {
+      setControlsVisible(false);
+      controlsTimerRef.current = null;
+    }, 2800);
+  };
 
   const openExpanded = () => {
     const compactRect = shellRef.current?.getBoundingClientRect();
     if (!compactRect) return;
 
     setGeometry(getExpandedGeometry(compactRect));
+    showControls();
 
     // Keep the player at its exact compact rectangle for one painted frame.
     // Only then start the transform, so embedded video surfaces can never flash
@@ -80,6 +92,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
 
     setIsVisuallyOpen(false);
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => {
       setGeometry(null);
       closeTimerRef.current = null;
@@ -106,6 +119,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
     if (settleFrameRef.current !== null) window.cancelAnimationFrame(settleFrameRef.current);
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
   }, []);
 
   const openFullscreen = () => {
@@ -146,6 +160,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
         role={isExpanded ? "dialog" : undefined}
         aria-modal={isExpanded ? true : undefined}
         aria-label={isExpanded ? title : undefined}
+        onPointerDown={isExpanded ? showControls : undefined}
       >
         {source === "file" ? <video
           controls
@@ -171,11 +186,11 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
 
         {!isExpanded ? <button type="button" className="article-video-expand" aria-label={`Увеличить видео: ${title}`} onClick={openExpanded}>
           <Expand size={16}/> <span>Увеличить</span>
-        </button> : <div className="article-video-expanded-bar">
+        </button> : <div className={`article-video-expanded-bar ${controlsVisible ? "is-visible" : ""}`}>
           <strong>{title}</strong>
           <div>
-            <button type="button" onClick={openFullscreen}><Maximize2 size={17}/> Во весь экран</button>
-            <button type="button" aria-label="Закрыть видео" onClick={closeExpanded}><X size={18}/> Закрыть</button>
+            <button type="button" aria-label="Открыть видео во весь экран" onClick={openFullscreen}><Maximize2 size={17}/><span>Во весь экран</span></button>
+            <button type="button" aria-label="Закрыть видео" onClick={closeExpanded}><X size={18}/><span>Закрыть</span></button>
           </div>
         </div>}
       </div>
