@@ -84,16 +84,15 @@ html,body{overflow-x:clip}
   .bonus-prompt-close{position:absolute;z-index:2;top:.2rem;right:.2rem;display:grid;width:2.65rem;height:2.65rem;place-items:center;border-radius:50%;color:#ffffff9c}
   .social-dock.social-dock-suspended{pointer-events:none;opacity:0;transform:translate(50%,20px)}
 
-  [data-slot="dialog-content"].bonus-dialog{top:auto;right:0;bottom:0;left:0;display:flex;width:100%;max-width:none;max-height:90dvh;min-height:0;transform:none;flex-direction:column;gap:0;overflow:hidden!important;border-radius:1.25rem 1.25rem 0 0!important;padding-bottom:env(safe-area-inset-bottom)!important;animation:bonusSheetIn .28s ease-out}
+  [data-slot="dialog-content"].bonus-dialog{inset:auto 0 0!important;display:flex;width:100dvw!important;max-width:100dvw!important;max-height:90dvh;min-height:0;margin:0!important;translate:0 0!important;transform:none!important;flex-direction:column;gap:0;overflow:hidden!important;border-radius:1.25rem 1.25rem 0 0!important;padding-bottom:env(safe-area-inset-bottom)!important;animation:bonusSheetIn .28s ease-out}
   .bonus-dialog [data-slot="dialog-close"]{z-index:20;top:.7rem;right:.7rem;display:grid;width:2.75rem;height:2.75rem;place-items:center;border:1px solid #ffffff12;border-radius:50%;background:#090b10b8;color:#fff;opacity:1;backdrop-filter:blur(12px)}
   .bonus-dialog [data-slot="dialog-close"] svg{width:1.2rem!important;height:1.2rem!important}
   .bonus-dialog-head{flex:none;padding:1.35rem 4.35rem 1.1rem 1.15rem!important}.bonus-dialog-head .portal-kicker{font-size:.6rem}.bonus-dialog-head h2{font-size:1.7rem!important;line-height:1.02}.bonus-dialog-head p:last-child{display:-webkit-box;overflow:hidden;font-size:.75rem;line-height:1.45;-webkit-box-orient:vertical;-webkit-line-clamp:3}
   .bonus-mobile-tabs{display:grid;flex:none;grid-template-columns:.72fr 1.45fr;gap:.3rem;margin:.75rem 1rem .15rem;border:1px solid #ffffff10;border-radius:.75rem;background:#090b11;padding:.28rem}
   .bonus-mobile-tabs button{min-height:2.6rem;border-radius:.55rem;padding:.45rem;color:#ffffff65;font-size:.68rem;font-weight:900;line-height:1.2;transition:.2s}.bonus-mobile-tabs button.active{background:#f22d43;color:#fff;box-shadow:0 7px 22px #c6152d45}
-  .bonus-desktop-groups{display:none}.bonus-dialog-cards{min-height:0;grid-template-columns:1fr!important;overflow-y:auto;padding:1rem!important;overscroll-behavior:contain}.bonus-choice-mobile-hidden{display:none!important}.bonus-choice{min-height:310px}.choice-copy{padding-top:4rem}.choice-copy p{min-height:auto}
+  .bonus-desktop-groups{display:none}.bonus-dialog-cards{min-height:0;flex:1 1 auto;grid-template-columns:1fr!important;overflow-x:hidden;overflow-y:auto;padding:1rem!important;overscroll-behavior:contain}.bonus-choice-mobile-hidden{display:none!important}.bonus-choice{min-height:310px}.choice-copy{padding-top:4rem}.choice-copy p{min-height:auto}
   .bonus-dialog-footer{position:relative;z-index:4;display:flex;flex:none;flex-direction:column;gap:.45rem;border-top:1px solid #ffffff10;background:#10121af7;padding:.8rem 1rem calc(.85rem + env(safe-area-inset-bottom));text-align:center;box-shadow:0 -12px 32px #0005}.bonus-dialog-footer p{font-size:.61rem;line-height:1.35}.bonus-dialog-footer button{width:100%;min-height:2.75rem;border:1px solid #ffffff14;border-radius:.65rem;background:#ffffff08;padding:.6rem;color:#ffffffad;font-size:.72rem}
 }
 
 @keyframes bonusPromptIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 @keyframes bonusSheetIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
-
