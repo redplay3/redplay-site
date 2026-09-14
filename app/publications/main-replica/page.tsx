@@ -243,9 +243,10 @@ export default async function ReplicaArticle() {
     </div></header>
 
     <section className="article-hero">
-      <img src="/replica-hero.webp" alt="Воин перед Горой Богов на границе воды и огня"/>
+      <img src="/replica-hero.webp" alt="" className="article-hero-backdrop" aria-hidden="true"/>
+      <img src="/replica-hero.webp" alt="Воин перед Горой Богов на границе воды и огня" className="article-hero-image"/>
       <div className="article-hero-shade"/>
-      <div className="relative z-10 mx-auto flex min-h-[580px] max-w-[1460px] items-end px-4 pb-10 pt-28 sm:px-6 lg:px-8 lg:pb-12">
+      <div className="relative z-10 mx-auto flex min-h-[600px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-14">
         <div className="max-w-5xl">
           <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href="/lineage-2/main/updates">Main</Link><ChevronRight size={14}/><Link href="/lineage-2/main/updates">Обновления</Link></div>
           <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">Большое обновление</span><span className="article-meta"><CalendarDays size={14}/> 13 сентября 2026</span><span className="article-meta"><Clock3 size={14}/> 25 минут</span><ArticleViewCount pageKey={canonicalPath} initialViews={initialViews}/></div>
