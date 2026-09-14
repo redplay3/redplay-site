@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowUpRight, CalendarDays, ChevronRight, CircleAlert,
-  Bell, Clock3, Crosshair, Gem, Globe2, Layers3, Map, Play, Send, Shield,
+  Bell, Clock3, Crosshair, Gem, Globe2, Layers3, Map, Send, Shield,
   Sparkles, Swords, Video as Youtube,
 } from "lucide-react";
 import { ArticleNavigation } from "@/components/article-navigation";
@@ -273,7 +273,18 @@ export default async function ReplicaArticle() {
           <h3>Кому обновление даст больше всего нового</h3>
           <p>Игроки от 110 уровня получат отдельное измерение, связанное с системой Свержения. Персонажам 120–132 уровней откроется цепочка новых зон, а тем, кто уже упёрся в верхнюю границу развития, – новые уровни классовых умений, экипировка и межсерверное соперничество. Даже если вы пока не готовы к Вершине Богов, патч затронет привычный фарм: меняются критические удары, усиленные локации, выпадение адены, сессионные зоны и интерфейс предметов.</p>
           <p>Ниже – не только главные рекламные пункты, а расширенный разбор правил, расходов и ограничений. Цены и время указаны по корейской версии и нужны прежде всего для оценки масштаба подготовки.</p>
-          <a className="article-video-teaser" href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer"><span className="video-teaser-icon"><Play size={22} fill="currentColor"/></span><span><small>Видео готовится</small><strong>Не пропусти живой разбор Replica</strong><p>Покажу ключевые механики, сравню цифры и отдельно разберу, что изменится для разных классов.</p></span><span className="video-teaser-action">Подписаться <ArrowUpRight size={15}/></span></a>
+          <figure className="article-video-player">
+            <ArticleVideoEmbed
+              videoId="eXb8yeCAmG4"
+              title="Я возвращаюсь в Lineage 2 Main! Новые сервера ADEN и RUNE – старт с нуля"
+              orientation="horizontal"
+            />
+            <figcaption>
+              <strong>Я возвращаюсь в Lineage 2 Main! Новые сервера ADEN и RUNE – старт с нуля</strong>
+              <p>Почему я возвращаюсь в Lineage 2 Main, чего жду от новых серверов ADEN и RUNE и как планирую начинать развитие с нуля.</p>
+              <small>Видео RedPlay на YouTube</small>
+            </figcaption>
+          </figure>
         </section>
 
         <section id="replica">
