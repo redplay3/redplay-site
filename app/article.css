@@ -53,6 +53,8 @@
 .article-video-shell .article-korean-video-frame:fullscreen iframe{width:min(100vw,56.25vh);height:100vh;margin:auto}
 .article-video-shell.is-horizontal .article-korean-video-frame:fullscreen iframe{width:100vw;height:100vh}
 .article-video-shell .article-korean-video-frame:fullscreen .article-video-expanded-bar{position:fixed}
+.article-video-shell .article-korean-video-frame.is-viewport-fullscreen{position:fixed!important;z-index:104!important;inset:0!important;width:100vw!important;height:100dvh!important;transform:none!important;border-radius:0!important;transition:none!important;box-shadow:none!important}
+.article-video-shell .article-korean-video-frame.is-viewport-fullscreen .article-video-expanded-bar{position:fixed}
 @keyframes articleVideoBackdropIn{from{opacity:0}to{opacity:1}}
 @keyframes articleVideoControlsIn{to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.article-video-shell .article-korean-video-frame{transition-duration:0s}.article-video-backdrop,.article-video-expanded-bar{animation-duration:0s;animation-delay:0s}}
