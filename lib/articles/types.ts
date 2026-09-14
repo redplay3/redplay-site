@@ -24,6 +24,30 @@ export type ArticleIcon =
   | "sparkles"
   | "swords";
 
+export type ArticleTextStyle = {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  font?: "site" | "sans" | "serif" | "mono";
+  size?: "small" | "normal" | "large" | "xlarge";
+  color?: string;
+};
+
+export type ArticleRichTextInline = {
+  text: string;
+  style?: ArticleTextStyle;
+};
+
+export type ArticleRichTextBlock =
+  | { type: "paragraph"; align?: "left" | "center" | "right"; content: ArticleRichTextInline[] }
+  | { type: "list"; ordered?: boolean; items: Array<{ align?: "left" | "center" | "right"; content: ArticleRichTextInline[] }> };
+
+export type ArticleRichText = {
+  version: 1;
+  blocks: ArticleRichTextBlock[];
+};
+
 type ArticleBlockContent =
   | { id: string; type: "paragraph"; text: string; lead?: boolean }
   | { id: string; type: "heading"; text: string; level: 2 | 3; kicker?: string; number?: string; anchor?: string }
@@ -44,7 +68,7 @@ type ArticleBlockContent =
   | { id: string; type: "video-playlist"; title: string; text?: string; items: Array<{ title: string; url: string; text?: string }> }
   | { id: string; type: "telegram"; title: string; text: string; url?: string; label?: string; action?: string };
 
-export type ArticleBlock = ArticleBlockContent & { scope?: ArticleAudience };
+export type ArticleBlock = ArticleBlockContent & { scope?: ArticleAudience; richText?: ArticleRichText };
 
 export type ArticleSection = {
   id: string;

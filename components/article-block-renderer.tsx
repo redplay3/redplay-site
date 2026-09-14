@@ -8,6 +8,7 @@ import referenceStyles from "./article-reference.module.css";
 import { ArticleVideoPlaylist } from "./article-video-playlist";
 import { ForgedDwarfSkillShowcase } from "./forged-dwarf-skill-showcase";
 import { ArticleVideoEmbed } from "./article-video-embed";
+import { ArticleRichTextContent } from "./article-rich-text";
 
 const icons = {
   alert: CircleAlert,
@@ -147,7 +148,7 @@ function ReferenceArchive({ title, items }: { title: string; items: string[] }) 
 function RenderBlock({ block, audience }: { block: ArticleBlock; audience: ArticleAudience }) {
     switch (block.type) {
       case "paragraph":
-        return <p key={block.id} className={block.lead ? "article-lead" : undefined}>{block.text}</p>;
+        return <ArticleRichTextContent key={block.id} value={block.richText} fallback={block.text} className={block.lead ? "article-lead" : undefined}/>;
       case "heading": {
         const heading = block.level === 2 ? <h2>{block.text}</h2> : <h3>{block.text}</h3>;
         return <div key={block.id} id={block.anchor} className="article-block-heading">
@@ -163,9 +164,9 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "facts":
         return <div key={block.id} className="article-facts">{block.items.map((item, index) => <div key={`${block.id}-${index}`}><strong>{item.value}</strong><span>{item.label}</span></div>)}</div>;
       case "note":
-        return <div key={block.id} className={`article-note${block.compact ? " compact" : ""}`}><BlockIcon name={block.icon}/><div><strong>{block.title}</strong><p>{block.text}</p></div></div>;
+        return <div key={block.id} className={`article-note${block.compact ? " compact" : ""}`}><BlockIcon name={block.icon}/><div><strong>{block.title}</strong><ArticleRichTextContent value={block.richText} fallback={block.text}/></div></div>;
       case "warning":
-        return <div key={block.id} className="article-warning"><strong>{block.title}</strong><span>{block.text}</span></div>;
+        return <div key={block.id} className="article-warning"><strong>{block.title}</strong><ArticleRichTextContent value={block.richText} fallback={block.text}/></div>;
       case "cards":
         return <div key={block.id} className="key-grid">{block.items.map((item, index) => <div key={`${block.id}-${index}`}>{item.icon && <BlockIcon name={item.icon}/>}<strong>{item.title}</strong><p>{item.text}</p></div>)}</div>;
       case "audience-cards":
@@ -185,7 +186,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
           ? <ReferenceArchive key={block.id} title={block.title} items={block.items}/>
           : <details key={block.id} className="article-disclosure"><summary>{block.title}<span>{block.items.length}</span></summary><div className="class-chip-grid">{block.items.map((item, index) => <span key={`${block.id}-${index}`}>{item}</span>)}</div></details>;
       case "opinion":
-        return <figure key={block.id} className="oni-insight"><img src={block.image || "/oni-redplay.webp"} alt="Они – персонаж RedPlay"/><div><span>{block.label || "Мнение RedPlay"}</span><blockquote>{block.text}</blockquote></div></figure>;
+        return <figure key={block.id} className="oni-insight"><img src={block.image || "/oni-redplay.webp"} alt="Они – персонаж RedPlay"/><div><span>{block.label || "Мнение RedPlay"}</span><blockquote><ArticleRichTextContent value={block.richText} fallback={block.text}/></blockquote></div></figure>;
       case "video": {
         const youtubeId = block.source !== "file" ? youtubeVideoId(block.url) : null;
         if (youtubeId === "jiOzNaL7njw") return <ArticleVideoPlaylist key={block.id} title="Гномы после Iron Masters" text="Две официальные демонстрации помогают увидеть новый темп боя обоих переработанных гномьих классов." items={[
@@ -194,18 +195,18 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
         ]}/>;
         if (youtubeId) return <figure key={block.id} className="article-video-player">
           <ArticleVideoEmbed videoId={youtubeId} title={block.title || "Видео RedPlay"} orientation={youtubeOrientation(block.url)}/>
-          {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <p>{block.text}</p>}{block.caption && <small>{block.caption}</small>}</figcaption>}
+          {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <ArticleRichTextContent value={block.richText} fallback={block.text}/>} {block.caption && <small>{block.caption}</small>}</figcaption>}
         </figure>;
         if (block.source === "file") return block.url ? <figure key={block.id} className="article-video-player">
           <ArticleVideoEmbed source="file" src={block.url} title={block.title || "Видео RedPlay"} poster={block.poster || undefined} orientation="auto"/>
-          {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <p>{block.text}</p>}{block.caption && <small>{block.caption}</small>}</figcaption>}
+          {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <ArticleRichTextContent value={block.richText} fallback={block.text}/>} {block.caption && <small>{block.caption}</small>}</figcaption>}
         </figure> : null;
         return block.url ? <a key={block.id} className="article-video-teaser" href={block.url} target="_blank" rel="noopener noreferrer"><span className="video-teaser-icon"><Play size={22} fill="currentColor"/></span><span><small>{block.label || "Видеоверсия"}</small><strong>{block.title}</strong><p>{block.text}</p></span><span className="video-teaser-action">{block.action || "Смотреть"} <ArrowUpRight size={15}/></span></a> : null;
       }
       case "video-playlist":
         return <ArticleVideoPlaylist key={block.id} title={block.title} text={block.text} items={block.items}/>;
       case "telegram":
-        return <aside key={block.id} className="telegram-callout"><span className="telegram-callout-icon"><Send size={22}/></span><div><small>{block.label || "RedPlay в Telegram"}</small><strong>{block.title}</strong><p>{block.text}</p></div><a href={block.url || "https://t.me/redplay2022"} target="_blank" rel="noopener noreferrer">{block.action || "Присоединиться"} <ArrowUpRight size={15}/></a></aside>;
+        return <aside key={block.id} className="telegram-callout"><span className="telegram-callout-icon"><Send size={22}/></span><div><small>{block.label || "RedPlay в Telegram"}</small><strong>{block.title}</strong><ArticleRichTextContent value={block.richText} fallback={block.text}/></div><a href={block.url || "https://t.me/redplay2022"} target="_blank" rel="noopener noreferrer">{block.action || "Присоединиться"} <ArrowUpRight size={15}/></a></aside>;
     }
 }
 
