@@ -147,6 +147,12 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     "--video-x": `${geometry.translateX}px`,
     "--video-y": `${geometry.translateY}px`,
     "--video-scale": geometry.scale,
+    "--video-control-size": `${44 / geometry.scale}px`,
+    "--video-control-gap": `${5.6 / geometry.scale}px`,
+    "--video-control-padding": `${8.8 / geometry.scale}px`,
+    "--video-control-title-padding": `${7.2 / geometry.scale}px ${3.2 / geometry.scale}px`,
+    "--video-control-font-size": `${10.88 / geometry.scale}px`,
+    "--video-control-icon-size": `${17 / geometry.scale}px`,
   } as CSSProperties) : undefined;
 
   return <>

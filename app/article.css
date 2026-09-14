@@ -47,11 +47,7 @@
 .article-video-expanded-bar>div{display:flex;flex:none;gap:.45rem}
 .article-video-expanded-bar button{display:flex;align-items:center;justify-content:center;gap:.35rem;border:1px solid #ffffff2e;border-radius:.55rem;background:#080a10d9;padding:.55rem .65rem;color:#fff;font-size:.7rem;font-weight:850;backdrop-filter:blur(8px);pointer-events:auto}
 .article-video-expanded-bar button:hover{border-color:#ff5367;background:#f22d43}
-.article-video-shell.is-vertical .article-video-expanded-bar{align-items:flex-start;padding:.55rem}
-.article-video-shell.is-vertical .article-video-expanded-bar strong{min-width:0;flex:1;padding:.45rem .2rem;font-size:.68rem}
-.article-video-shell.is-vertical .article-video-expanded-bar>div{width:auto;gap:.35rem}
-.article-video-shell.is-vertical .article-video-expanded-bar button{width:2.75rem;height:2.75rem;flex:none;border-radius:50%;padding:0}
-.article-video-shell.is-vertical .article-video-expanded-bar button span{display:none}
+@media(min-width:761px){.article-video-shell.is-vertical .article-video-expanded-bar{align-items:flex-start;padding:var(--video-control-padding)}.article-video-shell.is-vertical .article-video-expanded-bar strong{min-width:0;flex:1;padding:var(--video-control-title-padding);font-size:var(--video-control-font-size)}.article-video-shell.is-vertical .article-video-expanded-bar>div{width:auto;gap:var(--video-control-gap)}.article-video-shell.is-vertical .article-video-expanded-bar button{width:var(--video-control-size);height:var(--video-control-size);flex:none;border-radius:50%;padding:0}.article-video-shell.is-vertical .article-video-expanded-bar button span{display:none}.article-video-shell.is-vertical .article-video-expanded-bar button svg{width:var(--video-control-icon-size);height:var(--video-control-icon-size)}}
 .article-video-shell .article-korean-video-frame:fullscreen{inset:0!important;width:100vw!important;height:100vh!important;transform:none!important;border-radius:0}
 .article-video-shell .article-korean-video-frame:fullscreen iframe{width:min(100vw,56.25vh);height:100vh;margin:auto}
 .article-video-shell.is-horizontal .article-korean-video-frame:fullscreen iframe{width:100vw;height:100vh}
