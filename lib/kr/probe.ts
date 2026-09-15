@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { detectKrSource } from "./sources";
-import type { KrIngestProbeResult } from "./types";
+import type { KrIngestProbeResult, KrLinkedPlayncSource } from "./types";
 
 function decodeHtmlEntities(value: string) {
   return value
@@ -9,6 +9,16 @@ function decodeHtmlEntities(value: string) {
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
+}
+
+function normalizeEmbeddedMarkup(value: string) {
+  return decodeHtmlEntities(value)
+    .replace(/\\u003[cC]/g, "<")
+    .replace(/\\u003[eE]/g, ">")
+    .replace(/\\u002[fF]/g, "/")
+    .replace(/\\u003[aA]/g, ":")
+    .replace(/\\u0026/g, "&")
+    .replace(/\\\//g, "/");
 }
 
 function extractTitle(html: string) {
@@ -22,6 +32,38 @@ function extractTitle(html: string) {
 
 function countMatches(value: string, pattern: RegExp) {
   return value.match(pattern)?.length || 0;
+}
+
+function extractFeedId(url: string) {
+  try {
+    const match = new URL(url).pathname.match(/^\/feed\/(\d+)/);
+    return match?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+function extractLinkedPlaync(body: string): KrLinkedPlayncSource | null {
+  const normalized = normalizeEmbeddedMarkup(body);
+  const matches = normalized.match(/https?:\/\/lineage2\.plaync\.com\/[^\s"'<>]+/gi) || [];
+
+  for (const raw of matches) {
+    const candidate = raw.replace(/[),.;]+$/, "");
+    try {
+      const detected = detectKrSource(candidate);
+      if (detected.definition.kind === "plaync_dictionary") continue;
+      return {
+        url: candidate,
+        label: detected.definition.label,
+        edition: detected.definition.edition,
+        articleId: detected.articleId,
+      };
+    } catch {
+      // Not one of the supported PLAYNC content URLs.
+    }
+  }
+
+  return null;
 }
 
 export async function probeKrSource(input: string): Promise<KrIngestProbeResult> {
@@ -40,24 +82,33 @@ export async function probeKrSource(input: string): Promise<KrIngestProbeResult>
     });
 
     const body = await response.text();
+    const normalizedBody = normalizeEmbeddedMarkup(body);
     const contentType = response.headers.get("content-type");
-    const looksLikeHtml = contentType?.includes("html") || /<html|<body|<article/i.test(body);
+    const looksLikeHtml = contentType?.includes("html") || /<html|<body|<article/i.test(normalizedBody);
+    const linkedPlaync = source.definition.kind === "purple_lounge" ? extractLinkedPlaync(body) : null;
+    const resolvedEdition = source.definition.edition || linkedPlaync?.edition || null;
+    const resolvedArticleId = source.articleId || linkedPlaync?.articleId || null;
 
     return {
       ok: response.ok && body.length > 0,
       requestedUrl,
       finalUrl: response.url || requestedUrl,
       source,
+      feedId: source.definition.kind === "purple_lounge" ? extractFeedId(response.url || requestedUrl) : null,
+      resolvedEdition,
+      resolvedArticleId,
+      linkedPlaync,
       httpStatus: response.status,
       contentType,
       fetchedAt: new Date().toISOString(),
-      title: looksLikeHtml ? extractTitle(body) : null,
+      title: looksLikeHtml ? extractTitle(normalizedBody) : null,
       contentHash: body.length ? createHash("sha256").update(body).digest("hex") : null,
       metrics: {
         bodyChars: body.length,
-        tableCount: looksLikeHtml ? countMatches(body, /<table\b/gi) : 0,
-        imageCount: looksLikeHtml ? countMatches(body, /<img\b/gi) : 0,
-        headingCount: looksLikeHtml ? countMatches(body, /<h[1-6]\b/gi) : 0,
+        tableCount: looksLikeHtml ? countMatches(normalizedBody, /<table\b/gi) : 0,
+        imageCount: looksLikeHtml ? countMatches(normalizedBody, /<img\b/gi) : 0,
+        headingCount: looksLikeHtml ? countMatches(normalizedBody, /<h[1-6]\b/gi) : 0,
+        contentBlockCount: countMatches(normalizedBody, /data-contents-type=/gi),
       },
       ...(response.ok ? {} : { error: `Источник ответил HTTP ${response.status}` }),
     };
@@ -67,12 +118,16 @@ export async function probeKrSource(input: string): Promise<KrIngestProbeResult>
       requestedUrl,
       finalUrl: requestedUrl,
       source,
+      feedId: source.definition.kind === "purple_lounge" ? extractFeedId(requestedUrl) : null,
+      resolvedEdition: source.definition.edition,
+      resolvedArticleId: source.articleId,
+      linkedPlaync: null,
       httpStatus: 0,
       contentType: null,
       fetchedAt: new Date().toISOString(),
       title: null,
       contentHash: null,
-      metrics: { bodyChars: 0, tableCount: 0, imageCount: 0, headingCount: 0 },
+      metrics: { bodyChars: 0, tableCount: 0, imageCount: 0, headingCount: 0, contentBlockCount: 0 },
       error: error instanceof Error ? error.message : "Неизвестная ошибка загрузки",
     };
   }
