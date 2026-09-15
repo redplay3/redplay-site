@@ -82,6 +82,15 @@ function contentBlockSlices(body: string) {
   });
 }
 
+type LocatedBlock = { index: number; block: Omit<KrParsedBlock, "ordinal"> };
+
+function collect(body: string, pattern: RegExp, map: (match: RegExpExecArray) => Omit<KrParsedBlock, "ordinal">) {
+  const found: LocatedBlock[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(body))) found.push({ index: match.index, block: map(match) });
+  return found;
+}
+
 export function parseKrSnapshotBody(rawBody: string, baseUrl: string): KrParsedBlock[] {
   const body = normalizeKrMarkup(rawBody);
   const result: KrParsedBlock[] = [];
@@ -97,69 +106,54 @@ export function parseKrSnapshotBody(rawBody: string, baseUrl: string): KrParsedB
       const text = stripTags(raw);
 
       if (tableHtml) {
-        result.push({
-          ordinal: ordinal++,
-          blockType: "table",
-          sourceType: block.sourceType,
-          textKr: text || null,
-          rawHtml: raw,
-          data: { rows: parseTable(tableHtml) },
-        });
+        result.push({ ordinal: ordinal++, blockType: "table", sourceType: block.sourceType, textKr: text || null, rawHtml: raw, data: { rows: parseTable(tableHtml) } });
         continue;
       }
-
       if (imageTag) {
         result.push({
-          ordinal: ordinal++,
-          blockType: "image",
-          sourceType: block.sourceType,
-          textKr: text || null,
-          rawHtml: raw,
-          data: {
-            src: absoluteUrl(attr(imageTag, "src"), baseUrl),
-            alt: attr(imageTag, "alt"),
-          },
+          ordinal: ordinal++, blockType: "image", sourceType: block.sourceType, textKr: text || null, rawHtml: raw,
+          data: { src: absoluteUrl(attr(imageTag, "src"), baseUrl), alt: attr(imageTag, "alt") },
         });
         continue;
       }
-
-      result.push({
-        ordinal: ordinal++,
-        blockType: "content",
-        sourceType: block.sourceType,
-        textKr: text || null,
-        rawHtml: raw,
-        data: {},
-      });
+      result.push({ ordinal: ordinal++, blockType: "content", sourceType: block.sourceType, textKr: text || null, rawHtml: raw, data: {} });
     }
     return result;
   }
 
-  // Fallback for ordinary PLAYNC HTML: preserve headings, tables, images and meaningful paragraphs.
-  const pattern = /<(h[1-6]|table|img|p|li)\b[\s\S]*?(?:<\/\1>|\/?>)/gi;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(body))) {
-    const tagName = match[1].toLowerCase();
-    const raw = match[0];
-    const text = stripTags(raw);
+  // Fallback for ordinary PLAYNC HTML. Collect separately, then restore document order.
+  const located: LocatedBlock[] = [
+    ...collect(body, /<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>/gi, (match) => ({
+      blockType: "heading",
+      sourceType: `h${match[1]}`,
+      textKr: stripTags(match[0]) || null,
+      rawHtml: match[0],
+      data: { level: Number(match[1]) },
+    })),
+    ...collect(body, /<table\b[\s\S]*?<\/table>/gi, (match) => ({
+      blockType: "table",
+      sourceType: "table",
+      textKr: stripTags(match[0]) || null,
+      rawHtml: match[0],
+      data: { rows: parseTable(match[0]) },
+    })),
+    ...collect(body, /<img\b[^>]*>/gi, (match) => ({
+      blockType: "image",
+      sourceType: "img",
+      textKr: attr(match[0], "alt"),
+      rawHtml: match[0],
+      data: { src: absoluteUrl(attr(match[0], "src"), baseUrl), alt: attr(match[0], "alt") },
+    })),
+    ...collect(body, /<(p|li)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => ({
+      blockType: "text",
+      sourceType: match[1].toLowerCase(),
+      textKr: stripTags(match[0]) || null,
+      rawHtml: match[0],
+      data: {},
+    })),
+  ].filter((entry) => entry.block.blockType === "image" || Boolean(entry.block.textKr));
 
-    if (tagName === "table") {
-      result.push({ ordinal: ordinal++, blockType: "table", sourceType: null, textKr: text || null, rawHtml: raw, data: { rows: parseTable(raw) } });
-    } else if (tagName === "img") {
-      result.push({
-        ordinal: ordinal++,
-        blockType: "image",
-        sourceType: null,
-        textKr: attr(raw, "alt"),
-        rawHtml: raw,
-        data: { src: absoluteUrl(attr(raw, "src"), baseUrl), alt: attr(raw, "alt") },
-      });
-    } else if (tagName.startsWith("h")) {
-      if (text) result.push({ ordinal: ordinal++, blockType: "heading", sourceType: tagName, textKr: text, rawHtml: raw, data: { level: Number(tagName.slice(1)) } });
-    } else if (text.length >= 2) {
-      result.push({ ordinal: ordinal++, blockType: "text", sourceType: tagName, textKr: text, rawHtml: raw, data: {} });
-    }
-  }
-
+  located.sort((a, b) => a.index - b.index);
+  for (const entry of located) result.push({ ordinal: ordinal++, ...entry.block });
   return result;
 }
