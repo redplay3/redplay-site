@@ -28,6 +28,14 @@ export type KrProbeMetrics = {
   tableCount: number;
   imageCount: number;
   headingCount: number;
+  contentBlockCount: number;
+};
+
+export type KrLinkedPlayncSource = {
+  url: string;
+  label: string;
+  edition: KrEdition | null;
+  articleId: string | null;
 };
 
 export type KrIngestProbeResult = {
@@ -35,6 +43,10 @@ export type KrIngestProbeResult = {
   requestedUrl: string;
   finalUrl: string;
   source: KrDetectedSource;
+  feedId: string | null;
+  resolvedEdition: KrEdition | null;
+  resolvedArticleId: string | null;
+  linkedPlaync: KrLinkedPlayncSource | null;
   httpStatus: number;
   contentType: string | null;
   fetchedAt: string;
