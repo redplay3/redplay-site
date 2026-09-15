@@ -43,11 +43,13 @@ type ProbeResult = {
 type ImportResult = {
   ok: boolean;
   duplicate: boolean;
+  reparsed?: boolean;
   itemId: string;
   snapshotId: string;
   version: number;
   blockCount: number;
   contentHash: string;
+  parserVersion?: string;
   error?: string;
 };
 
@@ -154,13 +156,19 @@ export function KrIngestProbe() {
 
       {result.ok ? <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", paddingTop: 4 }}>
         <button className="admin-primary" type="button" onClick={importToInbox} disabled={importing}>{importing ? "Импортирую…" : "Импортировать в KR Inbox"}</button>
-        <small style={{ opacity: .62 }}>Создаст snapshot v1. Если NC позже изменит материал, следующий отличный hash станет v2.</small>
+        <small style={{ opacity: .62 }}>Новый hash создаёт следующую версию snapshot. Тот же hash остаётся той же версией.</small>
       </div> : null}
     </section> : null}
 
     {importResult ? <section style={{ display: "grid", gap: 10, padding: 18, border: "1px solid #bfe4cb", borderRadius: 16, background: "#f1fbf4" }}>
-      <strong style={{ color: "#167d3d" }}>{importResult.duplicate ? `Snapshot v${importResult.version} уже сохранён` : `Snapshot v${importResult.version} сохранён`}</strong>
-      <div>{importResult.blockCount.toLocaleString("ru-RU")} структурных блоков подготовлено для проверки.</div>
+      <strong style={{ color: "#167d3d" }}>
+        {importResult.reparsed
+          ? `Snapshot v${importResult.version} переразобран новым parser`
+          : importResult.duplicate
+            ? `Snapshot v${importResult.version} уже сохранён`
+            : `Snapshot v${importResult.version} сохранён`}
+      </strong>
+      <div>{importResult.blockCount.toLocaleString("ru-RU")} структурных блоков подготовлено для проверки{importResult.parserVersion ? ` · ${importResult.parserVersion}` : ""}.</div>
       <Link className="admin-secondary" href={`/redplay-admin/kr-inbox/${importResult.itemId}`}>Открыть KR Original ↔ RedPlay</Link>
     </section> : null}
   </div>;
