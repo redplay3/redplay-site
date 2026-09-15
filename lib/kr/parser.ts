@@ -13,9 +13,19 @@ export type KrParsedBlock = {
   data: Record<string, unknown>;
 };
 
+type TableCell = {
+  text: string;
+  colspan: number;
+  rowspan: number;
+  header: boolean;
+};
+
+type Range = { start: number; end: number };
+type LocatedBlock = { index: number; block: Omit<KrParsedBlock, "ordinal"> };
+
 function decodeHtmlEntities(value: string) {
   return value
-    .replace(/&nbsp;/gi, " ")
+    .replace(/&nbsp;|&#xa0;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
@@ -54,6 +64,12 @@ function attr(tag: string, name: string) {
   return match?.[1] || null;
 }
 
+function intAttr(tag: string, name: string) {
+  const value = attr(tag, name);
+  const parsed = value ? Number.parseInt(value, 10) : 1;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
 function absoluteUrl(value: string | null, baseUrl: string) {
   if (!value) return null;
   try {
@@ -85,131 +101,170 @@ function numericData(text: string | null) {
 }
 
 function parseTable(rawHtml: string) {
-  const rows: string[][] = [];
+  const rows: TableCell[][] = [];
   const rowMatches = rawHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
   for (const row of rowMatches) {
-    const cells = row.match(/<(?:th|td)\b[\s\S]*?<\/(?:th|td)>/gi) || [];
-    const values = cells.map(stripTags).filter(Boolean);
-    if (values.length) rows.push(values);
+    const cells: TableCell[] = [];
+    const cellPattern = /<(th|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    let cellMatch: RegExpExecArray | null;
+    while ((cellMatch = cellPattern.exec(row))) {
+      const text = stripTags(cellMatch[3]);
+      cells.push({
+        text,
+        colspan: intAttr(cellMatch[2], "colspan"),
+        rowspan: intAttr(cellMatch[2], "rowspan"),
+        header: cellMatch[1].toLowerCase() === "th" || /background-color\s*:\s*black/i.test(cellMatch[2]),
+      });
+    }
+    if (cells.some((cell) => cell.text)) rows.push(cells);
   }
   return rows;
 }
 
-function contentBlockSlices(body: string) {
-  const marker = /data-contents-type=["']([^"']+)["']/gi;
-  const points: Array<{ index: number; type: string }> = [];
+function findBalancedDivEnd(body: string, start: number) {
+  const token = /<\/?div\b[^>]*>/gi;
+  token.lastIndex = start;
+  let depth = 0;
   let match: RegExpExecArray | null;
-  while ((match = marker.exec(body))) points.push({ index: match.index, type: match[1] });
-
-  return points.map((point, index) => {
-    const start = Math.max(0, body.lastIndexOf("<", point.index));
-    const next = points[index + 1]?.index ?? body.length;
-    const nextStart = next === body.length ? body.length : Math.max(start, body.lastIndexOf("<", next));
-    return { sourceType: point.type, rawHtml: body.slice(start, nextStart) };
-  });
+  while ((match = token.exec(body))) {
+    if (/^<\/div/i.test(match[0])) depth -= 1;
+    else depth += 1;
+    if (depth === 0) return token.lastIndex;
+  }
+  return body.length;
 }
 
-type LocatedBlock = { index: number; block: Omit<KrParsedBlock, "ordinal"> };
+function insideRanges(index: number, ranges: Range[]) {
+  return ranges.some((range) => index >= range.start && index < range.end);
+}
 
-function collect(body: string, pattern: RegExp, map: (match: RegExpExecArray) => Omit<KrParsedBlock, "ordinal">) {
-  const found: LocatedBlock[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(body))) found.push({ index: match.index, block: map(match) });
-  return found;
+function headingLike(raw: string, text: string) {
+  const compact = text.replace(/\s+/g, " ").trim();
+  if (/^\[[^\]\n]{1,100}\]$/.test(compact)) return true;
+
+  const sizeMatches = [...raw.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/gi)];
+  const maxSize = sizeMatches.reduce((max, match) => Math.max(max, Number(match[1]) || 0), 0);
+  if (maxSize >= 20 && compact.length <= 160) return true;
+
+  if (/<(?:strong|b)\b/i.test(raw) && compact.length <= 100 && !/^[-※*]/.test(compact)) return true;
+  return false;
+}
+
+function collectOrdinaryPlaync(body: string, baseUrl: string) {
+  const located: LocatedBlock[] = [];
+  const collect = (pattern: RegExp, map: (match: RegExpExecArray) => Omit<KrParsedBlock, "ordinal">) => {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(body))) located.push({ index: match.index, block: map(match) });
+  };
+
+  collect(/<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>/gi, (match) => {
+    const text = stripTags(match[0]) || null;
+    return { blockType: "heading", sourceType: `h${match[1]}`, textKr: text, rawHtml: match[0], data: { level: Number(match[1]), ...numericData(text) } };
+  });
+  collect(/<table\b[\s\S]*?<\/table>/gi, (match) => {
+    const rows = parseTable(match[0]);
+    const text = rows.flat().map((cell) => cell.text).filter(Boolean).join("\n") || stripTags(match[0]) || null;
+    return { blockType: "table", sourceType: "table", textKr: text, rawHtml: match[0], data: { rows, ...numericData(text) } };
+  });
+  collect(/<img\b[^>]*>/gi, (match) => {
+    const alt = attr(match[0], "alt");
+    return { blockType: "image", sourceType: "img", textKr: alt, rawHtml: match[0], data: { src: absoluteUrl(attr(match[0], "src"), baseUrl), alt, ...numericData(alt) } };
+  });
+  collect(/<(p|li)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
+    const text = stripTags(match[0]) || null;
+    return { blockType: "text", sourceType: match[1].toLowerCase(), textKr: text, rawHtml: match[0], data: numericData(text) };
+  });
+
+  return located.filter((entry) => entry.block.blockType === "image" || Boolean(entry.block.textKr));
 }
 
 export function parseKrSnapshotBody(rawBody: string, baseUrl: string): KrParsedBlock[] {
   const body = normalizeKrMarkup(rawBody);
-  const result: KrParsedBlock[] = [];
-  let ordinal = 0;
+  const located: LocatedBlock[] = [];
 
-  const contentSlices = contentBlockSlices(body);
-  if (contentSlices.length) {
-    for (const block of contentSlices) {
-      const raw = block.rawHtml.trim();
-      if (!raw) continue;
-      const tableHtml = raw.match(/<table\b[\s\S]*?<\/table>/i)?.[0];
-      const imageTag = raw.match(/<img\b[^>]*>/i)?.[0];
-      const text = stripTags(raw);
-
-      if (tableHtml) {
-        const rows = parseTable(tableHtml);
-        const tableText = rows.flat().join("\n") || text || null;
-        if (!rows.length && !tableText) continue;
-        result.push({
-          ordinal: ordinal++,
+  // Purple Lounge puts data-contents-type=text inside table cells. Treat each tableWrapper
+  // as ONE table block first and ignore all nested cell text markers afterwards.
+  const tableRanges: Range[] = [];
+  const tableWrapper = /<div\b[^>]*class=["'][^"']*\btableWrapper\b[^"']*["'][^>]*>/gi;
+  let tableMatch: RegExpExecArray | null;
+  while ((tableMatch = tableWrapper.exec(body))) {
+    const start = tableMatch.index;
+    const end = findBalancedDivEnd(body, start);
+    const raw = body.slice(start, end);
+    const tableHtml = raw.match(/<table\b[\s\S]*?<\/table>/i)?.[0] || raw;
+    const rows = parseTable(tableHtml);
+    const text = rows.flat().map((cell) => cell.text).filter(Boolean).join("\n") || stripTags(tableHtml) || null;
+    tableRanges.push({ start, end });
+    if (text || rows.length) {
+      located.push({
+        index: start,
+        block: {
           blockType: "table",
-          sourceType: block.sourceType,
-          textKr: tableText,
+          sourceType: "tableWrapper",
+          textKr: text,
           rawHtml: raw,
-          data: { rows, ...numericData(tableText) },
-        });
-        continue;
-      }
-
-      if (imageTag) {
-        const src = absoluteUrl(attr(imageTag, "src"), baseUrl);
-        if (!src && !text) continue;
-        result.push({
-          ordinal: ordinal++,
-          blockType: "image",
-          sourceType: block.sourceType,
-          textKr: text || null,
-          rawHtml: raw,
-          data: { src, alt: attr(imageTag, "alt"), ...numericData(text || null) },
-        });
-        continue;
-      }
-
-      // Purple Lounge contains technical layout blocks with no visible content.
-      if (!text) continue;
-
-      result.push({
-        ordinal: ordinal++,
-        blockType: "content",
-        sourceType: block.sourceType,
-        textKr: text,
-        rawHtml: raw,
-        data: numericData(text),
+          data: { rows, ...numericData(text) },
+        },
       });
     }
-    return result;
+    tableWrapper.lastIndex = end;
   }
 
-  // Fallback for ordinary PLAYNC HTML. Collect separately, then restore document order.
-  const located: LocatedBlock[] = [
-    ...collect(body, /<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>/gi, (match) => {
-      const text = stripTags(match[0]) || null;
-      return {
-        blockType: "heading",
-        sourceType: `h${match[1]}`,
+  const contentPattern = /<div\b[^>]*data-contents-type=["']([^"']+)["'][^>]*>([\s\S]*?)<\/div>/gi;
+  let contentMatch: RegExpExecArray | null;
+  while ((contentMatch = contentPattern.exec(body))) {
+    if (insideRanges(contentMatch.index, tableRanges)) continue;
+
+    const sourceType = contentMatch[1];
+    const raw = contentMatch[0];
+    const text = stripTags(raw);
+    const imageTag = raw.match(/<img\b[^>]*>/i)?.[0] || null;
+
+    if (imageTag) {
+      const src = absoluteUrl(attr(imageTag, "src"), baseUrl);
+      if (src || text) {
+        located.push({
+          index: contentMatch.index,
+          block: {
+            blockType: "image",
+            sourceType,
+            textKr: text || attr(imageTag, "alt"),
+            rawHtml: raw,
+            data: { src, alt: attr(imageTag, "alt"), ...numericData(text || attr(imageTag, "alt")) },
+          },
+        });
+      }
+      continue;
+    }
+
+    if (!text) continue;
+    const isHeading = headingLike(raw, text);
+    located.push({
+      index: contentMatch.index,
+      block: {
+        blockType: isHeading ? "heading" : "text",
+        sourceType,
         textKr: text,
-        rawHtml: match[0],
-        data: { level: Number(match[1]), ...numericData(text) },
-      };
-    }),
-    ...collect(body, /<table\b[\s\S]*?<\/table>/gi, (match) => {
-      const rows = parseTable(match[0]);
-      const text = rows.flat().join("\n") || stripTags(match[0]) || null;
-      return { blockType: "table", sourceType: "table", textKr: text, rawHtml: match[0], data: { rows, ...numericData(text) } };
-    }),
-    ...collect(body, /<img\b[^>]*>/gi, (match) => {
-      const alt = attr(match[0], "alt");
-      return {
-        blockType: "image",
-        sourceType: "img",
-        textKr: alt,
-        rawHtml: match[0],
-        data: { src: absoluteUrl(attr(match[0], "src"), baseUrl), alt, ...numericData(alt) },
-      };
-    }),
-    ...collect(body, /<(p|li)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
-      const text = stripTags(match[0]) || null;
-      return { blockType: "text", sourceType: match[1].toLowerCase(), textKr: text, rawHtml: match[0], data: numericData(text) };
-    }),
-  ].filter((entry) => entry.block.blockType === "image" || Boolean(entry.block.textKr));
+        rawHtml: raw,
+        data: { ...(isHeading ? { level: 2 } : {}), ...numericData(text) },
+      },
+    });
+  }
+
+  // If the page has no Lounge content markers, fall back to ordinary PLAYNC HTML parsing.
+  if (!located.length) located.push(...collectOrdinaryPlaync(body, baseUrl));
 
   located.sort((a, b) => a.index - b.index);
-  for (const entry of located) result.push({ ordinal: ordinal++, ...entry.block });
-  return result;
+
+  // Remove nested/duplicate fragments while preserving source order.
+  const deduped: LocatedBlock[] = [];
+  const seen = new Set<string>();
+  for (const entry of located) {
+    const key = `${entry.block.blockType}|${entry.block.textKr || ""}|${entry.index}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(entry);
+  }
+
+  return deduped.map((entry, ordinal) => ({ ordinal, ...entry.block }));
 }
