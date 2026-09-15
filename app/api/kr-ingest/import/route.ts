@@ -47,9 +47,7 @@ export async function POST(request: Request) {
     if (!probe.ok) return NextResponse.json({ error: probe.error || "Источник недоступен", probe }, { status: 422 });
 
     const { response, body } = await fetchOriginal(probe.finalUrl);
-    if (!response.ok || !body) {
-      return NextResponse.json({ error: `Источник ответил HTTP ${response.status}` }, { status: 422 });
-    }
+    if (!response.ok || !body) return NextResponse.json({ error: `Источник ответил HTTP ${response.status}` }, { status: 422 });
 
     const hash = createHash("sha256").update(body).digest("hex");
     const blocks = parseKrSnapshotBody(body, response.url || probe.finalUrl);
@@ -57,7 +55,7 @@ export async function POST(request: Request) {
 
     const { data: existingItem, error: itemLookupError } = await supabase
       .from("kr_ingest_items")
-      .select("id,latest_snapshot_version")
+      .select("id,latest_snapshot_version,status")
       .eq("source_key", sourceKey)
       .maybeSingle();
 
@@ -73,7 +71,7 @@ export async function POST(request: Request) {
     let itemId = existingItem?.id as string | undefined;
     let latestVersion = Number(existingItem?.latest_snapshot_version || 0);
 
-    const itemPayload = {
+    const itemMetadata = {
       source_key: sourceKey,
       edition: probe.resolvedEdition,
       source_kind: probe.source.definition.kind,
@@ -82,20 +80,19 @@ export async function POST(request: Request) {
       article_id: probe.resolvedArticleId,
       feed_id: probe.feedId,
       title_kr: probe.title,
-      status: "new",
     };
 
     if (!itemId) {
       const { data: created, error } = await supabase
         .from("kr_ingest_items")
-        .insert(itemPayload)
+        .insert({ ...itemMetadata, status: "new" })
         .select("id,latest_snapshot_version")
         .single();
       if (error || !created) throw new Error(error?.message || "Не удалось создать KR Inbox item");
       itemId = created.id;
       latestVersion = Number(created.latest_snapshot_version || 0);
     } else {
-      const { error } = await supabase.from("kr_ingest_items").update(itemPayload).eq("id", itemId);
+      const { error } = await supabase.from("kr_ingest_items").update(itemMetadata).eq("id", itemId);
       if (error) throw new Error(error.message);
     }
 
@@ -120,10 +117,7 @@ export async function POST(request: Request) {
     }
 
     const nextVersion = latestVersion + 1;
-    const metrics = {
-      ...probe.metrics,
-      parsedBlockCount: blocks.length,
-    };
+    const metrics = { ...probe.metrics, parsedBlockCount: blocks.length };
 
     const { data: snapshot, error: snapshotError } = await supabase
       .from("kr_ingest_snapshots")
@@ -162,9 +156,10 @@ export async function POST(request: Request) {
       }
     }
 
+    const nextStatus = existingItem?.status === "published" ? "review" : "review";
     const { error: updateError } = await supabase
       .from("kr_ingest_items")
-      .update({ latest_snapshot_version: nextVersion, status: "review" })
+      .update({ latest_snapshot_version: nextVersion, status: nextStatus })
       .eq("id", itemId);
     if (updateError) throw new Error(updateError.message);
 
