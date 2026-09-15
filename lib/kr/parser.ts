@@ -1,3 +1,9 @@
+export type KrNumericToken = {
+  raw: string;
+  normalized: string;
+  kind: "percent" | "number";
+};
+
 export type KrParsedBlock = {
   ordinal: number;
   blockType: "heading" | "text" | "table" | "image" | "content";
@@ -57,6 +63,27 @@ function absoluteUrl(value: string | null, baseUrl: string) {
   }
 }
 
+function normalizeNumber(raw: string) {
+  const percent = raw.endsWith("%");
+  const value = raw.replace(/%$/, "").replace(/[\s,]/g, "").replace(/^\+/, "");
+  return percent ? `${value}%` : value;
+}
+
+export function extractNumericTokens(value: string | null | undefined): KrNumericToken[] {
+  if (!value) return [];
+  const matches = value.match(/[+-]?(?:\d{1,3}(?:[ ,]\d{3})+|\d+)(?:\.\d+)?%?/g) || [];
+  return matches.map((raw) => ({
+    raw,
+    normalized: normalizeNumber(raw),
+    kind: raw.endsWith("%") ? "percent" : "number",
+  }));
+}
+
+function numericData(text: string | null) {
+  const numericTokens = extractNumericTokens(text);
+  return { numericTokens, numericCount: numericTokens.length };
+}
+
 function parseTable(rawHtml: string) {
   const rows: string[][] = [];
   const rowMatches = rawHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
@@ -106,51 +133,80 @@ export function parseKrSnapshotBody(rawBody: string, baseUrl: string): KrParsedB
       const text = stripTags(raw);
 
       if (tableHtml) {
-        result.push({ ordinal: ordinal++, blockType: "table", sourceType: block.sourceType, textKr: text || null, rawHtml: raw, data: { rows: parseTable(tableHtml) } });
-        continue;
-      }
-      if (imageTag) {
+        const rows = parseTable(tableHtml);
+        const tableText = rows.flat().join("\n") || text || null;
+        if (!rows.length && !tableText) continue;
         result.push({
-          ordinal: ordinal++, blockType: "image", sourceType: block.sourceType, textKr: text || null, rawHtml: raw,
-          data: { src: absoluteUrl(attr(imageTag, "src"), baseUrl), alt: attr(imageTag, "alt") },
+          ordinal: ordinal++,
+          blockType: "table",
+          sourceType: block.sourceType,
+          textKr: tableText,
+          rawHtml: raw,
+          data: { rows, ...numericData(tableText) },
         });
         continue;
       }
-      result.push({ ordinal: ordinal++, blockType: "content", sourceType: block.sourceType, textKr: text || null, rawHtml: raw, data: {} });
+
+      if (imageTag) {
+        const src = absoluteUrl(attr(imageTag, "src"), baseUrl);
+        if (!src && !text) continue;
+        result.push({
+          ordinal: ordinal++,
+          blockType: "image",
+          sourceType: block.sourceType,
+          textKr: text || null,
+          rawHtml: raw,
+          data: { src, alt: attr(imageTag, "alt"), ...numericData(text || null) },
+        });
+        continue;
+      }
+
+      // Purple Lounge contains technical layout blocks with no visible content.
+      if (!text) continue;
+
+      result.push({
+        ordinal: ordinal++,
+        blockType: "content",
+        sourceType: block.sourceType,
+        textKr: text,
+        rawHtml: raw,
+        data: numericData(text),
+      });
     }
     return result;
   }
 
   // Fallback for ordinary PLAYNC HTML. Collect separately, then restore document order.
   const located: LocatedBlock[] = [
-    ...collect(body, /<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>/gi, (match) => ({
-      blockType: "heading",
-      sourceType: `h${match[1]}`,
-      textKr: stripTags(match[0]) || null,
-      rawHtml: match[0],
-      data: { level: Number(match[1]) },
-    })),
-    ...collect(body, /<table\b[\s\S]*?<\/table>/gi, (match) => ({
-      blockType: "table",
-      sourceType: "table",
-      textKr: stripTags(match[0]) || null,
-      rawHtml: match[0],
-      data: { rows: parseTable(match[0]) },
-    })),
-    ...collect(body, /<img\b[^>]*>/gi, (match) => ({
-      blockType: "image",
-      sourceType: "img",
-      textKr: attr(match[0], "alt"),
-      rawHtml: match[0],
-      data: { src: absoluteUrl(attr(match[0], "src"), baseUrl), alt: attr(match[0], "alt") },
-    })),
-    ...collect(body, /<(p|li)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => ({
-      blockType: "text",
-      sourceType: match[1].toLowerCase(),
-      textKr: stripTags(match[0]) || null,
-      rawHtml: match[0],
-      data: {},
-    })),
+    ...collect(body, /<h([1-6])\b[^>]*>[\s\S]*?<\/h\1>/gi, (match) => {
+      const text = stripTags(match[0]) || null;
+      return {
+        blockType: "heading",
+        sourceType: `h${match[1]}`,
+        textKr: text,
+        rawHtml: match[0],
+        data: { level: Number(match[1]), ...numericData(text) },
+      };
+    }),
+    ...collect(body, /<table\b[\s\S]*?<\/table>/gi, (match) => {
+      const rows = parseTable(match[0]);
+      const text = rows.flat().join("\n") || stripTags(match[0]) || null;
+      return { blockType: "table", sourceType: "table", textKr: text, rawHtml: match[0], data: { rows, ...numericData(text) } };
+    }),
+    ...collect(body, /<img\b[^>]*>/gi, (match) => {
+      const alt = attr(match[0], "alt");
+      return {
+        blockType: "image",
+        sourceType: "img",
+        textKr: alt,
+        rawHtml: match[0],
+        data: { src: absoluteUrl(attr(match[0], "src"), baseUrl), alt, ...numericData(alt) },
+      };
+    }),
+    ...collect(body, /<(p|li)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
+      const text = stripTags(match[0]) || null;
+      return { blockType: "text", sourceType: match[1].toLowerCase(), textKr: text, rawHtml: match[0], data: numericData(text) };
+    }),
   ].filter((entry) => entry.block.blockType === "image" || Boolean(entry.block.textKr));
 
   located.sort((a, b) => a.index - b.index);
