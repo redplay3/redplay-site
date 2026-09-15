@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { probeKrSource } from "@/lib/kr/probe";
-import { parseKrSnapshotBody } from "@/lib/kr/parser";
+import { parseKrSnapshotBody, type KrParsedBlock } from "@/lib/kr/parser";
+
+const PARSER_VERSION = "kr-parser/0.2";
 
 function stableSourceKey(result: Awaited<ReturnType<typeof probeKrSource>>) {
   if (result.resolvedArticleId) return `plaync:${result.resolvedArticleId}`;
@@ -22,6 +24,18 @@ async function fetchOriginal(url: string) {
   });
   const body = await response.text();
   return { response, body };
+}
+
+function blockRows(snapshotId: string, blocks: KrParsedBlock[]) {
+  return blocks.map((block) => ({
+    snapshot_id: snapshotId,
+    ordinal: block.ordinal,
+    block_type: block.blockType,
+    source_type: block.sourceType,
+    text_kr: block.textKr,
+    raw_html: block.rawHtml,
+    data: block.data,
+  }));
 }
 
 export async function POST(request: Request) {
@@ -96,29 +110,50 @@ export async function POST(request: Request) {
       if (error) throw new Error(error.message);
     }
 
+    if (!itemId) throw new Error("Не удалось определить KR Inbox item");
+
     const { data: duplicate, error: duplicateError } = await supabase
       .from("kr_ingest_snapshots")
-      .select("id,version")
+      .select("id,version,parser_version")
       .eq("item_id", itemId)
       .eq("content_hash", hash)
       .maybeSingle();
     if (duplicateError) throw new Error(duplicateError.message);
 
+    const metrics = { ...probe.metrics, parsedBlockCount: blocks.length };
+
     if (duplicate) {
+      const needsReparse = duplicate.parser_version !== PARSER_VERSION;
+      if (needsReparse) {
+        const { error: deleteError } = await supabase.from("kr_ingest_blocks").delete().eq("snapshot_id", duplicate.id);
+        if (deleteError) throw new Error(deleteError.message);
+
+        if (blocks.length) {
+          const { error: insertError } = await supabase.from("kr_ingest_blocks").insert(blockRows(duplicate.id, blocks));
+          if (insertError) throw new Error(insertError.message);
+        }
+
+        const { error: snapshotUpdateError } = await supabase
+          .from("kr_ingest_snapshots")
+          .update({ metrics, parser_version: PARSER_VERSION })
+          .eq("id", duplicate.id);
+        if (snapshotUpdateError) throw new Error(snapshotUpdateError.message);
+      }
+
       return NextResponse.json({
         ok: true,
         duplicate: true,
+        reparsed: needsReparse,
         itemId,
         snapshotId: duplicate.id,
         version: duplicate.version,
         blockCount: blocks.length,
         contentHash: hash,
+        parserVersion: needsReparse ? PARSER_VERSION : duplicate.parser_version,
       });
     }
 
     const nextVersion = latestVersion + 1;
-    const metrics = { ...probe.metrics, parsedBlockCount: blocks.length };
-
     const { data: snapshot, error: snapshotError } = await supabase
       .from("kr_ingest_snapshots")
       .insert({
@@ -132,7 +167,7 @@ export async function POST(request: Request) {
         title_kr: probe.title,
         raw_body: body,
         metrics,
-        parser_version: "kr-parser/0.1",
+        parser_version: PARSER_VERSION,
       })
       .select("id")
       .single();
@@ -140,37 +175,29 @@ export async function POST(request: Request) {
     if (snapshotError || !snapshot) throw new Error(snapshotError?.message || "Не удалось сохранить snapshot");
 
     if (blocks.length) {
-      const rows = blocks.map((block) => ({
-        snapshot_id: snapshot.id,
-        ordinal: block.ordinal,
-        block_type: block.blockType,
-        source_type: block.sourceType,
-        text_kr: block.textKr,
-        raw_html: block.rawHtml,
-        data: block.data,
-      }));
-      const { error } = await supabase.from("kr_ingest_blocks").insert(rows);
+      const { error } = await supabase.from("kr_ingest_blocks").insert(blockRows(snapshot.id, blocks));
       if (error) {
         await supabase.from("kr_ingest_snapshots").delete().eq("id", snapshot.id);
         throw new Error(error.message);
       }
     }
 
-    const nextStatus = existingItem?.status === "published" ? "review" : "review";
     const { error: updateError } = await supabase
       .from("kr_ingest_items")
-      .update({ latest_snapshot_version: nextVersion, status: nextStatus })
+      .update({ latest_snapshot_version: nextVersion, status: "review" })
       .eq("id", itemId);
     if (updateError) throw new Error(updateError.message);
 
     return NextResponse.json({
       ok: true,
       duplicate: false,
+      reparsed: false,
       itemId,
       snapshotId: snapshot.id,
       version: nextVersion,
       blockCount: blocks.length,
       contentHash: hash,
+      parserVersion: PARSER_VERSION,
       metrics,
     });
   } catch (error) {
