@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { detectKrSource } from "./sources";
-import type { KrIngestProbeResult, KrLinkedPlayncSource } from "./types";
+import type { KrEdition, KrIngestProbeResult, KrLinkedPlayncSource } from "./types";
 
 function decodeHtmlEntities(value: string) {
   return value
@@ -28,6 +28,13 @@ function extractTitle(html: string) {
 
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return title?.[1] ? decodeHtmlEntities(title[1].replace(/\s+/g, " ").trim()) : null;
+}
+
+function editionFromPurpleTitle(title: string | null): KrEdition | null {
+  if (!title) return null;
+  if (/\[본서버\]/.test(title)) return "essence";
+  if (/\[각성서버\]/.test(title)) return "main";
+  return null;
 }
 
 function countMatches(value: string, pattern: RegExp) {
@@ -85,8 +92,9 @@ export async function probeKrSource(input: string): Promise<KrIngestProbeResult>
     const normalizedBody = normalizeEmbeddedMarkup(body);
     const contentType = response.headers.get("content-type");
     const looksLikeHtml = contentType?.includes("html") || /<html|<body|<article/i.test(normalizedBody);
+    const title = looksLikeHtml ? extractTitle(normalizedBody) : null;
     const linkedPlaync = source.definition.kind === "purple_lounge" ? extractLinkedPlaync(body) : null;
-    const resolvedEdition = source.definition.edition || linkedPlaync?.edition || null;
+    const resolvedEdition = source.definition.edition || linkedPlaync?.edition || editionFromPurpleTitle(title) || null;
     const resolvedArticleId = source.articleId || linkedPlaync?.articleId || null;
 
     return {
@@ -101,7 +109,7 @@ export async function probeKrSource(input: string): Promise<KrIngestProbeResult>
       httpStatus: response.status,
       contentType,
       fetchedAt: new Date().toISOString(),
-      title: looksLikeHtml ? extractTitle(normalizedBody) : null,
+      title,
       contentHash: body.length ? createHash("sha256").update(body).digest("hex") : null,
       metrics: {
         bodyChars: body.length,
