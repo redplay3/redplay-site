@@ -15,6 +15,15 @@ type ProbeResult = {
     };
     articleId: string | null;
   };
+  feedId: string | null;
+  resolvedEdition: "essence" | "main" | null;
+  resolvedArticleId: string | null;
+  linkedPlaync: {
+    url: string;
+    label: string;
+    edition: "essence" | "main" | null;
+    articleId: string | null;
+  } | null;
   httpStatus: number;
   contentType: string | null;
   fetchedAt: string;
@@ -25,6 +34,7 @@ type ProbeResult = {
     tableCount: number;
     imageCount: number;
     headingCount: number;
+    contentBlockCount: number;
   };
   error?: string;
 };
@@ -88,15 +98,23 @@ export function KrIngestProbe() {
         <strong style={{ color: result.ok ? "#6ee7a8" : "#ff8585" }}>{result.ok ? "SOURCE OK" : "SOURCE ERROR"}</strong>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
-        <Metric label="Версия" value={(result.source.definition.edition || "unknown").toUpperCase()} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+        <Metric label="Версия" value={(result.resolvedEdition || "unknown").toUpperCase()} />
         <Metric label="HTTP" value={String(result.httpStatus)} />
-        <Metric label="articleId" value={result.source.articleId || "—"} />
+        <Metric label="articleId" value={result.resolvedArticleId || "—"} />
+        <Metric label="feedId" value={result.feedId || "—"} />
         <Metric label="Символов" value={result.metrics.bodyChars.toLocaleString("ru-RU")} />
         <Metric label="Таблиц" value={String(result.metrics.tableCount)} />
         <Metric label="Изображений" value={String(result.metrics.imageCount)} />
         <Metric label="Заголовков" value={String(result.metrics.headingCount)} />
+        <Metric label="Content blocks" value={String(result.metrics.contentBlockCount)} />
       </div>
+
+      {result.linkedPlaync ? <div style={{ padding: 14, borderRadius: 12, background: "rgba(40,120,255,.08)", border: "1px solid rgba(90,150,255,.22)" }}>
+        <strong>Связанный первоисточник PLAYNC найден</strong>
+        <div style={{ marginTop: 6, fontSize: 13, opacity: .78 }}>{result.linkedPlaync.label}</div>
+        <a href={result.linkedPlaync.url} target="_blank" rel="noreferrer" style={{ display: "block", marginTop: 5, overflowWrap: "anywhere" }}>{result.linkedPlaync.url}</a>
+      </div> : null}
 
       {result.error ? <div style={{ color: "#ff9a9a" }}>{result.error}</div> : null}
       <div style={{ fontSize: 13, opacity: .65, overflowWrap: "anywhere" }}>SHA-256: {result.contentHash || "—"}</div>
