@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { probeKrSource } from "@/lib/kr/probe";
 import { parseKrSnapshotBody, type KrParsedBlock } from "@/lib/kr/parser";
 
-const PARSER_VERSION = "kr-parser/0.2";
+const PARSER_VERSION = "kr-parser/0.3";
 
 function stableSourceKey(result: Awaited<ReturnType<typeof probeKrSource>>) {
   if (result.resolvedArticleId) return `plaync:${result.resolvedArticleId}`;
@@ -19,7 +19,7 @@ async function fetchOriginal(url: string) {
     headers: {
       accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
       "accept-language": "ko-KR,ko;q=0.9,en;q=0.7",
-      "user-agent": "RedPlay-KR-Ingest/0.2 (+https://redplay.stream)",
+      "user-agent": "RedPlay-KR-Ingest/0.3 (+https://redplay.stream)",
     },
   });
   const body = await response.text();
