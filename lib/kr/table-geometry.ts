@@ -80,13 +80,28 @@ function removeSafeDuplicateRows(rows: string[][], targetLength: number) {
   return next;
 }
 
+function invariantNumericCell(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return /^[+\-]?\d[\d\s,./~:%+\-]*$/.test(trimmed);
+}
+
+function restoreInvariantCells(sourceRow: KrTableCell[], translatedRow: string[]) {
+  if (translatedRow.length !== sourceRow.length) return translatedRow;
+  return translatedRow.map((value, index) => {
+    const source = sourceRow[index]?.text || "";
+    return invariantNumericCell(source) ? source : value;
+  });
+}
+
 /**
  * AI models may represent rowspan tables in two different ways:
  * 1) physical cells + trailing empty placeholders: ["2", "43", ""];
  * 2) full logical grid placeholders: ["", "2", "79", "", ""].
  * PLAYNC stores only physical TD/TH cells. Prefer the non-empty physical values
  * when their count already matches the source row, then fall back to logical
- * column positions derived from rowspan/colspan.
+ * column positions derived from rowspan/colspan. Pure numeric source cells are
+ * restored verbatim because they never need translation and must never drift.
  */
 export function normalizeTranslatedTableRows(block: BlockLike, translatedRows: string[][]) {
   const sourceRows = sourceTableCells(block);
@@ -100,16 +115,24 @@ export function normalizeTranslatedTableRows(block: BlockLike, translatedRows: s
 
   return rows.map((row, rowIndex) => {
     const sourceRow = sourceRows[rowIndex];
-    if (!sourceRow || row.length === sourceRow.length) return [...row];
-    if (row.length < sourceRow.length) return [...row];
+    if (!sourceRow) return [...row];
 
-    const nonEmpty = row.filter((cell) => cell.trim() !== "");
-    if (nonEmpty.length === sourceRow.length) return nonEmpty;
+    let normalized: string[];
+    if (row.length === sourceRow.length) {
+      normalized = [...row];
+    } else if (row.length < sourceRow.length) {
+      normalized = [...row];
+    } else {
+      const nonEmpty = row.filter((cell) => cell.trim() !== "");
+      if (nonEmpty.length === sourceRow.length) {
+        normalized = nonEmpty;
+      } else {
+        const mapped = positions[rowIndex].map((column) => row[column] ?? "");
+        normalized = mapped.length === sourceRow.length ? mapped : [...row];
+      }
+    }
 
-    const mapped = positions[rowIndex].map((column) => row[column] ?? "");
-    if (mapped.length === sourceRow.length) return mapped;
-
-    return [...row];
+    return restoreInvariantCells(sourceRow, normalized);
   });
 }
 
