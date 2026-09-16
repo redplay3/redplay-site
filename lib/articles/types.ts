@@ -106,4 +106,3 @@ export type ArticleDocument = {
   seo?: { title?: string; description?: string; keywords?: string[] };
   videoUrl?: string;
 };
-
