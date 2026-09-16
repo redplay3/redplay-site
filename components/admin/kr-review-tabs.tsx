@@ -110,22 +110,34 @@ export function KrReviewTabs({
   const [adaptations, setAdaptations] = useState<KrStoredAdaptation[]>(initialAdaptations);
   const [adapting, setAdapting] = useState<string | null>(null);
   const [adaptError, setAdaptError] = useState<string | null>(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; title: string | null } | null>(null);
   const numericCount = useMemo(() => blocks.reduce((sum, block) => sum + numericTokens(block).length, 0), [blocks]);
   const adaptationMap = useMemo(() => new Map(adaptations.map((item) => [item.section_id, item])), [adaptations]);
+  const pendingCount = useMemo(() => sections.filter((section) => !adaptationMap.has(section.id)).length, [sections, adaptationMap]);
+
+  async function requestAdaptation(section: KrSemanticSection) {
+    const response = await fetch("/api/kr-ingest/adapt-section", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ snapshotId, sectionId: section.id }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Не удалось собрать перевод");
+    return payload.adaptation as KrStoredAdaptation;
+  }
+
+  function saveAdaptation(next: KrStoredAdaptation) {
+    setAdaptations((current) => [...current.filter((item) => item.section_id !== next.section_id), next]);
+  }
 
   async function adapt(section: KrSemanticSection) {
+    if (bulkRunning) return;
     setAdapting(section.id);
     setAdaptError(null);
     try {
-      const response = await fetch("/api/kr-ingest/adapt-section", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ snapshotId, sectionId: section.id }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Не удалось собрать перевод");
-      const next = payload.adaptation as KrStoredAdaptation;
-      setAdaptations((current) => [...current.filter((item) => item.section_id !== next.section_id), next]);
+      const next = await requestAdaptation(section);
+      saveAdaptation(next);
     } catch (error) {
       setAdaptError(error instanceof Error ? error.message : "Не удалось собрать перевод");
     } finally {
@@ -133,13 +145,66 @@ export function KrReviewTabs({
     }
   }
 
+  async function adaptAll() {
+    if (bulkRunning || adapting) return;
+
+    setTab("redplay");
+    setBulkRunning(true);
+    setAdaptError(null);
+
+    const completed = new Set(adaptations.map((item) => item.section_id));
+    let done = completed.size;
+    setBulkProgress({ done, total: sections.length, title: null });
+
+    try {
+      for (const section of sections) {
+        if (completed.has(section.id)) continue;
+
+        setAdapting(section.id);
+        setBulkProgress({
+          done,
+          total: sections.length,
+          title: section.titleKr || `Раздел ${done + 1}`,
+        });
+
+        const next = await requestAdaptation(section);
+        saveAdaptation(next);
+        completed.add(section.id);
+        done += 1;
+        setBulkProgress({ done, total: sections.length, title: null });
+      }
+    } catch (error) {
+      setAdaptError(`${error instanceof Error ? error.message : "Не удалось собрать перевод"} · Уже готовые разделы сохранены. Нажми «Продолжить сборку», чтобы продолжить с оставшихся.`);
+    } finally {
+      setAdapting(null);
+      setBulkRunning(false);
+    }
+  }
+
+  const bulkLabel = bulkRunning
+    ? `Собираю статью ${bulkProgress?.done ?? 0}/${sections.length}…`
+    : pendingCount
+      ? adaptations.length ? `Продолжить сборку · осталось ${pendingCount}` : `Собрать всю статью · ${sections.length} разделов`
+      : "Вся статья собрана";
+
   return <section style={{ marginTop: 24 }}>
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "sticky", top: 68, zIndex: 12, padding: "10px 0", background: "#eef0f4" }}>
       <TabButton active={tab === "redplay"} onClick={() => setTab("redplay")}>REDPLAY</TabButton>
       <TabButton active={tab === "original"} onClick={() => setTab("original")}>ОРИГИНАЛ KR</TabButton>
       <TabButton active={tab === "qa"} onClick={() => setTab("qa")}>ПРОВЕРКА</TabButton>
+      {tab === "redplay" ? <button
+        type="button"
+        className="admin-primary"
+        disabled={bulkRunning || Boolean(adapting) || pendingCount === 0}
+        onClick={adaptAll}
+        style={{ marginLeft: 4 }}
+      >{bulkLabel}</button> : null}
       <span style={{ marginLeft: "auto", alignSelf: "center", color: "#858b96", fontSize: 12 }}>{sections.length} смысл. разделов · {numericCount} чисел</span>
     </div>
+
+    {bulkRunning && bulkProgress?.title ? <div style={{ marginBottom: 14, border: "1px solid #cfd8ff", borderRadius: 12, background: "#f4f6ff", padding: 13, color: "#46589b", fontSize: 13 }}>
+      Перевожу: <strong>{bulkProgress.title}</strong> · готово {bulkProgress.done} из {bulkProgress.total}. Страница должна оставаться открытой до завершения очереди.
+    </div> : null}
 
     {adaptError ? <div style={{ marginBottom: 14, border: "1px solid #efb4bc", borderRadius: 12, background: "#fff0f2", padding: 13, color: "#a0162a", fontSize: 13 }}>{adaptError}</div> : null}
 
@@ -167,7 +232,7 @@ function RedPlayDraft({
   return <div style={{ display: "grid", gap: 16 }}>
     <div style={{ border: "1px solid #dfe2e8", borderRadius: 16, background: "#fff", padding: 18 }}>
       <strong style={{ fontSize: 16 }}>Semantic Assembler → RedPlay Adaptation</strong>
-      <p style={{ marginTop: 6, color: "#747985", fontSize: 13, lineHeight: 1.6 }}>Перевод запускается по смысловому разделу целиком. Модель получает объединённый текст и таблицы, а после ответа отдельный validator проверяет структуру и полный набор числовых значений.</p>
+      <p style={{ marginTop: 6, color: "#747985", fontSize: 13, lineHeight: 1.6 }}>Перевод запускается по смысловому разделу целиком. Модель получает объединённый текст и таблицы, а после ответа отдельный validator проверяет структуру и полный набор числовых значений. Кнопка «Собрать всю статью» запускает эти же безопасные проверки последовательно для всех ещё не готовых разделов.</p>
     </div>
 
     {sections.map((section, index) => {
