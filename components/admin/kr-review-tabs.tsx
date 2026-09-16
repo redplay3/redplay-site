@@ -296,7 +296,12 @@ function AdaptedSection({ adaptation, sourceSection }: { adaptation: KrStoredAda
 function AdaptedUnitView({ unit, sourceUnit }: { unit: AdaptedUnit; sourceUnit: KrSemanticUnit | undefined }) {
   if (unit.type === "table") {
     if (!unit.rows_ru.length) return null;
-    return <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}><tbody>{unit.rows_ru.map((row, r) => <tr key={r}>{row.map((cell, c) => <td key={c} style={{ border: "1px solid #e1e4e9", background: r === 0 ? "#171922" : "#fff", color: r === 0 ? "#fff" : "#242832", padding: "9px 10px", fontWeight: r === 0 ? 800 : 500, textAlign: "center", verticalAlign: "middle" }}>{cell}</td>)}</tr>)}</tbody></table></div>;
+    const sourceRows = sourceUnit?.type === "table" ? tableRows(sourceUnit.block) : [];
+    return <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}><tbody>{unit.rows_ru.map((row, r) => <tr key={r}>{row.map((cell, c) => {
+      const sourceCell = sourceRows[r]?.[c];
+      const isHeader = Boolean(sourceCell?.header) || r === 0;
+      return <td key={c} colSpan={sourceCell?.colspan || 1} rowSpan={sourceCell?.rowspan || 1} style={{ border: "1px solid #e1e4e9", background: isHeader ? "#171922" : "#fff", color: isHeader ? "#fff" : "#242832", padding: "9px 10px", fontWeight: isHeader ? 800 : 500, textAlign: "center", verticalAlign: "middle" }}>{cell}</td>;
+    })}</tr>)}</tbody></table></div>;
   }
   if (unit.type === "image") {
     const src = sourceUnit?.type === "image" ? imageSource(sourceUnit.block) : null;
