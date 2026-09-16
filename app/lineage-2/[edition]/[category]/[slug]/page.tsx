@@ -59,6 +59,13 @@ function readingTime(sections: ArticleSection[]) {
   return Math.max(2, Math.ceil(words / 180));
 }
 
+function formatReadingTime(minutes: number) {
+  if (minutes < 90) return `${minutes} мин`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
+}
+
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const resolved = await params;
   const article = await getArticle(resolved);
@@ -152,7 +159,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
       <img src={cover} alt={article.cover?.alt || article.title} className="article-hero-image"/><div className="article-hero-shade"/>
       <div className="relative z-10 mx-auto flex min-h-[600px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-14"><div className="max-w-5xl">
         <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href={categoryPath}>{edition}</Link><ChevronRight size={14}/><Link href={categoryPath}>{category}</Link></div>
-        <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">{article.label || category}</span><span className="article-meta"><CalendarDays size={14}/> {formatDate(article.published_at)}</span><span className="article-meta"><Clock3 size={14}/> {readingTime(sections)} минут</span><ArticleViewCount pageKey={canonicalPath} initialViews={initialViews}/></div>
+        <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">{article.label || category}</span><span className="article-meta"><CalendarDays size={14}/> {formatDate(article.published_at)}</span><span className="article-meta"><Clock3 size={14}/> {formatReadingTime(readingTime(sections))}</span><ArticleViewCount pageKey={canonicalPath} initialViews={initialViews}/></div>
         <h1>{article.title}</h1><p className="article-deck">{article.description}</p>
       </div></div>
     </section>
@@ -175,3 +182,4 @@ export default async function PublishedArticlePage({ params }: { params: Promise
     <footer className="article-footer"><div className="mx-auto flex max-w-[1500px] flex-col gap-5 px-4 py-9 text-sm text-white/38 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8"><div className="flex items-center gap-3"><span className="redplay-mark small">R</span><strong className="text-white">REDPLAY</strong><span>Игровой портал</span></div><div className="flex gap-5"><a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer">YouTube</a><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer">Telegram</a></div><p>Lineage II – товарный знак NCSOFT.</p></div></footer>
   </main>;
 }
+
