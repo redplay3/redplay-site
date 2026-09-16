@@ -58,35 +58,35 @@ function comparableFacts(text: string) {
   const facts: string[] = [];
   const ranges: Range[] = [];
 
-  // Korean calendar dates: 9월 16일.
   pushMatches(text, /(1[0-2]|[1-9])\s*월\s*(3[01]|[12]\d|[1-9])\s*일/g, ranges, facts, (match) => {
     return `date:${Number(match[1])}-${Number(match[2])}`;
   });
 
-  // PLAYNC often uses compact month/day notation in tables: 9/16~9/30.
-  // Treat only unambiguous month/day pairs (day > 12) as dates here.
+  // PLAYNC compact month/day notation, e.g. 9/16~9/30.
   pushMatches(text, /\b(1[0-2]|0?[1-9])\/(3[01]|[12]\d|1[3-9])\b/g, ranges, facts, (match) => {
     return `date:${Number(match[1])}-${Number(match[2])}`;
   });
 
-  // Russian calendar dates: 16 сентября.
   const monthWords = Object.keys(RU_MONTHS).sort((a, b) => b.length - a.length).join("|");
   pushMatches(text, new RegExp(`(3[01]|[12]\\d|[1-9])\\s+(${monthWords})`, "gi"), ranges, facts, (match) => {
     const month = RU_MONTHS[match[2].toLowerCase()];
     return month ? `date:${month}-${Number(match[1])}` : null;
   });
 
-  // Clock time should compare as one fact. Korean 20시 / 20시 30분 is equivalent to 20:00 / 20:30.
-  pushMatches(text, /\b([01]?\d|2[0-3])\s*시(?:\s*([0-5]?\d)\s*분)?/g, ranges, facts, (match) => {
-    return `time:${Number(match[1])}:${String(match[2] || "0").padStart(2, "0")}`;
+  // Korean 오전/오후 clock notation: 오후 8시 = 20:00.
+  pushMatches(text, /(오전|오후)?\s*([01]?\d|2[0-3])\s*시(?:\s*([0-5]?\d)\s*분)?/g, ranges, facts, (match) => {
+    let hour = Number(match[2]);
+    if (match[1] === "오후" && hour < 12) hour += 12;
+    if (match[1] === "오전" && hour === 12) hour = 0;
+    return `time:${hour}:${String(match[3] || "0").padStart(2, "0")}`;
   });
   pushMatches(text, /\b([01]?\d|2[0-3]):([0-5]\d)\b/g, ranges, facts, (match) => {
     return `time:${Number(match[1])}:${match[2].padStart(2, "0")}`;
   });
 
-  // Korean large-number units. Korean letters are not JS \w chars, so do not use \b after the unit.
-  // 10억 = 1,000,000,000; 5만 = 50,000; 3천 = 3,000; 1조 = 1,000,000,000,000.
-  pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(조|억|만|천)/g, ranges, facts, (match) => {
+  // Korean large-number units must be standalone. This avoids reading
+  // "+5 천상의 탈리스만" as 5000 just because 천 starts the adjective 천상의.
+  pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(조|억|만|천)(?![가-힣])/g, ranges, facts, (match) => {
     const value = normalizeDecimal(match[1]);
     if (value == null) return null;
     const factor = match[2] === "조"
@@ -99,7 +99,6 @@ function comparableFacts(text: string) {
     return `n:${plainNumber(value * factor)}`;
   });
 
-  // Russian large-number units.
   pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(трлн\.?|триллион(?:а|ов)?|млрд\.?|миллиард(?:а|ов)?|млн\.?|миллион(?:а|ов)?|тыс\.?|тысяч(?:а|и)?)/gi, ranges, facts, (match) => {
     const value = normalizeDecimal(match[1]);
     if (value == null) return null;
@@ -135,8 +134,6 @@ function outputFactsWithNumericDates(sourceFacts: string[], outputText: string) 
   }
   if (!ranges.length) return comparableFacts(outputText);
 
-  // comparableFacts would treat 16.09 as a decimal number. Mask matched source dates,
-  // then put them back as canonical date facts.
   const withoutDates = comparableFacts(masked(outputText, ranges));
   return [...withoutDates, ...dateFacts];
 }
