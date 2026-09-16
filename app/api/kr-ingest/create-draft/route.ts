@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isUsefulKrImage } from "@/lib/kr/media";
 import { assembleSemanticSections, type KrSemanticSourceBlock, type KrSemanticUnit } from "@/lib/kr/semantic";
 import { sourceTableCells, type KrTableCell } from "@/lib/kr/table-geometry";
+import { applyVerifiedRuTerminology } from "@/lib/kr/verified-terminology";
 import type { ArticleBlock, ArticleSection } from "@/lib/articles/types";
 
 type AdaptedUnit = {
@@ -27,8 +28,12 @@ function id(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
+function verified(value: string) {
+  return applyVerifiedRuTerminology(value);
+}
+
 function cleanTitle(value: string) {
-  return value.trim().replace(/^\[/, "").replace(/\]$/, "").trim();
+  return verified(value).trim().replace(/^\[/, "").replace(/\]$/, "").trim();
 }
 
 function slugify(value: string) {
@@ -45,7 +50,8 @@ function publicationDate(titleKr: string | null, fallback: string) {
 
 function paragraphBlocks(paragraphs: string[]): ArticleBlock[] {
   const blocks: ArticleBlock[] = [];
-  for (const paragraph of paragraphs) {
+  for (const rawParagraph of paragraphs) {
+    const paragraph = verified(rawParagraph);
     const lines = paragraph.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     let list: string[] = [];
     const flush = () => {
@@ -79,7 +85,7 @@ function logicalTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, ro
     for (let cellIndex = 0; cellIndex < sourceRow.length; cellIndex += 1) {
       const cell = sourceRow[cellIndex];
       while (grid[rowIndex][cursor]) cursor += 1;
-      const text = String(rowsRu[rowIndex]?.[cellIndex] ?? cell.text ?? "");
+      const text = verified(String(rowsRu[rowIndex]?.[cellIndex] ?? cell.text ?? ""));
       const rowspan = Math.max(1, cell.rowspan || 1);
       const colspan = Math.max(1, cell.colspan || 1);
       for (let rr = rowIndex; rr < rowIndex + rowspan; rr += 1) {
@@ -93,7 +99,10 @@ function logicalTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, ro
   }
 
   const totalColumns = Math.max(1, ...grid.map((row) => row.length));
-  const multiHeader = sourceRows[0]?.some((cell) => (cell.colspan || 1) > 1 || (cell.rowspan || 1) > 1) && sourceRows.length > 1;
+  // A true second header row exists when the first header contains rowspan cells.
+  // Plain colspan alone (for example "Изготавливаемый предмет" spanning two
+  // physical columns) must not consume the first data row as a fake header.
+  const multiHeader = Boolean(sourceRows[0]?.some((cell) => (cell.rowspan || 1) > 1)) && sourceRows.length > 1;
   const headerDepth = multiHeader ? 2 : 1;
   const columns = Array.from({ length: totalColumns }, (_, column) => {
     const values: string[] = [];
@@ -119,7 +128,8 @@ function imageBlock(unit: Extract<KrSemanticUnit, { type: "image" }>, adaptation
   if (!isUsefulKrImage(unit.block)) return null;
   const src = typeof unit.block.data?.src === "string" ? unit.block.data.src : "";
   if (!src) return null;
-  return { id: id("image"), type: "image", src, alt: adaptation.caption_ru || unit.block.text_kr || "Lineage 2", caption: adaptation.caption_ru || undefined };
+  const caption = verified(adaptation.caption_ru || "");
+  return { id: id("image"), type: "image", src, alt: caption || unit.block.text_kr || "Lineage 2", caption: caption || undefined };
 }
 
 export async function POST(request: Request) {
