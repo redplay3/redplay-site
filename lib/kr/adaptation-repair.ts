@@ -1,5 +1,6 @@
 import type { KrSemanticSection } from "@/lib/kr/semantic";
 import { normalizeTranslatedTableRows, translatedTableShapeIssues } from "@/lib/kr/table-geometry";
+import { applyVerifiedRuTerminology } from "@/lib/kr/verified-terminology";
 
 export type AdaptedUnitLike = {
   type: "text" | "table" | "image";
@@ -8,8 +9,28 @@ export type AdaptedUnitLike = {
   caption_ru?: string;
 };
 
+function sanitizeUnit(unit: AdaptedUnitLike): AdaptedUnitLike {
+  if (unit.type === "text") {
+    return {
+      ...unit,
+      paragraphs_ru: (unit.paragraphs_ru || []).map((value) => applyVerifiedRuTerminology(String(value ?? ""))),
+    };
+  }
+  if (unit.type === "table") {
+    return {
+      ...unit,
+      rows_ru: (unit.rows_ru || []).map((row) => row.map((value) => applyVerifiedRuTerminology(String(value ?? "")))),
+    };
+  }
+  return {
+    ...unit,
+    caption_ru: applyVerifiedRuTerminology(String(unit.caption_ru || "")),
+  };
+}
+
 export function normalizeAdaptedUnits(section: KrSemanticSection, units: AdaptedUnitLike[]) {
-  return units.map((unit, index) => {
+  return units.map((rawUnit, index) => {
+    const unit = sanitizeUnit(rawUnit);
     const source = section.units[index];
     if (unit.type !== "table" || source?.type !== "table") return unit;
     return {
