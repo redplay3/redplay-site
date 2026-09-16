@@ -3,7 +3,7 @@ import {
   Layers3, Map, Play, Send, Shield, Sparkles, Swords,
 } from "lucide-react";
 import { Fragment } from "react";
-import type { ArticleAudience, ArticleBlock, ArticleIcon } from "@/lib/articles/types";
+import type { ArticleAudience, ArticleBlock, ArticleIcon, ArticleTableCell } from "@/lib/articles/types";
 import referenceStyles from "./article-reference.module.css";
 import { ArticleVideoPlaylist } from "./article-video-playlist";
 import { ForgedDwarfSkillShowcase } from "./forged-dwarf-skill-showcase";
@@ -78,7 +78,7 @@ function cleanReferenceLine(value: string) {
 }
 
 function cleanTableCell(value: string) {
-  const cleaned = value.trim().replace(/\.\.(?=\s|$)/g, ".");
+  const cleaned = value.replace(/\\n/g, "\n").trim().replace(/\.\.(?=\s|$)/g, ".");
   if (cleaned === "Прогрессия") return "Параметры по уровню";
   const legacyProgression = cleaned.match(/^Уровень персонажа\s*•\s*исходный параметр:\s*([^•]+)\s*•\s*Значения:\s*(.+)$/i);
   if (!legacyProgression) return cleaned;
@@ -87,6 +87,76 @@ function cleanTableCell(value: string) {
   if (values.length === 1) return `Изучение: ${level} уровень персонажа; физ. атака +${values[0]}`;
   if (values.length === 5) return `Изучение: ${level} уровень персонажа; физ. защита +${values[0]}; физ. уклонение +${values[1]}; шанс получения крит. ударов ${values[2]}; мощность всех умений +${values[3]}; макс. HP +${values[4]}`;
   return `Изучение: ${level} уровень персонажа; параметры: ${values.join(" · ")}`;
+}
+
+function safeTableColor(value?: string | null) {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "black" || normalized === "white" || /^#[0-9a-f]{3,8}$/i.test(normalized)) return normalized;
+  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i.test(normalized)) return normalized;
+  return undefined;
+}
+
+function isDarkTableCell(cell: ArticleTableCell) {
+  const background = safeTableColor(cell.background);
+  return background === "black" || background === "#000" || background === "#000000" || background === "rgb(0, 0, 0)" || background === "rgb(13, 13, 13)";
+}
+
+function isTableHeaderRow(row: ArticleTableCell[]) {
+  return row.length > 0 && row.every((cell) => cell.header || isDarkTableCell(cell));
+}
+
+function TableCellContent({ value }: { value: string }) {
+  const cleaned = cleanTableCell(value);
+  if (!cleaned.includes("\n")) return <>{cleaned}</>;
+
+  return <span className="article-table-cell-content">{cleaned.split("\n").map((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) return <span className="article-table-cell-gap" aria-hidden="true" key={index}/>;
+
+    const bullet = trimmed.match(/^[-•]\s*(.+)$/);
+    if (bullet) return <span className="article-table-cell-line is-bullet" key={index}>{bullet[1]}</span>;
+
+    const label = trimmed.match(/^([^:]{1,48}:)(\s*.*)$/);
+    if (label) return <span className="article-table-cell-line" key={index}><strong>{label[1]}</strong>{label[2]}</span>;
+
+    const isSubheading = /^Dominance\b/i.test(trimmed) || (/^[A-ZА-ЯЁ][^.!?]{2,70}\([^()]+\)$/.test(trimmed));
+    return <span className={`article-table-cell-line${isSubheading ? " is-subheading" : ""}`} key={index}>{trimmed}</span>;
+  })}</span>;
+}
+
+function StructuredArticleTable({ block }: { block: Extract<ArticleBlock, { type: "table" }> }) {
+  if (!block.cells?.length) return <table className={`article-data-table${block.compact ? " is-compact" : ""}`}>
+    <thead><tr>{block.columns.map((column, index) => <th key={`${column}-${index}`}>{column}</th>)}</tr></thead>
+    <tbody>{block.rows.map((row, rowIndex) => <tr key={`${block.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${block.id}-${rowIndex}-${cellIndex}`}><TableCellContent value={cell}/></td>)}</tr>)}</tbody>
+  </table>;
+
+  const headerRows = block.cells.findIndex((row) => !isTableHeaderRow(row));
+  const headerCount = headerRows === -1 ? block.cells.length : headerRows;
+  const renderRow = (row: ArticleTableCell[], rowIndex: number, inHead: boolean) => <tr key={`${block.id}-${rowIndex}`}>{row.map((cell, cellIndex) => {
+    const Tag = inHead || cell.header ? "th" : "td";
+    const text = cleanTableCell(cell.text || "");
+    const long = text.length > 80 || text.includes("\n");
+    const style = {
+      backgroundColor: safeTableColor(cell.background),
+      color: safeTableColor(cell.color),
+      textAlign: long ? "left" as const : cell.align,
+      fontWeight: cell.bold ? 800 : undefined,
+    };
+    return <Tag
+      className={long ? "is-long" : undefined}
+      colSpan={Math.max(1, cell.colspan || 1)}
+      rowSpan={Math.max(1, cell.rowspan || 1)}
+      scope={Tag === "th" ? "col" : undefined}
+      style={style}
+      key={`${block.id}-${rowIndex}-${cellIndex}`}
+    ><TableCellContent value={cell.text || ""}/></Tag>;
+  })}</tr>;
+
+  return <table className={`article-data-table is-source-faithful${block.compact ? " is-compact" : ""}`}>
+    {headerCount > 0 && <thead>{block.cells.slice(0, headerCount).map((row, index) => renderRow(row, index, true))}</thead>}
+    <tbody>{block.cells.slice(headerCount).map((row, index) => renderRow(row, index + headerCount, false))}</tbody>
+  </table>;
 }
 
 function isReferenceHeading(value: string) {
@@ -176,7 +246,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "cta-cards":
         return <div key={block.id} className="article-link-grid">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <a className={`article-link-card ${item.scope}`} href={safeOutboundUrl(item.url)} target="_blank" rel="sponsored noopener noreferrer" key={`${block.id}-${index}`}><Gift size={24}/><div><small>{audienceLabel(item.scope)}</small><strong>{item.title}</strong><p>{item.text}</p><span>{item.action} <ArrowUpRight size={15}/></span></div></a>)}</div>;
       case "table":
-        return <div key={block.id} className="article-data-table-wrap"><table className={`article-data-table${block.compact ? " is-compact" : ""}`}><thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={`${block.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${block.id}-${rowIndex}-${cellIndex}`}>{cleanTableCell(cell)}</td>)}</tr>)}</tbody></table></div>;
+        return <div key={block.id} className="article-data-table-wrap" tabIndex={0} aria-label="Таблица с данными"><StructuredArticleTable block={block}/></div>;
       case "flow":
         return <div key={block.id} className="replica-flow">{block.items.flatMap((item, index) => [<div key={`${block.id}-item-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</div>, ...(index < block.items.length - 1 ? [<ChevronRight key={`${block.id}-arrow-${index}`}/>] : [])])}</div>;
       case "image":
@@ -217,3 +287,4 @@ export function ArticleBlockRenderer({ blocks, audience = "all", insertDwarfSkil
     <RenderBlock block={block} audience={audience}/>
   </Fragment>);
 }
+
