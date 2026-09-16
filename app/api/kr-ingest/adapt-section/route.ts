@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { extractNumericTokens } from "@/lib/kr/parser";
 import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
 
-export const maxDuration = 120;
-
 const DEFAULT_MODEL = "gpt-5.6-terra";
 
 type AiUnit = {
