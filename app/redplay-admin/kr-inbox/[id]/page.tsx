@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { KrPrepareItem } from "@/components/admin/kr-prepare-item";
 import { KrReviewTabs, type KrReviewBlock, type KrStoredAdaptation } from "@/components/admin/kr-review-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTopbar } from "../../layout";
@@ -93,11 +94,11 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
       </div>
 
       <section style={{ marginTop: 24, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-        <Fact label="Версия snapshot" value={latest ? `v${latest.version}` : "—"} />
+        <Fact label="Версия snapshot" value={latest ? `v${latest.version}` : "v0"} />
         <Fact label="Структурных блоков" value={String(blocks.length)} />
         <Fact label="Чисел для контроля" value={String(numericCount(blocks))} />
-        <Fact label="Parser" value={latest?.parser_version || "—"} />
-        <Fact label="Snapshot hash" value={latest ? latest.content_hash.slice(0, 14) + "…" : "—"} />
+        <Fact label="Parser" value={latest?.parser_version || "ожидает запуска"} />
+        <Fact label="Snapshot hash" value={latest ? latest.content_hash.slice(0, 14) + "…" : "ещё не создан"} />
       </section>
 
       {snapshots.length > 1 ? <section style={{ marginTop: 16, border: "1px solid #dfe2e8", borderRadius: 14, background: "#fff", padding: 16 }}>
@@ -109,7 +110,18 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
 
       {blocks.length && latest
         ? <KrReviewTabs blocks={blocks} snapshotId={latest.id} initialAdaptations={adaptations} />
-        : <div className="admin-empty"><p>У последнего snapshot пока нет распознанных блоков.</p></div>}
+        : <section style={{ marginTop: 22, border: "1px solid #dfe2e8", borderRadius: 16, background: "#fff", padding: 20 }}>
+          <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+            <small style={{ color: "#1c8a50", fontWeight: 900 }}>{latest ? "НУЖЕН ПОВТОРНЫЙ РАЗБОР" : "НАЙДЕНО KR RADAR"}</small>
+            <h2 style={{ margin: 0, fontSize: 22 }}>{latest ? "Подготовить структурные блоки" : "Загрузить официальный материал"}</h2>
+            <p style={{ margin: 0, color: "#747985", lineHeight: 1.6 }}>
+              {latest
+                ? "Snapshot уже существует, но блоки не распознаны. Можно безопасно запустить подготовку ещё раз."
+                : "Радар уже поставил публикацию в очередь. Пока это только ссылка и метаданные – оригинал ещё не загружался, Cloudflare AI не запускался."}
+            </p>
+          </div>
+          <KrPrepareItem url={item.primary_url} />
+        </section>}
     </div>
   </main>;
 }
