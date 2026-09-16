@@ -125,6 +125,111 @@ function TableCellContent({ value }: { value: string }) {
   })}</span>;
 }
 
+type ArticleTableBlock = Extract<ArticleBlock, { type: "table" }>;
+
+function isSimplePowerProgression(block: ArticleTableBlock) {
+  if (block.rows.length < 8 || block.columns.length < 2 || block.columns.length > 3) return false;
+  const headers = block.columns.map((column) => cleanTableCell(column).toLowerCase());
+  const powerColumns = headers.filter((header) => /^(сила|мощь|мощность)$/.test(header));
+  return powerColumns.length === 1
+    && headers.every((header) => header.includes("уровень") || /^(сила|мощь|мощность)$/.test(header))
+    && block.rows.every((row) => row.length === block.columns.length && row.every((cell) => cleanTableCell(cell).length <= 24 && !cleanTableCell(cell).includes("\n")));
+}
+
+function SimplePowerProgression({ block }: { block: ArticleTableBlock }) {
+  const first = block.rows[0];
+  const last = block.rows.at(-1) || first;
+  const powerIndex = block.columns.findIndex((column) => /^(сила|мощь|мощность)$/i.test(cleanTableCell(column)));
+  const learnIndex = block.columns.findIndex((column) => /изучени/i.test(cleanTableCell(column)));
+  const powerLabel = cleanTableCell(block.columns[powerIndex] || "Сила");
+  const range = learnIndex >= 0 ? ` · изучение: ${first[learnIndex]}–${last[learnIndex]}` : "";
+  return <div className="article-progression-card">
+    <div className="article-progression-summary"><span>Кратко</span><strong>{powerLabel}: {first[powerIndex]} → {last[powerIndex]}</strong><p>Уровни умения: {first[0]}–{last[0]}{range}</p></div>
+    <details className="article-progression-details"><summary>Показать прогрессию по уровням <span>{block.rows.length}</span></summary><div className="article-progression-grid">
+      {block.rows.map((row, index) => <div key={`${block.id}-progress-${index}`}><small>Уровень {row[0]}</small><strong>{row[powerIndex]}</strong>{learnIndex >= 0 && <span>Изучение: {row[learnIndex]}</span>}</div>)}
+    </div></details>
+  </div>;
+}
+
+function repeatedEffectGroups(block: ArticleTableBlock) {
+  if (block.rows.length < 8 || block.columns.length < 4 || block.columns.length > 5) return null;
+  if (!/^название/i.test(cleanTableCell(block.columns[0])) || !/уровень/i.test(cleanTableCell(block.columns[1])) || !/изучени/i.test(cleanTableCell(block.columns[2]))) return null;
+  const groups: Array<{ name: string; rows: string[][] }> = [];
+  for (const row of block.rows) {
+    if (cleanTableCell(row[0] || "")) groups.push({ name: cleanTableCell(row[0]), rows: [row] });
+    else if (groups.length) groups.at(-1)!.rows.push(row);
+    else return null;
+  }
+  if (!groups.length || groups.some((group) => group.rows.length < 4 || group.rows.slice(1).some((row) => row.slice(3).some((cell) => cleanTableCell(cell || ""))))) return null;
+  return groups;
+}
+
+function RepeatedEffectProgression({ block, groups }: { block: ArticleTableBlock; groups: NonNullable<ReturnType<typeof repeatedEffectGroups>> }) {
+  return <div className="article-skill-progressions">{groups.map((group, groupIndex) => {
+    const first = group.rows[0];
+    return <section className="article-skill-progression" key={`${block.id}-group-${groupIndex}`}>
+      <header><span>Навык</span><h4>{group.name}</h4></header>
+      <div className="article-skill-effect-grid">{block.columns.slice(3).map((column, index) => first[index + 3] ? <div key={`${block.id}-effect-${groupIndex}-${index}`}><strong>{column}</strong><TableCellContent value={first[index + 3]}/></div> : null)}</div>
+      <details className="article-progression-details"><summary>Показать уровни изучения <span>{group.rows.length}</span></summary><div className="article-level-map">
+        {group.rows.map((row, rowIndex) => <span key={`${block.id}-level-${groupIndex}-${rowIndex}`}><strong>{row[1]}</strong><small>изучение: {row[2]}</small></span>)}
+      </div></details>
+    </section>;
+  })}</div>;
+}
+
+const skillStatPattern = /^(Эффект баффа|Длительность|Расход|Время применения|Перезарядка|MP|Руда духов):\s*(.+)$/i;
+
+function NarrativeSkillTable({ block }: { block: ArticleTableBlock }) {
+  const title = cleanTableCell(block.columns[0] || block.cells?.[0]?.[0]?.text || "Описание навыка");
+  const lines = cleanTableCell(block.rows[0]?.[0] || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const lead: string[] = [];
+  const sections: Array<{ title: string; items: string[] }> = [];
+  const dominance: Array<{ range: string; hp: string }> = [];
+  const stats: Array<{ label: string; value: string }> = [];
+  let current: { title: string; items: string[] } | null = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const dominanceMatch = line.match(/^Dominance\s+(.+)$/i);
+    const nextHp = lines[index + 1]?.replace(/^[-•]\s*/, "").match(/^HP барьера копья:\s*(.+)$/i);
+    if (dominanceMatch && nextHp) {
+      dominance.push({ range: dominanceMatch[1], hp: nextHp[1] });
+      index += 1;
+      continue;
+    }
+    const stat = line.replace(/^[-•]\s*/, "").match(skillStatPattern);
+    if (stat) {
+      stats.push({ label: stat[1], value: stat[2] });
+      continue;
+    }
+    const isHeading = line.endsWith(":") || (/^[A-ZА-ЯЁ][^.!?]{2,80}\([^()]+\)$/.test(line) && index > 0);
+    if (isHeading) {
+      current = { title: line.replace(/:$/, ""), items: [] };
+      sections.push(current);
+      continue;
+    }
+    const value = line.replace(/^[-•]\s*/, "");
+    if (current) current.items.push(value);
+    else lead.push(value);
+  }
+
+  return <section className="article-skill-card">
+    <header><span>Описание навыка</span><h4>{title}</h4></header>
+    {lead.map((line, index) => <p className="article-skill-lead" key={`${block.id}-lead-${index}`}>{line}</p>)}
+    {sections.filter((section) => section.items.length).map((section, index) => <div className="article-skill-section" key={`${block.id}-section-${index}`}><h5>{section.title}</h5><ul>{section.items.map((item, itemIndex) => <li key={`${block.id}-section-${index}-${itemIndex}`}>{item}</li>)}</ul></div>)}
+    {dominance.length > 0 && <div className="article-skill-matrix"><h5>HP барьера по Dominance</h5><table><thead><tr><th>Dominance</th><th>HP барьера</th></tr></thead><tbody>{dominance.map((item, index) => <tr key={`${block.id}-dominance-${index}`}><td>{item.range}</td><td>{item.hp}</td></tr>)}</tbody></table></div>}
+    {stats.length > 0 && <dl className="article-skill-stats">{stats.map((stat, index) => <div key={`${block.id}-stat-${index}`}><dt>{stat.label}</dt><dd>{stat.value}</dd></div>)}</dl>}
+  </section>;
+}
+
+function EnhancedArticleTable({ block }: { block: ArticleTableBlock }) {
+  if (isSimplePowerProgression(block)) return <SimplePowerProgression block={block}/>;
+  const groups = repeatedEffectGroups(block);
+  if (groups) return <RepeatedEffectProgression block={block} groups={groups}/>;
+  if (block.columns.length === 1 && block.rows.length === 1 && cleanTableCell(block.rows[0]?.[0] || "").includes("\n")) return <NarrativeSkillTable block={block}/>;
+  return <StructuredArticleTable block={block}/>;
+}
+
 function StructuredArticleTable({ block }: { block: Extract<ArticleBlock, { type: "table" }> }) {
   if (!block.cells?.length) return <table className={`article-data-table${block.compact ? " is-compact" : ""}`}>
     <thead><tr>{block.columns.map((column, index) => <th key={`${column}-${index}`}>{column}</th>)}</tr></thead>
@@ -246,7 +351,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "cta-cards":
         return <div key={block.id} className="article-link-grid">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <a className={`article-link-card ${item.scope}`} href={safeOutboundUrl(item.url)} target="_blank" rel="sponsored noopener noreferrer" key={`${block.id}-${index}`}><Gift size={24}/><div><small>{audienceLabel(item.scope)}</small><strong>{item.title}</strong><p>{item.text}</p><span>{item.action} <ArrowUpRight size={15}/></span></div></a>)}</div>;
       case "table":
-        return <div key={block.id} className="article-data-table-wrap" tabIndex={0} aria-label="Таблица с данными"><StructuredArticleTable block={block}/></div>;
+        return <div key={block.id} className="article-data-table-wrap" tabIndex={0} aria-label="Таблица с данными"><EnhancedArticleTable block={block}/></div>;
       case "flow":
         return <div key={block.id} className="replica-flow">{block.items.flatMap((item, index) => [<div key={`${block.id}-item-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</div>, ...(index < block.items.length - 1 ? [<ChevronRight key={`${block.id}-arrow-${index}`}/>] : [])])}</div>;
       case "image":
