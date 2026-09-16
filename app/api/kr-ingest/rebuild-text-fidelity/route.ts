@@ -13,7 +13,7 @@ type TranslationRow = { id: string; text_ru: string };
 function sourceUnitText(section: KrSemanticSection) {
   return section.units.map((unit) => {
     if (unit.type === "text") return unit.paragraphs.join("\n");
-    if (unit.type === "table") return (unit.block.text_kr || "");
+    if (unit.type === "table") return unit.block.text_kr || "";
     return unit.block.text_kr || "";
   }).join("\n");
 }
@@ -164,9 +164,17 @@ export async function POST(request: Request) {
       .single();
     if (storedError || !stored) return NextResponse.json({ error: "Сначала нужен перевод раздела" }, { status: 409 });
 
+    const content = stored.content && typeof stored.content === "object" ? stored.content as Record<string, unknown> : {};
+    const currentUnits = Array.isArray(content.units) ? content.units as AdaptedUnitLike[] : [];
     const entries: Array<{ id: string; text_kr: string }> = [];
+    const unitsToRebuild = new Set<number>();
+
     section.units.forEach((unit, unitIndex) => {
       if (unit.type !== "text") return;
+      const output = currentUnits[unitIndex];
+      const translatedCount = output?.type === "text" && Array.isArray(output.paragraphs_ru) ? output.paragraphs_ru.length : 0;
+      if (translatedCount === unit.paragraphs.length) return;
+      unitsToRebuild.add(unitIndex);
       unit.paragraphs.forEach((text, paragraphIndex) => entries.push({ id: `${unitIndex}:${paragraphIndex}`, text_kr: text }));
     });
 
@@ -176,11 +184,9 @@ export async function POST(request: Request) {
       translated.forEach((row) => translatedMap.set(row.id, row.text_ru));
     }
 
-    const content = stored.content && typeof stored.content === "object" ? stored.content as Record<string, unknown> : {};
-    const currentUnits = Array.isArray(content.units) ? content.units as AdaptedUnitLike[] : [];
     const nextUnits = currentUnits.map((unit, unitIndex) => {
       const source = section.units[unitIndex];
-      if (!source || source.type !== "text" || unit.type !== "text") return unit;
+      if (!unitsToRebuild.has(unitIndex) || !source || source.type !== "text" || unit.type !== "text") return unit;
       return {
         ...unit,
         paragraphs_ru: source.paragraphs.map((_, paragraphIndex) => translatedMap.get(`${unitIndex}:${paragraphIndex}`) || ""),
@@ -217,6 +223,7 @@ export async function POST(request: Request) {
       ok: true,
       sectionId: section.id,
       blocks: entries.length,
+      unitsRebuilt: unitsToRebuild.size,
       structureStatus: structureIssues.length ? "fail" : "pass",
       numericStatus: numeric.pass ? "pass" : "fail",
       structureIssues: structureIssues.length,
