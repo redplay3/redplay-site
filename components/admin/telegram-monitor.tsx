@@ -135,9 +135,30 @@ function digestToRichHtml(body: string) {
   }).join("");
 }
 
+function normalizePlainText(value: string) {
+  return value.replace(/\u00a0/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function plainTextFromEditor(editor: HTMLElement | null) {
+  return editor ? normalizePlainText(editor.innerText) : "";
+}
+
+function plainTextWithLinksFromEditor(editor: HTMLElement | null) {
   if (!editor) return "";
-  return editor.innerText.replace(/\u00a0/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  const clone = editor.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((anchor) => {
+    const label = (anchor.textContent || "").trim();
+    const href = anchor.href || anchor.getAttribute("href") || "";
+    const replacement = href && label !== href ? `${label} (${href})` : (href || label);
+    anchor.replaceWith(document.createTextNode(replacement));
+  });
+  const holder = document.createElement("div");
+  holder.style.cssText = "position:fixed;left:-99999px;top:-99999px;white-space:pre-wrap";
+  holder.appendChild(clone);
+  document.body.appendChild(holder);
+  const value = normalizePlainText(clone.innerText);
+  holder.remove();
+  return value;
 }
 
 export function TelegramMonitorClient({ digestBody, digestGeneratedAt, lastRun, items }: Props) {
@@ -208,7 +229,7 @@ export function TelegramMonitorClient({ digestBody, digestGeneratedAt, lastRun, 
   async function copyDraft() {
     const editor = editorRef.current;
     if (!editor) return;
-    const plain = plainTextFromEditor(editor);
+    const plain = plainTextWithLinksFromEditor(editor);
     const html = `<div>${editor.innerHTML}</div>`;
     if (!plain) return;
 
@@ -222,11 +243,11 @@ export function TelegramMonitorClient({ digestBody, digestGeneratedAt, lastRun, 
         setMessage("Пост скопирован с выделениями и кликабельными ссылками.");
       } else {
         await navigator.clipboard.writeText(plain);
-        setMessage("Пост скопирован. Этот браузер передал только обычный текст.");
+        setMessage("Пост скопирован обычным текстом; ссылки добавлены рядом, чтобы ничего не потерялось.");
       }
     } catch {
       await navigator.clipboard.writeText(plain);
-      setMessage("Пост скопирован обычным текстом – браузер не разрешил rich-text буфер.");
+      setMessage("Пост скопирован обычным текстом; ссылки добавлены рядом, чтобы ничего не потерялось.");
     }
   }
 
