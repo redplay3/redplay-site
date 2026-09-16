@@ -28,6 +28,38 @@ type AdaptationRow = {
   numeric_status: string;
 };
 
+const telegramDraftTool = {
+  name: "submitTelegramDraft",
+  description: "Return the final RedPlay Telegram editorial proposal as structured fields.",
+  parameters: {
+    type: "object",
+    properties: {
+      recommend_publish: {
+        type: "boolean",
+        description: "Whether this material deserves a Telegram post.",
+      },
+      priority: {
+        type: "string",
+        enum: ["high", "medium", "low"],
+        description: "Editorial priority.",
+      },
+      reason: {
+        type: "string",
+        description: "Short internal reason for the editor.",
+      },
+      title: {
+        type: "string",
+        description: "Short Telegram headline.",
+      },
+      body: {
+        type: "string",
+        description: "Ready-to-review Telegram post in Russian, normally 500-1200 characters and no more than 1400 characters.",
+      },
+    },
+    required: ["recommend_publish", "priority", "reason", "title", "body"],
+  },
+} as const;
+
 function parseJsonText(value: string): unknown {
   const cleaned = value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
   try {
@@ -36,8 +68,24 @@ function parseJsonText(value: string): unknown {
     const start = cleaned.indexOf("{");
     const end = cleaned.lastIndexOf("}");
     if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1)) as unknown;
-    throw new Error("Модель не вернула валидный JSON");
+    throw new Error("Модель не вернула структурированный ответ");
   }
+}
+
+function toolCallArguments(value: unknown): unknown | null {
+  if (!Array.isArray(value) || !value.length) return null;
+  const first = value[0];
+  if (!first || typeof first !== "object") return null;
+  const call = first as Record<string, unknown>;
+
+  let args = call.arguments;
+  if (args == null && call.function && typeof call.function === "object") {
+    args = (call.function as Record<string, unknown>).arguments;
+  }
+
+  if (args && typeof args === "object") return args;
+  if (typeof args === "string" && args.trim()) return parseJsonText(args);
+  return null;
 }
 
 function cloudflareOutput(payload: unknown): unknown | null {
@@ -46,15 +94,23 @@ function cloudflareOutput(payload: unknown): unknown | null {
   const result = root.result;
   if (!result || typeof result !== "object") return null;
   const record = result as Record<string, unknown>;
+
+  const directToolOutput = toolCallArguments(record.tool_calls);
+  if (directToolOutput) return directToolOutput;
+
   if (record.response && typeof record.response === "object") return record.response;
-  if (typeof record.response === "string") return parseJsonText(record.response);
+  if (typeof record.response === "string" && record.response.trim()) return parseJsonText(record.response);
+
   if (Array.isArray(record.choices)) {
     const first = record.choices[0];
     if (first && typeof first === "object") {
       const message = (first as Record<string, unknown>).message;
       if (message && typeof message === "object") {
-        const content = (message as Record<string, unknown>).content;
-        if (typeof content === "string") return parseJsonText(content);
+        const messageRecord = message as Record<string, unknown>;
+        const choiceToolOutput = toolCallArguments(messageRecord.tool_calls);
+        if (choiceToolOutput) return choiceToolOutput;
+        const content = messageRecord.content;
+        if (typeof content === "string" && content.trim()) return parseJsonText(content);
       }
     }
   }
@@ -153,8 +209,7 @@ function systemPrompt(edition: string | null) {
 8. Сохраняй критичные цифры только если они действительно важны для сути изменения. Ничего не придумывай.
 9. Убирай приветствия NC, юридические формулировки, техническую воду и повторения.
 10. Не добавляй ссылку на RedPlay — сайт вставит её отдельно позже. Не добавляй выдуманный анализ.
-11. Ответ только валидный JSON без Markdown-обёртки:
-{"recommend_publish":true,"priority":"high|medium|low","reason":"короткая причина для редактора","title":"короткий заголовок","body":"готовый Telegram-текст"}`;
+11. Не отвечай обычным текстом. Обязательно вызови инструмент submitTelegramDraft ровно один раз и передай в него итоговые поля предложки.`;
 }
 
 export async function POST(request: Request) {
@@ -227,6 +282,9 @@ export async function POST(request: Request) {
           { role: "system", content: systemPrompt(item.edition) },
           { role: "user", content: JSON.stringify(source) },
         ],
+        tools: [telegramDraftTool],
+        tool_choice: "required",
+        chat_template_kwargs: { enable_thinking: false },
         max_tokens: 1200,
         temperature: 0.15,
       }),
@@ -247,7 +305,7 @@ export async function POST(request: Request) {
   let ai: TelegramDraftAi;
   try {
     const rawOutput = cloudflareOutput(cfPayload);
-    if (!rawOutput) return NextResponse.json({ error: "Cloudflare не вернул Telegram draft" }, { status: 502 });
+    if (!rawOutput) return NextResponse.json({ error: "Cloudflare не вернул структурированный Telegram draft" }, { status: 502 });
     ai = normalizeAi(rawOutput);
   } catch (error) {
     return NextResponse.json(
