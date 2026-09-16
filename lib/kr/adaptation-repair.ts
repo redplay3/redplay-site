@@ -33,6 +33,14 @@ export function adaptationStructureIssues(section: KrSemanticSection, units: Ada
       issues.push(`Unit ${index + 1}: ${source.type} → ${output.type}`);
       continue;
     }
+
+    if (source.type === "text" && output.type === "text") {
+      const translated = Array.isArray(output.paragraphs_ru) ? output.paragraphs_ru : [];
+      if (source.paragraphs.length !== translated.length) {
+        issues.push(`Текст ${index + 1}: блоков ${source.paragraphs.length} → ${translated.length}`);
+      }
+    }
+
     if (source.type === "table" && output.type === "table") {
       for (const issue of translatedTableShapeIssues(source.block, Array.isArray(output.rows_ru) ? output.rows_ru : [])) {
         issues.push(`Таблица ${index + 1}: ${issue}`);
