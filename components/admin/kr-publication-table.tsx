@@ -1,4 +1,4 @@
-"use client";
+import type { CSSProperties, ReactNode } from "react";
 
 export type PublicationTableCell = {
   text: string;
@@ -46,7 +46,7 @@ function progressionTable(sourceRows: PublicationTableCell[][], rowsRu: string[]
   const header = rowsRu[0] || [];
   const levelLabel = header[1] || "Уровень";
   const learnLabel = header[2] || "Уровень изучения";
-  const cards: React.ReactNode[] = [];
+  const cards: ReactNode[] = [];
 
   let rowIndex = 1;
   while (rowIndex < sourceRows.length && rowIndex < rowsRu.length) {
@@ -54,8 +54,6 @@ function progressionTable(sourceRows: PublicationTableCell[][], rowsRu: string[]
     const row = rowsRu[rowIndex] || [];
     const span = Math.max(1, Number(sourceRow?.[0]?.rowspan || 1));
 
-    // A progression group begins with the rowspan skill-name cell. If the source
-    // has no such group at this row, render a compact ordinary row and move on.
     if (span <= 1 || row.length < 3) {
       rowIndex += 1;
       continue;
@@ -97,7 +95,7 @@ function progressionTable(sourceRows: PublicationTableCell[][], rowsRu: string[]
   return <div style={{ display: "grid", gap: 14 }}>{cards}</div>;
 }
 
-const miniHead: React.CSSProperties = {
+const miniHead: CSSProperties = {
   padding: "8px 12px",
   background: "#f0f2f5",
   borderBottom: "1px solid #dfe3e9",
@@ -105,7 +103,7 @@ const miniHead: React.CSSProperties = {
   fontWeight: 850,
   color: "#4b515c",
 };
-const miniCell: React.CSSProperties = {
+const miniCell: CSSProperties = {
   padding: "7px 12px",
   borderBottom: "1px solid #edf0f3",
   textAlign: "center",
