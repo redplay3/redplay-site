@@ -13,10 +13,13 @@ function sourceUnitText(unit: KrSemanticUnit) {
 }
 
 function outputUnitText(sourceUnit: KrSemanticUnit, unit: AdaptedUnitLike | undefined) {
-  if (!unit || sourceUnit.type !== unit.type) return "";
-  if (unit.type === "text") return (unit.paragraphs_ru || []).join("\n");
-  if (unit.type === "table") return (unit.rows_ru || []).flat().join("\n");
-  return isUsefulKrImage(sourceUnit.block) ? String(unit.caption_ru || "") : "";
+  if (!unit) return "";
+  if (sourceUnit.type === "text" && unit.type === "text") return (unit.paragraphs_ru || []).join("\n");
+  if (sourceUnit.type === "table" && unit.type === "table") return (unit.rows_ru || []).flat().join("\n");
+  if (sourceUnit.type === "image" && unit.type === "image") {
+    return isUsefulKrImage(sourceUnit.block) ? String(unit.caption_ru || "") : "";
+  }
+  return "";
 }
 
 function sourceSectionText(section: KrSemanticSection) {
@@ -104,8 +107,6 @@ export async function POST(request: Request) {
     const numeric = compareNumericFacts(sourceText, outputText);
     const unitIndexes = failedUnitIndexes(section, normalizedUnits);
 
-    // A rare title-only numeric mismatch has no unit to target. Rebuild the first text
-    // unit rather than falling back to rebuilding a whole large section.
     if ((structureIssues.length || !numeric.pass) && !unitIndexes.length && section.units.length) {
       unitIndexes.push(0);
     }
