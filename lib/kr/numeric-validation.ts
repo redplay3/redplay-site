@@ -36,6 +36,13 @@ function masked(value: string, ranges: Range[]) {
   return chars.join("");
 }
 
+function maskListEnumerators(value: string) {
+  // Editorial numbering ("1. Added...", "2) Changed...") is structure, not a
+  // gameplay numeric fact. Keep table levels/prices strict because they do not
+  // have this line-prefix punctuation form.
+  return value.replace(/(^|\n)\s*\d{1,3}[.)]\s+/g, (match) => match.replace(/[0-9.)]/g, " "));
+}
+
 function pushMatches(
   text: string,
   pattern: RegExp,
@@ -54,7 +61,8 @@ function pushMatches(
   }
 }
 
-function comparableFacts(text: string) {
+function comparableFacts(input: string) {
+  const text = maskListEnumerators(input);
   const facts: string[] = [];
   const ranges: Range[] = [];
 
