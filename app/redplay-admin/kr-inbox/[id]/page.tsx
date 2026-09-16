@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { KrChatGptHandoff } from "@/components/admin/kr-chatgpt-handoff";
 import { KrPrepareItem } from "@/components/admin/kr-prepare-item";
 import { KrReviewTabs, type KrReviewBlock, type KrStoredAdaptation } from "@/components/admin/kr-review-tabs";
 import { KrTelegramProposal, type KrTelegramDraft } from "@/components/admin/kr-telegram-proposal";
@@ -132,6 +133,7 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
       </section> : null}
 
       {latest ? <KrTelegramProposal itemId={item.id} initialDraft={telegramDraft} articleReady={articleReady} /> : null}
+      {latest && blocks.length ? <KrChatGptHandoff snapshotId={latest.id} /> : null}
 
       {blocks.length && latest
         ? <KrReviewTabs blocks={blocks} snapshotId={latest.id} initialAdaptations={adaptations} />
