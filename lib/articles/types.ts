@@ -53,6 +53,10 @@ export type ArticleTableCell = {
   colspan?: number;
   rowspan?: number;
   header?: boolean;
+  background?: string | null;
+  color?: string | null;
+  align?: "left" | "center" | "right" | null;
+  bold?: boolean;
 };
 
 type ArticleBlockContent =
