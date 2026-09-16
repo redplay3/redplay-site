@@ -37,9 +37,6 @@ function masked(value: string, ranges: Range[]) {
 }
 
 function maskListEnumerators(value: string) {
-  // Editorial numbering ("1. Added...", "2) Changed...") is structure, not a
-  // gameplay numeric fact. Keep table levels/prices strict because they do not
-  // have this line-prefix punctuation form.
   return value.replace(/(^|\n)\s*\d{1,3}[.)]\s+/g, (match) => match.replace(/[0-9.)]/g, " "));
 }
 
@@ -62,7 +59,10 @@ function pushMatches(
 }
 
 function comparableFacts(input: string) {
-  const text = maskListEnumerators(input);
+  // PLAYNC frequently inserts zero-width Unicode between month/day tokens.
+  // Remove formatting-only characters before any numeric parsing.
+  const cleanInput = input.replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
+  const text = maskListEnumerators(cleanInput);
   const facts: string[] = [];
   const ranges: Range[] = [];
 
@@ -70,7 +70,6 @@ function comparableFacts(input: string) {
     return `date:${Number(match[1])}-${Number(match[2])}`;
   });
 
-  // PLAYNC compact month/day notation, e.g. 9/16~9/30.
   pushMatches(text, /\b(1[0-2]|0?[1-9])\/(3[01]|[12]\d|1[3-9])\b/g, ranges, facts, (match) => {
     return `date:${Number(match[1])}-${Number(match[2])}`;
   });
@@ -81,19 +80,35 @@ function comparableFacts(input: string) {
     return month ? `date:${month}-${Number(match[1])}` : null;
   });
 
-  // Korean 오전/오후 clock notation: 오후 8시 = 20:00.
-  pushMatches(text, /(오전|오후)?\s*([01]?\d|2[0-3])\s*시(?:\s*([0-5]?\d)\s*분)?/g, ranges, facts, (match) => {
+  // Daily limits: Korean "1일 1회" and natural Russian "1 раз в день"
+  // are semantically equivalent even though the latter writes only one digit.
+  pushMatches(text, /(\d+)\s*일\s*(\d+)\s*회/g, ranges, facts, (match) => {
+    return `freq:${Number(match[1])}d:${Number(match[2])}`;
+  });
+  pushMatches(text, /\b(\d+)\s+раз(?:а)?\s+в\s+(?:1\s+)?день\b/gi, ranges, facts, (match) => {
+    return `freq:1d:${Number(match[1])}`;
+  });
+
+  // Korean whole-hour ranges such as 18~24시 are a single schedule fact.
+  pushMatches(text, /(?<!\d)([01]?\d|2[0-4])\s*[~～–-]\s*([01]?\d|2[0-4])\s*시/g, ranges, facts, (match) => {
+    return `timerange:${Number(match[1])}:00-${Number(match[2])}:00`;
+  });
+  pushMatches(text, /\b([01]?\d|2[0-4]):00\s*(?:~|～|–|-|до)\s*([01]?\d|2[0-4]):00\b/gi, ranges, facts, (match) => {
+    return `timerange:${Number(match[1])}:00-${Number(match[2])}:00`;
+  });
+
+  pushMatches(text, /(?<!\d)(오전|오후)?\s*(24|[01]?\d|2[0-3])\s*시(?:\s*([0-5]?\d)\s*분)?/g, ranges, facts, (match) => {
     let hour = Number(match[2]);
+    if (hour === 24) return `time:24:00`;
     if (match[1] === "오후" && hour < 12) hour += 12;
     if (match[1] === "오전" && hour === 12) hour = 0;
     return `time:${hour}:${String(match[3] || "0").padStart(2, "0")}`;
   });
-  pushMatches(text, /\b([01]?\d|2[0-3]):([0-5]\d)\b/g, ranges, facts, (match) => {
+  pushMatches(text, /\b(24|[01]?\d|2[0-3]):([0-5]\d)\b/g, ranges, facts, (match) => {
+    if (match[1] === "24" && match[2] !== "00") return null;
     return `time:${Number(match[1])}:${match[2].padStart(2, "0")}`;
   });
 
-  // Korean large-number units must be standalone. This avoids reading
-  // "+5 천상의 탈리스만" as 5000 just because 천 starts the adjective 천상의.
   pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(조|억|만|천)(?![가-힣])/g, ranges, facts, (match) => {
     const value = normalizeDecimal(match[1]);
     if (value == null) return null;
@@ -125,6 +140,12 @@ function comparableFacts(input: string) {
   for (const token of extractNumericTokens(remainder)) {
     facts.push(token.kind === "percent" ? `p:${token.normalized}` : `n:${token.normalized}`);
   }
+
+  // Natural Russian often spells Korean 1종 as "один из вариантов".
+  // Add the omitted numeric fact without changing the displayed translation.
+  const oneOfMatches = remainder.match(/\bод(?:ин|на|но)\s+из\b/gi) || [];
+  for (let index = 0; index < oneOfMatches.length; index += 1) facts.push("n:1");
+
   return facts;
 }
 
