@@ -74,7 +74,7 @@ function paragraphBlocks(paragraphs: string[]): ArticleBlock[] {
 
 type GridSlot = { text: string; origin: boolean; cell: KrTableCell };
 
-function logicalTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, rowsRu: string[][]): ArticleBlock {
+function sourceFaithfulTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, rowsRu: string[][]): ArticleBlock {
   const sourceRows = sourceTableCells(sourceUnit.block);
   const grid: GridSlot[][] = [];
 
@@ -99,17 +99,11 @@ function logicalTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, ro
   }
 
   const totalColumns = Math.max(1, ...grid.map((row) => row.length));
-  const multiHeader = Boolean(sourceRows[0]?.some((cell) => (cell.rowspan || 1) > 1)) && sourceRows.length > 1;
-  const headerDepth = multiHeader ? 2 : 1;
+  const headerDepth = 1;
   const columns = Array.from({ length: totalColumns }, (_, column) => {
-    const values: string[] = [];
-    for (let row = 0; row < headerDepth; row += 1) {
-      const value = grid[row]?.[column]?.text?.trim();
-      if (value && !values.includes(value)) values.push(value);
-    }
-    return values.join(" · ") || `Колонка ${column + 1}`;
+    const value = grid[0]?.[column]?.text?.trim();
+    return value || `Колонка ${column + 1}`;
   });
-
   const rows = Array.from({ length: Math.max(0, sourceRows.length - headerDepth) }, (_, offset) => {
     const rowIndex = headerDepth + offset;
     return Array.from({ length: totalColumns }, (_, column) => {
@@ -122,7 +116,11 @@ function logicalTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, ro
     text: verified(String(rowsRu[rowIndex]?.[cellIndex] ?? cell.text ?? "")),
     colspan: Math.max(1, cell.colspan || 1),
     rowspan: Math.max(1, cell.rowspan || 1),
-    header: Boolean(cell.header) || rowIndex < headerDepth,
+    header: Boolean(cell.header),
+    background: cell.background ?? null,
+    color: cell.color ?? null,
+    align: cell.align ?? null,
+    bold: Boolean(cell.bold),
   })));
 
   return { id: id("table"), type: "table", columns, rows, compact: totalColumns <= 3, cells };
@@ -213,7 +211,7 @@ export async function POST(request: Request) {
       if (sourceUnit.type === "text" && adapted.type === "text") {
         articleBlocks.push(...paragraphBlocks(Array.isArray(adapted.paragraphs_ru) ? adapted.paragraphs_ru : []));
       } else if (sourceUnit.type === "table" && adapted.type === "table") {
-        articleBlocks.push(logicalTable(sourceUnit, Array.isArray(adapted.rows_ru) ? adapted.rows_ru : []));
+        articleBlocks.push(sourceFaithfulTable(sourceUnit, Array.isArray(adapted.rows_ru) ? adapted.rows_ru : []));
       } else if (sourceUnit.type === "image" && adapted.type === "image") {
         const image = imageBlock(sourceUnit, adapted);
         if (image) articleBlocks.push(image);
