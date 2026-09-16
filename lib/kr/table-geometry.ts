@@ -81,10 +81,12 @@ function removeSafeDuplicateRows(rows: string[][], targetLength: number) {
 }
 
 /**
- * AI models often expand rowspan/colspan tables into a rectangular matrix by
- * inserting empty placeholders. PLAYNC stores only the physical TD/TH cells.
- * This function maps the translated matrix back onto the exact physical source
- * geometry without changing any non-empty translated values.
+ * AI models may represent rowspan tables in two different ways:
+ * 1) physical cells + trailing empty placeholders: ["2", "43", ""];
+ * 2) full logical grid placeholders: ["", "2", "79", "", ""].
+ * PLAYNC stores only physical TD/TH cells. Prefer the non-empty physical values
+ * when their count already matches the source row, then fall back to logical
+ * column positions derived from rowspan/colspan.
  */
 export function normalizeTranslatedTableRows(block: BlockLike, translatedRows: string[][]) {
   const sourceRows = sourceTableCells(block);
@@ -101,13 +103,13 @@ export function normalizeTranslatedTableRows(block: BlockLike, translatedRows: s
     if (!sourceRow || row.length === sourceRow.length) return [...row];
     if (row.length < sourceRow.length) return [...row];
 
-    const mapped = positions[rowIndex].map((column) => row[column] ?? "");
-    if (mapped.length === sourceRow.length && mapped.some((cell) => cell.trim())) return mapped;
-
     const nonEmpty = row.filter((cell) => cell.trim() !== "");
     if (nonEmpty.length === sourceRow.length) return nonEmpty;
 
-    return mapped;
+    const mapped = positions[rowIndex].map((column) => row[column] ?? "");
+    if (mapped.length === sourceRow.length) return mapped;
+
+    return [...row];
   });
 }
 
