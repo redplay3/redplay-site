@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractNumericTokens } from "@/lib/kr/parser";
-import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
+import {
+  assembleSemanticSections,
+  type KrSemanticSection,
+  type KrSemanticSourceBlock,
+  type KrSemanticUnit,
+} from "@/lib/kr/semantic";
 
 const DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it";
+const MAX_UNITS_PER_REQUEST = 6;
+const MAX_FORMAT_ATTEMPTS = 2;
 
 const FREE_MODELS = {
   "@cf/google/gemma-4-26b-a4b-it": { inputNeuronsPerMillion: 9091, outputNeuronsPerMillion: 27273 },
@@ -34,6 +41,21 @@ type AiAdaptation = {
   terms: AiTerm[];
 };
 
+type InferenceResult = {
+  adaptation: AiAdaptation;
+  inputTokens: number | null;
+  outputTokenCount: number | null;
+  estimatedNeurons: number | null;
+  requestCount: number;
+};
+
+class ModelFormatError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ModelFormatError";
+  }
+}
+
 function tableRows(block: KrSemanticSourceBlock): string[][] {
   const rows = block.data?.rows;
   if (!Array.isArray(rows)) return [];
@@ -45,42 +67,54 @@ function tableRows(block: KrSemanticSourceBlock): string[][] {
   }));
 }
 
-function sourcePayload(section: KrSemanticSection) {
+function unitPayload(unit: KrSemanticUnit) {
+  if (unit.type === "text") {
+    return {
+      type: "text",
+      paragraphs_kr: unit.paragraphs,
+      rows_kr: [] as string[][],
+      image_src: "",
+      image_alt_kr: "",
+    };
+  }
+  if (unit.type === "table") {
+    return {
+      type: "table",
+      paragraphs_kr: [] as string[],
+      rows_kr: tableRows(unit.block),
+      image_src: "",
+      image_alt_kr: "",
+    };
+  }
+  return {
+    type: "image",
+    paragraphs_kr: [] as string[],
+    rows_kr: [] as string[][],
+    image_src: typeof unit.block.data?.src === "string" ? unit.block.data.src : "",
+    image_alt_kr: unit.block.text_kr || "",
+  };
+}
+
+function sourceUnitText(unit: KrSemanticUnit) {
+  if (unit.type === "text") return unit.paragraphs.join("\n");
+  if (unit.type === "table") return tableRows(unit.block).flat().join("\n");
+  return unit.block.text_kr || "";
+}
+
+function sourcePayload(
+  section: KrSemanticSection,
+  units: KrSemanticUnit[] = section.units,
+  batchIndex = 0,
+  batchCount = 1,
+) {
+  const unitText = units.map(sourceUnitText).join("\n");
   return {
     section_id: section.id,
     kind: section.kind,
-    title_kr: section.titleKr,
-    units: section.units.map((unit) => {
-      if (unit.type === "text") {
-        return {
-          type: "text",
-          paragraphs_kr: unit.paragraphs,
-          rows_kr: [] as string[][],
-          image_src: "",
-          image_alt_kr: "",
-        };
-      }
-      if (unit.type === "table") {
-        return {
-          type: "table",
-          paragraphs_kr: [] as string[],
-          rows_kr: tableRows(unit.block),
-          image_src: "",
-          image_alt_kr: "",
-        };
-      }
-      return {
-        type: "image",
-        paragraphs_kr: [] as string[],
-        rows_kr: [] as string[][],
-        image_src: typeof unit.block.data?.src === "string" ? unit.block.data.src : "",
-        image_alt_kr: unit.block.text_kr || "",
-      };
-    }),
-    numeric_tokens: [
-      ...extractNumericTokens(section.titleKr || "").map((token) => token.raw),
-      ...section.numericTokens.map((token) => token.raw),
-    ],
+    section_title_kr: section.titleKr,
+    batch: { index: batchIndex + 1, total: batchCount },
+    units: units.map(unitPayload),
+    numeric_tokens: extractNumericTokens(unitText).map((token) => token.raw),
   };
 }
 
@@ -88,16 +122,17 @@ function systemInstruction(edition: string | null) {
   return `Ты редактор RedPlay и локализуешь официальный корейский патчноут Lineage 2 ${edition === "main" ? "Main" : "Essence"} на русский язык.
 
 Правила обязательны:
-1. Перед тобой один ЦЕЛЫЙ смысловой раздел. Переводи и адаптируй его как единый раздел нормальной статьи, а не как набор разрозненных фрагментов.
+1. Перед тобой один ЦЕЛЫЙ смысловой раздел или последовательный пакет units из этого раздела. section_title_kr всегда содержит заголовок всего смыслового раздела. Переводи предоставленные units как часть единого нормального материала, не как разрозненные RAW-фрагменты.
 2. Нельзя сокращать факты, строки таблиц, условия, ограничения, уровни, проценты, количества или примечания. Не добавляй игровой анализ и новые факты на этом этапе.
-3. Сохрани порядок и количество units. type каждого output unit должен совпадать с соответствующим input unit.
+3. Сохрани порядок и количество ПЕРЕДАННЫХ units. type каждого output unit должен совпадать с соответствующим input unit.
 4. Для table сохрани ТОЧНО то же количество строк и ячеек в каждой строке. Переводи только текст ячеек.
-5. ВСЕ числа, знаки +/-, проценты и диапазоны должны сохранить исходные значения. Не пересчитывай проценты и не добавляй собственные числа.
+5. ВСЕ числа, знаки +/-, проценты и диапазоны должны сохранить исходные значения. Исключение: календарный месяц в корейской дате можно естественно локализовать словом, например 9월 16일 → 16 сентября. Не пересчитывай игровые числа и не добавляй собственные числа.
 6. Русский текст должен звучать естественно для игрока Lineage 2, а не как машинный подстрочник.
 7. Игровые названия: если корейское имя уверенно восстанавливается как английское название, используй формат English Name (Русское название). Не выдавай предложенный русский вариант за официальную локализацию. Добавь такую сущность в terms со status=unverified.
 8. Если английское имя нельзя восстановить уверенно, не выдумывай его: сохрани корейское имя в en и дай осторожный русский вариант в ru/display, status всё равно unverified.
 9. Для text заполняй paragraphs_ru, для table – rows_ru, для image – caption_ru. Неиспользуемые поля оставляй пустым массивом или пустой строкой.
-10. Ответ должен быть ТОЛЬКО валидным JSON без Markdown и без пояснений вокруг него, строго такой формы:
+10. title_ru всегда должен быть переводом section_title_kr, даже если это не первый пакет раздела.
+11. Ответ должен быть ТОЛЬКО валидным JSON без Markdown и без пояснений вокруг него, строго такой формы:
 {"title_ru":"...","units":[{"type":"text|table|image","paragraphs_ru":[],"rows_ru":[],"caption_ru":""}],"terms":[{"kr":"...","en":"...","ru":"...","display":"...","status":"unverified"}]}`;
 }
 
@@ -109,27 +144,35 @@ function parseJsonText(value: string): unknown {
     .trim();
   try {
     return JSON.parse(cleaned) as unknown;
-  } catch {
+  } catch (firstError) {
     const start = cleaned.indexOf("{");
     const end = cleaned.lastIndexOf("}");
-    if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1)) as unknown;
-    throw new Error("Модель не вернула валидный JSON");
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1)) as unknown;
+      } catch {
+        // handled below
+      }
+    }
+    throw new ModelFormatError(
+      firstError instanceof Error ? `Модель вернула повреждённый JSON: ${firstError.message}` : "Модель не вернула валидный JSON",
+    );
   }
 }
 
 function normalizeAdaptation(value: unknown): AiAdaptation {
-  if (!value || typeof value !== "object") throw new Error("Некорректная структура адаптации");
+  if (!value || typeof value !== "object") throw new ModelFormatError("Некорректная структура адаптации");
   const root = value as Record<string, unknown>;
   if (typeof root.title_ru !== "string" || !Array.isArray(root.units)) {
-    throw new Error("В адаптации отсутствует title_ru или units");
+    throw new ModelFormatError("В адаптации отсутствует title_ru или units");
   }
 
   const units: AiUnit[] = root.units.map((entry, index) => {
-    if (!entry || typeof entry !== "object") throw new Error(`Unit ${index + 1}: некорректный объект`);
+    if (!entry || typeof entry !== "object") throw new ModelFormatError(`Unit ${index + 1}: некорректный объект`);
     const unit = entry as Record<string, unknown>;
     const type = unit.type;
     if (type !== "text" && type !== "table" && type !== "image") {
-      throw new Error(`Unit ${index + 1}: неизвестный type`);
+      throw new ModelFormatError(`Unit ${index + 1}: неизвестный type`);
     }
     const paragraphsRu = Array.isArray(unit.paragraphs_ru)
       ? unit.paragraphs_ru.map((item) => String(item ?? ""))
@@ -253,17 +296,75 @@ function sameNumericMultiset(a: string[], b: string[]) {
   return true;
 }
 
+const RU_MONTH_PATTERNS: Record<string, RegExp> = {
+  "1": /январ(?:ь|я|е|ю)/gi,
+  "2": /феврал(?:ь|я|е|ю)/gi,
+  "3": /март(?:а|е|у)?/gi,
+  "4": /апрел(?:ь|я|е|ю)/gi,
+  "5": /ма(?:й|я|е|ю)/gi,
+  "6": /июн(?:ь|я|е|ю)/gi,
+  "7": /июл(?:ь|я|е|ю)/gi,
+  "8": /август(?:а|е|у)?/gi,
+  "9": /сентябр(?:ь|я|е|ю)/gi,
+  "10": /октябр(?:ь|я|е|ю)/gi,
+  "11": /ноябр(?:ь|я|е|ю)/gi,
+  "12": /декабр(?:ь|я|е|ю)/gi,
+};
+
+function expectedNumericWithCalendarLocalization(section: KrSemanticSection, outputText: string) {
+  const original = [
+    ...extractNumericTokens(section.titleKr || "").map((token) => token.normalized),
+    ...section.numericTokens.map((token) => token.normalized),
+  ];
+  const sourceText = [section.titleKr || "", ...section.units.map(sourceUnitText)].join("\n");
+  const sourceMonthCounts = new Map<string, number>();
+  const monthRegex = /(^|[^0-9])(1[0-2]|[1-9])\s*월/g;
+  let match: RegExpExecArray | null;
+  while ((match = monthRegex.exec(sourceText)) !== null) {
+    const month = match[2];
+    sourceMonthCounts.set(month, (sourceMonthCounts.get(month) || 0) + 1);
+  }
+
+  const removable = new Map<string, number>();
+  for (const [month, count] of sourceMonthCounts) {
+    const pattern = RU_MONTH_PATTERNS[month];
+    const localizedCount = pattern ? (outputText.match(pattern)?.length || 0) : 0;
+    if (localizedCount) removable.set(month, Math.min(count, localizedCount));
+  }
+
+  if (!removable.size) return { expected: original, calendarAllowances: {} as Record<string, number> };
+
+  const leftToRemove = new Map(removable);
+  const expected = original.filter((value) => {
+    const remaining = leftToRemove.get(value) || 0;
+    if (!remaining) return true;
+    leftToRemove.set(value, remaining - 1);
+    return false;
+  });
+  return { expected, calendarAllowances: Object.fromEntries(removable) };
+}
+
+function validateUnitShape(sourceUnits: KrSemanticUnit[], adaptation: AiAdaptation) {
+  if (adaptation.units.length !== sourceUnits.length) {
+    return `Ожидалось units: ${sourceUnits.length}, получено: ${adaptation.units.length}`;
+  }
+  for (let index = 0; index < sourceUnits.length; index += 1) {
+    if (sourceUnits[index].type !== adaptation.units[index].type) {
+      return `Unit ${index + 1}: ${sourceUnits[index].type} → ${adaptation.units[index].type}`;
+    }
+  }
+  return null;
+}
+
 function validateStructure(section: KrSemanticSection, adaptation: AiAdaptation) {
   const issues: string[] = [];
-  if (adaptation.units.length !== section.units.length) {
-    issues.push(`Ожидалось units: ${section.units.length}, получено: ${adaptation.units.length}`);
-  }
+  const shapeIssue = validateUnitShape(section.units, adaptation);
+  if (shapeIssue) issues.push(shapeIssue);
 
   const count = Math.min(section.units.length, adaptation.units.length);
   for (let i = 0; i < count; i += 1) {
     const source = section.units[i];
     const output = adaptation.units[i];
-    if (source.type !== output.type) issues.push(`Unit ${i + 1}: ${source.type} → ${output.type}`);
     if (source.type === "table" && output.type === "table") {
       const sourceRows = tableRows(source.block);
       if (sourceRows.length !== output.rows_ru.length) {
@@ -278,6 +379,168 @@ function validateStructure(section: KrSemanticSection, adaptation: AiAdaptation)
     }
   }
   return issues;
+}
+
+function mergeTerms(groups: AiTerm[][]) {
+  const seen = new Set<string>();
+  const merged: AiTerm[] = [];
+  for (const terms of groups) {
+    for (const term of terms) {
+      const key = `${term.kr}\u0000${term.en}\u0000${term.ru}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(term);
+    }
+  }
+  return merged;
+}
+
+function sumNullable(values: Array<number | null>) {
+  const known = values.filter((value): value is number => value != null);
+  return known.length ? known.reduce((sum, value) => sum + value, 0) : null;
+}
+
+async function inferUnits({
+  section,
+  units,
+  edition,
+  accountId,
+  apiToken,
+  model,
+  batchIndex,
+  batchCount,
+}: {
+  section: KrSemanticSection;
+  units: KrSemanticUnit[];
+  edition: string | null;
+  accountId: string;
+  apiToken: string;
+  model: SupportedModel;
+  batchIndex: number;
+  batchCount: number;
+}): Promise<InferenceResult> {
+  let lastFormatError: Error | null = null;
+
+  for (let attempt = 0; attempt < MAX_FORMAT_ATTEMPTS; attempt += 1) {
+    const inferenceInput: Record<string, unknown> = {
+      messages: [
+        { role: "system", content: systemInstruction(edition) },
+        {
+          role: "user",
+          content: JSON.stringify({
+            ...sourcePayload(section, units, batchIndex, batchCount),
+            retry_instruction: attempt
+              ? "Повтор: предыдущий ответ был повреждён или нарушил форму. Верни только строгий валидный JSON и ровно столько units, сколько получено."
+              : undefined,
+          }),
+        },
+      ],
+      temperature: attempt ? 0 : 0.1,
+      max_tokens: 10000,
+      stream: false,
+    };
+    if (model === "@cf/google/gemma-4-26b-a4b-it") {
+      inferenceInput.chat_template_kwargs = { enable_thinking: false };
+    }
+
+    const cloudflareResponse = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(inferenceInput),
+      },
+    );
+
+    const cloudflarePayload = await cloudflareResponse.json() as Record<string, unknown>;
+    if (!cloudflareResponse.ok || cloudflarePayload.success === false) {
+      throw new Error(cloudflareError(cloudflarePayload, cloudflareResponse.status));
+    }
+
+    try {
+      const rawAdaptation = cloudflareOutput(cloudflarePayload);
+      if (!rawAdaptation) throw new ModelFormatError("Cloudflare Workers AI не вернул адаптацию");
+      const adaptation = normalizeAdaptation(rawAdaptation);
+      const shapeIssue = validateUnitShape(units, adaptation);
+      if (shapeIssue) throw new ModelFormatError(shapeIssue);
+
+      const { inputTokens, outputTokenCount } = usageFromCloudflare(cloudflarePayload);
+      return {
+        adaptation,
+        inputTokens,
+        outputTokenCount,
+        estimatedNeurons: estimatedNeurons(model, inputTokens, outputTokenCount),
+        requestCount: 1,
+      };
+    } catch (error) {
+      if (!(error instanceof ModelFormatError)) throw error;
+      lastFormatError = error;
+    }
+  }
+
+  throw new ModelFormatError(lastFormatError?.message || "Модель дважды вернула некорректный формат");
+}
+
+async function inferUnitsAdaptive(args: Parameters<typeof inferUnits>[0]): Promise<InferenceResult> {
+  try {
+    return await inferUnits(args);
+  } catch (error) {
+    if (!(error instanceof ModelFormatError) || args.units.length <= 1) throw error;
+
+    const middle = Math.ceil(args.units.length / 2);
+    const left = await inferUnitsAdaptive({ ...args, units: args.units.slice(0, middle) });
+    const right = await inferUnitsAdaptive({ ...args, units: args.units.slice(middle) });
+    return {
+      adaptation: {
+        title_ru: left.adaptation.title_ru || right.adaptation.title_ru,
+        units: [...left.adaptation.units, ...right.adaptation.units],
+        terms: mergeTerms([left.adaptation.terms, right.adaptation.terms]),
+      },
+      inputTokens: sumNullable([left.inputTokens, right.inputTokens]),
+      outputTokenCount: sumNullable([left.outputTokenCount, right.outputTokenCount]),
+      estimatedNeurons: sumNullable([left.estimatedNeurons, right.estimatedNeurons]),
+      requestCount: left.requestCount + right.requestCount,
+    };
+  }
+}
+
+async function inferSection(args: {
+  section: KrSemanticSection;
+  edition: string | null;
+  accountId: string;
+  apiToken: string;
+  model: SupportedModel;
+}) {
+  const chunks: KrSemanticUnit[][] = [];
+  for (let index = 0; index < args.section.units.length; index += MAX_UNITS_PER_REQUEST) {
+    chunks.push(args.section.units.slice(index, index + MAX_UNITS_PER_REQUEST));
+  }
+
+  const results: InferenceResult[] = [];
+  for (let index = 0; index < chunks.length; index += 1) {
+    results.push(await inferUnitsAdaptive({
+      ...args,
+      units: chunks[index],
+      batchIndex: index,
+      batchCount: chunks.length,
+    }));
+  }
+
+  return {
+    adaptation: {
+      title_ru: results.find((result) => result.adaptation.title_ru)?.adaptation.title_ru || args.section.titleKr || "",
+      units: results.flatMap((result) => result.adaptation.units),
+      terms: mergeTerms(results.map((result) => result.adaptation.terms)),
+    } as AiAdaptation,
+    inputTokens: sumNullable(results.map((result) => result.inputTokens)),
+    outputTokenCount: sumNullable(results.map((result) => result.outputTokenCount)),
+    estimatedNeurons: sumNullable(results.map((result) => result.estimatedNeurons)),
+    requestCount: results.reduce((sum, result) => sum + result.requestCount, 0),
+    batchCount: chunks.length,
+  };
 }
 
 export async function POST(request: Request) {
@@ -337,62 +600,35 @@ export async function POST(request: Request) {
     if (sectionIndex < 0) return NextResponse.json({ error: "Смысловой раздел не найден" }, { status: 404 });
     const section = sections[sectionIndex];
 
-    const inferenceInput: Record<string, unknown> = {
-      messages: [
-        { role: "system", content: systemInstruction(item?.edition || null) },
-        { role: "user", content: JSON.stringify(sourcePayload(section)) },
-      ],
-      temperature: 0.15,
-      max_tokens: 16000,
-      stream: false,
-    };
-    if (model === "@cf/google/gemma-4-26b-a4b-it") {
-      inferenceInput.chat_template_kwargs = { enable_thinking: false };
-    }
-
-    const cloudflareResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${apiToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(inferenceInput),
-      },
-    );
-
-    const cloudflarePayload = await cloudflareResponse.json() as Record<string, unknown>;
-    if (!cloudflareResponse.ok || cloudflarePayload.success === false) {
-      throw new Error(cloudflareError(cloudflarePayload, cloudflareResponse.status));
-    }
-
-    const rawAdaptation = cloudflareOutput(cloudflarePayload);
-    if (!rawAdaptation) throw new Error("Cloudflare Workers AI не вернул адаптацию");
-    const adaptation = normalizeAdaptation(rawAdaptation);
+    const inference = await inferSection({
+      section,
+      edition: item?.edition || null,
+      accountId,
+      apiToken,
+      model,
+    });
+    const adaptation = inference.adaptation;
 
     const structureIssues = validateStructure(section, adaptation);
-    const sourceNumeric = [
-      ...extractNumericTokens(section.titleKr || "").map((token) => token.normalized),
-      ...section.numericTokens.map((token) => token.normalized),
-    ];
-    const outputNumericTokens = extractNumericTokens(adaptationText(adaptation));
+    const outputText = adaptationText(adaptation);
+    const outputNumericTokens = extractNumericTokens(outputText);
     const outputNumeric = outputNumericTokens.map((token) => token.normalized);
+    const { expected: sourceNumeric, calendarAllowances } = expectedNumericWithCalendarLocalization(section, outputText);
     const numericPass = sameNumericMultiset(sourceNumeric, outputNumeric);
-
-    const { inputTokens, outputTokenCount } = usageFromCloudflare(cloudflarePayload);
-    const neuronEstimate = estimatedNeurons(model, inputTokens, outputTokenCount);
 
     const content = {
       units: adaptation.units,
       validation: {
         structure_status: structureIssues.length ? "fail" : "pass",
         structure_issues: structureIssues,
+        calendar_numeric_allowances: calendarAllowances,
       },
       meta: {
         provider: "cloudflare-workers-ai",
-        estimated_neurons: neuronEstimate,
+        estimated_neurons: inference.estimatedNeurons,
         free_daily_budget: 10000,
+        batches: inference.batchCount,
+        ai_requests: inference.requestCount,
       },
     };
 
@@ -415,8 +651,8 @@ export async function POST(request: Request) {
       terminology_status: adaptation.terms.length ? "review" : "verified",
       status: numericPass && !structureIssues.length ? "review" : "draft",
       model,
-      input_tokens: inputTokens,
-      output_tokens: outputTokenCount,
+      input_tokens: inference.inputTokens,
+      output_tokens: inference.outputTokenCount,
       updated_at: new Date().toISOString(),
     };
 
@@ -437,12 +673,15 @@ export async function POST(request: Request) {
       ok: true,
       provider: "cloudflare-workers-ai",
       model,
-      estimatedNeurons: neuronEstimate,
+      estimatedNeurons: inference.estimatedNeurons,
+      batches: inference.batchCount,
+      aiRequests: inference.requestCount,
       adaptation: saved,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Не удалось адаптировать раздел";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Не удалось адаптировать раздел" },
+      { error: error instanceof ModelFormatError ? `Модель не смогла стабильно сформировать JSON даже после уменьшения пакета: ${message}` : message },
       { status: 500 },
     );
   }
