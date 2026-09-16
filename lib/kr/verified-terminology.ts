@@ -18,10 +18,14 @@ const VERIFIED_RU_REPLACEMENTS: Array<[RegExp, string]> = [
 /**
  * Human-verified RedPlay terminology. This layer has higher priority than AI
  * output and is intentionally tiny: only terms confirmed by the editor belong
- * here. Expand it as terminology is verified.
+ * here. It also normalizes literal escaped line-break sequences occasionally
+ * returned by LLMs, so `\\n` can never leak into the rendered article.
  */
 export function applyVerifiedRuTerminology(value: string) {
-  return VERIFIED_RU_REPLACEMENTS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+  const normalized = value
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n");
+  return VERIFIED_RU_REPLACEMENTS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), normalized);
 }
 
 export const VERIFIED_CLASS_TERMS = {
