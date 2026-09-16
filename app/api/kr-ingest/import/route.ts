@@ -12,6 +12,20 @@ function stableSourceKey(result: Awaited<ReturnType<typeof probeKrSource>>) {
   return `url:${createHash("sha256").update(result.finalUrl).digest("hex").slice(0, 32)}`;
 }
 
+function countMatches(value: string, pattern: RegExp) {
+  return value.match(pattern)?.length || 0;
+}
+
+function bodyMetrics(body: string) {
+  return {
+    bodyChars: body.length,
+    tableCount: countMatches(body, /<table\b/gi),
+    imageCount: countMatches(body, /<img\b/gi),
+    headingCount: countMatches(body, /<h[1-6]\b/gi),
+    contentBlockCount: countMatches(body, /data-contents-type=/gi),
+  };
+}
+
 async function fetchOriginal(url: string) {
   const response = await fetch(url, {
     cache: "no-store",
@@ -19,11 +33,83 @@ async function fetchOriginal(url: string) {
     headers: {
       accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
       "accept-language": "ko-KR,ko;q=0.9,en;q=0.7",
-      "user-agent": "RedPlay-KR-Ingest/0.3 (+https://redplay.stream)",
+      "user-agent": "RedPlay-KR-Ingest/0.4 (+https://redplay.stream)",
     },
   });
   const body = await response.text();
-  return { response, body };
+  return {
+    ok: response.ok,
+    status: response.status,
+    contentType: response.headers.get("content-type"),
+    sourceUrl: response.url || url,
+    body,
+    titleKr: null as string | null,
+    fetchedVia: "source-page",
+  };
+}
+
+async function fetchPlayncArticle(
+  probe: Awaited<ReturnType<typeof probeKrSource>>,
+) {
+  const articleId = probe.resolvedArticleId;
+  if (!articleId || !probe.source.definition.kind.startsWith("plaync_")) return null;
+
+  const pageUrl = new URL(probe.finalUrl);
+  const alias = pageUrl.pathname.match(/^\/board\/([^/]+)\//)?.[1];
+  if (!alias) return null;
+
+  const edition = probe.resolvedEdition || probe.source.definition.edition;
+  const apiService = edition === "main" ? "lin2_awkn" : "lin2";
+  const apiUrl = `https://api-community.plaync.com/${apiService}/board/${alias}/article/${articleId}`;
+  const response = await fetch(apiUrl, {
+    cache: "no-store",
+    headers: {
+      accept: "application/json",
+      "accept-language": "ko-KR,ko;q=0.9,en;q=0.7",
+      "user-agent": "RedPlay-KR-Ingest/0.4 (+https://redplay.stream)",
+    },
+  });
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      contentType: response.headers.get("content-type"),
+      sourceUrl: probe.finalUrl,
+      body: "",
+      titleKr: null as string | null,
+      fetchedVia: "plaync-community-api",
+    };
+  }
+
+  const payload = await response.json() as Record<string, unknown>;
+  const article = payload.article && typeof payload.article === "object"
+    ? payload.article as Record<string, unknown>
+    : null;
+  const content = article?.content && typeof article.content === "object"
+    ? article.content as Record<string, unknown>
+    : null;
+  const contentMeta = article?.contentMeta && typeof article.contentMeta === "object"
+    ? article.contentMeta as Record<string, unknown>
+    : null;
+  const body = typeof content?.content === "string" ? content.content : "";
+  const titleKr = typeof contentMeta?.title === "string" ? contentMeta.title : null;
+
+  return {
+    ok: response.ok && Boolean(body),
+    status: response.status,
+    contentType: "text/html; source=plaync-community-api",
+    sourceUrl: probe.finalUrl,
+    body,
+    titleKr,
+    fetchedVia: "plaync-community-api",
+  };
+}
+
+async function fetchSource(probe: Awaited<ReturnType<typeof probeKrSource>>) {
+  const plaync = await fetchPlayncArticle(probe);
+  if (plaync) return plaync;
+  return fetchOriginal(probe.finalUrl);
 }
 
 function blockRows(snapshotId: string, blocks: KrParsedBlock[]) {
@@ -60,11 +146,15 @@ export async function POST(request: Request) {
     const probe = await probeKrSource(payload.url);
     if (!probe.ok) return NextResponse.json({ error: probe.error || "Источник недоступен", probe }, { status: 422 });
 
-    const { response, body } = await fetchOriginal(probe.finalUrl);
-    if (!response.ok || !body) return NextResponse.json({ error: `Источник ответил HTTP ${response.status}` }, { status: 422 });
+    const fetched = await fetchSource(probe);
+    if (!fetched.ok || !fetched.body) {
+      return NextResponse.json({ error: `Источник ответил HTTP ${fetched.status} или не вернул тело статьи` }, { status: 422 });
+    }
 
+    const body = fetched.body;
+    const titleKr = fetched.titleKr || probe.title;
     const hash = createHash("sha256").update(body).digest("hex");
-    const blocks = parseKrSnapshotBody(body, response.url || probe.finalUrl);
+    const blocks = parseKrSnapshotBody(body, fetched.sourceUrl);
     const sourceKey = stableSourceKey(probe);
 
     const { data: existingItem, error: itemLookupError } = await supabase
@@ -93,7 +183,7 @@ export async function POST(request: Request) {
       plaync_url: probe.linkedPlaync?.url || (probe.source.definition.kind.startsWith("plaync_") ? probe.finalUrl : null),
       article_id: probe.resolvedArticleId,
       feed_id: probe.feedId,
-      title_kr: probe.title,
+      title_kr: titleKr,
     };
 
     if (!itemId) {
@@ -120,7 +210,12 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (duplicateError) throw new Error(duplicateError.message);
 
-    const metrics = { ...probe.metrics, parsedBlockCount: blocks.length };
+    const metrics = {
+      ...probe.metrics,
+      ...bodyMetrics(body),
+      parsedBlockCount: blocks.length,
+      fetchedVia: fetched.fetchedVia,
+    };
 
     if (duplicate) {
       const needsReparse = duplicate.parser_version !== PARSER_VERSION;
@@ -135,7 +230,7 @@ export async function POST(request: Request) {
 
         const { error: snapshotUpdateError } = await supabase
           .from("kr_ingest_snapshots")
-          .update({ metrics, parser_version: PARSER_VERSION })
+          .update({ metrics, parser_version: PARSER_VERSION, title_kr: titleKr })
           .eq("id", duplicate.id);
         if (snapshotUpdateError) throw new Error(snapshotUpdateError.message);
       }
@@ -150,6 +245,7 @@ export async function POST(request: Request) {
         blockCount: blocks.length,
         contentHash: hash,
         parserVersion: needsReparse ? PARSER_VERSION : duplicate.parser_version,
+        fetchedVia: fetched.fetchedVia,
       });
     }
 
@@ -159,12 +255,12 @@ export async function POST(request: Request) {
       .insert({
         item_id: itemId,
         version: nextVersion,
-        source_url: response.url || probe.finalUrl,
+        source_url: fetched.sourceUrl,
         content_hash: hash,
         fetched_at: new Date().toISOString(),
-        http_status: response.status,
-        content_type: response.headers.get("content-type"),
-        title_kr: probe.title,
+        http_status: fetched.status,
+        content_type: fetched.contentType,
+        title_kr: titleKr,
         raw_body: body,
         metrics,
         parser_version: PARSER_VERSION,
@@ -184,7 +280,7 @@ export async function POST(request: Request) {
 
     const { error: updateError } = await supabase
       .from("kr_ingest_items")
-      .update({ latest_snapshot_version: nextVersion, status: "review" })
+      .update({ latest_snapshot_version: nextVersion, status: "review", title_kr: titleKr })
       .eq("id", itemId);
     if (updateError) throw new Error(updateError.message);
 
@@ -199,6 +295,7 @@ export async function POST(request: Request) {
       contentHash: hash,
       parserVersion: PARSER_VERSION,
       metrics,
+      fetchedVia: fetched.fetchedVia,
     });
   } catch (error) {
     return NextResponse.json(
