@@ -52,7 +52,7 @@ export type ArticleTableCell = {
   text: string;
   header?: boolean;
   bold?: boolean;
-  align?: "left" | "center" | "right" | null;
+  align?: "left" | "center" | "right";
   rowspan?: number;
   colspan?: number;
   color?: string | null;
