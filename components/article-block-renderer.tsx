@@ -78,7 +78,11 @@ function cleanReferenceLine(value: string) {
 }
 
 function cleanTableCell(value: string) {
-  const cleaned = value.replace(/\\n/g, "\n").trim().replace(/\.\.(?=\s|$)/g, ".");
+  const cleaned = value
+    .replace(/\\n/g, "\n")
+    .trim()
+    .replace(/\.\.(?=\s|$)/g, ".")
+    .replace(/Случайный расход кристаллов/g, "Случайный расход руды духов");
   if (cleaned === "Прогрессия") return "Параметры по уровню";
   const legacyProgression = cleaned.match(/^Уровень персонажа\s*•\s*исходный параметр:\s*([^•]+)\s*•\s*Значения:\s*(.+)$/i);
   if (!legacyProgression) return cleaned;
