@@ -9,13 +9,33 @@ type RepairRow = {
   numeric_status: string;
 };
 
+type FailedUnitGroup = {
+  section_id: string;
+  unit_indexes: number[];
+};
+
 type RepairPayload = {
   error?: string;
   structureFailures?: number;
   numericFailures?: number;
   ready?: boolean;
   repaired?: RepairRow[];
+  failedUnits?: FailedUnitGroup[];
 };
+
+async function readJson<T extends { error?: string }>(response: Response, fallback: string): Promise<T> {
+  const text = await response.text();
+  let payload: T | null = null;
+  if (text) {
+    try { payload = JSON.parse(text) as T; } catch { /* Vercel may return plain text on timeout */ }
+  }
+  if (!response.ok) {
+    const clean = text.replace(/\s+/g, " ").trim().slice(0, 220);
+    throw new Error(payload?.error || clean || `${fallback} (HTTP ${response.status})`);
+  }
+  if (!payload) throw new Error(`${fallback}: сервер вернул не-JSON ответ`);
+  return payload;
+}
 
 export function KrQaRepair({
   snapshotId,
@@ -44,47 +64,52 @@ export function KrQaRepair({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ snapshotId }),
     });
-    const payload = await response.json() as RepairPayload;
-    if (!response.ok) throw new Error(payload.error || "Не удалось перепроверить статью");
-    return payload;
+    return readJson<RepairPayload>(response, "Не удалось перепроверить статью");
   }
 
-  async function rebuildSection(sectionId: string) {
-    const response = await fetch("/api/kr-ingest/adapt-section", {
+  async function rebuildUnit(sectionId: string, unitIndex: number) {
+    const response = await fetch("/api/kr-ingest/repair-unit", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ snapshotId, sectionId }),
+      body: JSON.stringify({ snapshotId, sectionId, unitIndex }),
     });
-    const payload = await response.json() as { error?: string };
-    if (!response.ok) throw new Error(payload.error || `Не удалось пересобрать ${sectionId}`);
+    return readJson<{ error?: string }>(response, `Не удалось починить ${sectionId} / unit ${unitIndex + 1}`);
   }
 
   async function repair() {
+    if (loading) return;
     setLoading(true);
-    setMessage("Сначала исправляю геометрию таблиц и перепроверяю QA без AI…");
+    setMessage("Нормализую таблицы и перепроверяю QA без AI…");
     try {
       let qa = await runRepair();
+      const errors: string[] = [];
 
-      // Only true failures left after deterministic normalization are sent back to AI.
-      // Two selective passes are enough to catch most model-number slips without
-      // rebuilding sections that already passed and without wasting free neurons.
+      // Repair only individual failed semantic units. A large class section therefore
+      // no longer waits for one multi-minute Vercel request containing 7–12 AI calls.
       for (let cycle = 1; cycle <= 2 && !qa.ready; cycle += 1) {
-        const failedIds = (qa.repaired || [])
-          .filter((row) => row.structure_status === "fail" || row.numeric_status === "fail")
-          .map((row) => row.section_id);
-        if (!failedIds.length) break;
+        const jobs = (qa.failedUnits || []).flatMap((group) =>
+          group.unit_indexes.map((unitIndex) => ({ sectionId: group.section_id, unitIndex })),
+        );
+        if (!jobs.length) break;
 
-        for (let index = 0; index < failedIds.length; index += 1) {
-          setMessage(`AI-проход ${cycle}/2: пересобираю только FAIL ${index + 1}/${failedIds.length} — ${failedIds[index]}`);
-          await rebuildSection(failedIds[index]);
+        for (let index = 0; index < jobs.length; index += 1) {
+          const job = jobs[index];
+          setMessage(`AI-починка ${cycle}/2 · ${index + 1}/${jobs.length}: ${job.sectionId}, блок ${job.unitIndex + 1}`);
+          try {
+            await rebuildUnit(job.sectionId, job.unitIndex);
+          } catch (error) {
+            errors.push(error instanceof Error ? error.message : `${job.sectionId}: ошибка`);
+          }
         }
-        setMessage(`AI-проход ${cycle}/2 завершён. Повторно нормализую таблицы и сверяю цифры…`);
+
+        setMessage(`AI-починка ${cycle}/2 завершена. Повторно сверяю структуру и цифры…`);
         qa = await runRepair();
       }
 
+      const tail = errors.length ? ` Ошибок отдельных блоков: ${errors.length}. ${errors.slice(0, 2).join(" · ")}` : "";
       setMessage(qa.ready
-        ? "QA пройден: таблицы, структура и числовые факты совпадают."
-        : `Автопочинка завершена. Осталось: структура FAIL ${qa.structureFailures ?? 0}, цифры FAIL ${qa.numericFailures ?? 0}. Эти разделы требуют ручного просмотра, остальные не трогаем.`);
+        ? `QA пройден: таблицы, структура и числовые факты совпадают.${tail}`
+        : `Автопочинка завершена. Осталось: структура FAIL ${qa.structureFailures ?? 0}, цифры FAIL ${qa.numericFailures ?? 0}.${tail}`);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось перепроверить статью");
@@ -105,7 +130,7 @@ export function KrQaRepair({
           <Badge ok={usefulImages > 0}>Полезных изображений: {usefulImages}</Badge>
           <Badge ok={false}>Обложка RedPlay: нужна</Badge>
         </div>
-        {usefulImages === 0 ? <p style={{ margin: "10px 0 0", color: "#747985", fontSize: 13, lineHeight: 1.5 }}>В исходном материале нет полезного арта: найденный PLAYNC footer-баннер не считаем контентным изображением. Для публикации нужна отдельная обложка RedPlay.</p> : null}
+        {usefulImages === 0 ? <p style={{ margin: "10px 0 0", color: "#747985", fontSize: 13, lineHeight: 1.5 }}>В исходном материале нет полезного арта: PLAYNC footer-баннер не считаем контентным изображением. Для публикации используем отдельную обложку RedPlay.</p> : null}
       </div>
       {translated && (numericFailures > 0 || structureFailures > 0) ? <button type="button" className="admin-primary" disabled={loading} onClick={repair}>{loading ? "Автопочинка идёт…" : "Автопочинка QA"}</button> : null}
     </div>
