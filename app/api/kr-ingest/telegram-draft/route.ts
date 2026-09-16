@@ -172,8 +172,6 @@ function adaptationText(row: AdaptationRow) {
 }
 
 function compactAdaptations(rows: AdaptationRow[]) {
-  // Telegram needs a concise editorial overview, not the entire article payload.
-  // Keeping all sections but capping each one materially reduces AI latency on huge KR patch notes.
   const maxTotal = 32000;
   const maxPerSection = 3200;
   let total = 0;
@@ -215,54 +213,61 @@ function systemPrompt(edition: string | null) {
 export async function POST(request: Request) {
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
-  const { data: auth } = await supabase.auth.getUser();
+
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) return NextResponse.json({ error: `Supabase auth error: ${authError.message}` }, { status: 500 });
   if (!auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { data: allowed } = await supabase.rpc("is_admin");
+
+  const { data: allowed, error: allowedError } = await supabase.rpc("is_admin");
+  if (allowedError) return NextResponse.json({ error: `Admin check failed: ${allowedError.message}` }, { status: 500 });
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let input: { itemId?: string; force?: boolean };
   try { input = await request.json(); } catch { return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 }); }
   if (!input.itemId) return NextResponse.json({ error: "Нужен itemId" }, { status: 400 });
 
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  if (!accountId || !apiToken) return NextResponse.json({ error: "Cloudflare Workers AI не настроен" }, { status: 503 });
-
   const { data: item, error: itemError } = await supabase
     .from("kr_ingest_items")
     .select("id,edition,primary_url,title_kr,latest_snapshot_version")
     .eq("id", input.itemId)
     .maybeSingle();
-  if (itemError || !item) return NextResponse.json({ error: "KR material not found" }, { status: 404 });
+  if (itemError) return NextResponse.json({ error: `Не удалось прочитать KR material: ${itemError.message}` }, { status: 500 });
+  if (!item) return NextResponse.json({ error: "KR material not found" }, { status: 404 });
 
-  const { data: snapshot } = await supabase
+  const { data: snapshot, error: snapshotError } = await supabase
     .from("kr_ingest_snapshots")
     .select("id,version")
     .eq("item_id", item.id)
     .order("version", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (snapshotError) return NextResponse.json({ error: `Не удалось прочитать snapshot: ${snapshotError.message}` }, { status: 500 });
   if (!snapshot) return NextResponse.json({ error: "Сначала подготовь оригинал" }, { status: 409 });
 
-  if (!input.force) {
-    const { data: existing } = await supabase
-      .from("kr_telegram_drafts")
-      .select("*")
-      .eq("snapshot_id", snapshot.id)
-      .maybeSingle();
-    if (existing) return NextResponse.json({ draft: existing, reused: true });
-  }
+  const { data: existing, error: existingError } = await supabase
+    .from("kr_telegram_drafts")
+    .select("*")
+    .eq("snapshot_id", snapshot.id)
+    .maybeSingle();
+  if (existingError) return NextResponse.json({ error: `Не удалось проверить Telegram draft: ${existingError.message}` }, { status: 500 });
+  if (existing && !input.force) return NextResponse.json({ draft: existing, reused: true });
 
-  const { data: adaptationRows } = await supabase
+  const { data: adaptationRows, error: adaptationError } = await supabase
     .from("kr_ingest_adaptations")
     .select("section_index,title_ru,content,numeric_status")
     .eq("snapshot_id", snapshot.id)
     .order("section_index", { ascending: true });
+  if (adaptationError) return NextResponse.json({ error: `Не удалось прочитать RU-адаптацию: ${adaptationError.message}` }, { status: 500 });
+
   const adaptations = (adaptationRows || []) as AdaptationRow[];
   if (!adaptations.length) return NextResponse.json({ error: "Сначала собери RU-адаптацию статьи" }, { status: 409 });
 
   const invalid = adaptations.filter((row) => row.numeric_status === "fail" || row.content?.validation?.structure_status === "fail");
   if (invalid.length) return NextResponse.json({ error: `Есть ${invalid.length} раздел(а) с FAIL. Сначала исправь проверку статьи.` }, { status: 409 });
+
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!accountId || !apiToken) return NextResponse.json({ error: "Cloudflare Workers AI не настроен" }, { status: 503 });
 
   const model = process.env.KR_TELEGRAM_MODEL || DEFAULT_MODEL;
   const source = {
