@@ -71,7 +71,7 @@ export default async function KrInboxPage() {
             <small style={{ display: "block", color: radar?.ok ? "#16834a" : "#9a6d11", fontWeight: 950, marginBottom: 5 }}>
               KR RADAR · {radar?.ok ? "ACTIVE" : radar ? "CHECK" : "ОЖИДАЕТ ПЕРВОГО ЗАПУСКА"}
             </small>
-            <strong style={{ fontSize: 18 }}>6 официальных досок PLAYNC · каждые 10 минут</strong>
+            <strong style={{ fontSize: 18 }}>6 официальных досок PLAYNC · каждые 8 часов</strong>
             <p style={{ margin: "6px 0 0", color: "#747985", fontSize: 13 }}>
               {radar
                 ? `Последняя проверка: ${new Date(radar.checked_at).toLocaleString("ru-RU", { timeZone: "Europe/Kyiv" })} · проверено ${radar.discovered_count} · поставлено в очередь ${radar.queued_count}`
