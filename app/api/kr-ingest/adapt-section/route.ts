@@ -34,7 +34,7 @@ type AiAdaptation = {
   terms: AiTerm[];
 };
 
-function tableRows(block: KrSemanticSourceBlock) {
+function tableRows(block: KrSemanticSourceBlock): string[][] {
   const rows = block.data?.rows;
   if (!Array.isArray(rows)) return [];
   return rows.filter(Array.isArray).map((row) => row.map((cell) => {
@@ -55,7 +55,7 @@ function sourcePayload(section: KrSemanticSection) {
         return {
           type: "text",
           paragraphs_kr: unit.paragraphs,
-          rows_kr: [],
+          rows_kr: [] as string[][],
           image_src: "",
           image_alt_kr: "",
         };
@@ -63,7 +63,7 @@ function sourcePayload(section: KrSemanticSection) {
       if (unit.type === "table") {
         return {
           type: "table",
-          paragraphs_kr: [],
+          paragraphs_kr: [] as string[],
           rows_kr: tableRows(unit.block),
           image_src: "",
           image_alt_kr: "",
@@ -71,8 +71,8 @@ function sourcePayload(section: KrSemanticSection) {
       }
       return {
         type: "image",
-        paragraphs_kr: [],
-        rows_kr: [],
+        paragraphs_kr: [] as string[],
+        rows_kr: [] as string[][],
         image_src: typeof unit.block.data?.src === "string" ? unit.block.data.src : "",
         image_alt_kr: unit.block.text_kr || "",
       };
@@ -101,7 +101,7 @@ function systemInstruction(edition: string | null) {
 {"title_ru":"...","units":[{"type":"text|table|image","paragraphs_ru":[],"rows_ru":[],"caption_ru":""}],"terms":[{"kr":"...","en":"...","ru":"...","display":"...","status":"unverified"}]}`;
 }
 
-function parseJsonText(value: string) {
+function parseJsonText(value: string): unknown {
   const cleaned = value
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -131,34 +131,39 @@ function normalizeAdaptation(value: unknown): AiAdaptation {
     if (type !== "text" && type !== "table" && type !== "image") {
       throw new Error(`Unit ${index + 1}: неизвестный type`);
     }
+    const paragraphsRu = Array.isArray(unit.paragraphs_ru)
+      ? unit.paragraphs_ru.map((item) => String(item ?? ""))
+      : [];
+    const rowsRu = Array.isArray(unit.rows_ru)
+      ? unit.rows_ru.filter(Array.isArray).map((row) => row.map((cell) => String(cell ?? "")))
+      : [];
     return {
       type,
-      paragraphs_ru: Array.isArray(unit.paragraphs_ru) ? unit.paragraphs_ru.map((item) => String(item ?? "")) : [],
-      rows_ru: Array.isArray(unit.rows_ru)
-        ? unit.rows_ru.filter(Array.isArray).map((row) => row.map((cell) => String(cell ?? "")))
-        : [],
+      paragraphs_ru: paragraphsRu,
+      rows_ru: rowsRu,
       caption_ru: typeof unit.caption_ru === "string" ? unit.caption_ru : "",
     };
   });
 
-  const terms: AiTerm[] = Array.isArray(root.terms)
-    ? root.terms.flatMap((entry) => {
-      if (!entry || typeof entry !== "object") return [];
+  const terms: AiTerm[] = [];
+  if (Array.isArray(root.terms)) {
+    for (const entry of root.terms) {
+      if (!entry || typeof entry !== "object") continue;
       const term = entry as Record<string, unknown>;
-      return [{
+      terms.push({
         kr: String(term.kr ?? ""),
         en: String(term.en ?? ""),
         ru: String(term.ru ?? ""),
         display: String(term.display ?? term.ru ?? ""),
-        status: "unverified" as const,
-      }];
-    })
-    : [];
+        status: "unverified",
+      });
+    }
+  }
 
   return { title_ru: root.title_ru, units, terms };
 }
 
-function cloudflareOutput(payload: unknown) {
+function cloudflareOutput(payload: unknown): unknown | null {
   if (!payload || typeof payload !== "object") return null;
   const root = payload as Record<string, unknown>;
   const result = root.result;
@@ -186,17 +191,20 @@ function cloudflareError(payload: unknown, status: number) {
   const root = payload as Record<string, unknown>;
   if (Array.isArray(root.errors) && root.errors.length) {
     const first = root.errors[0];
-    if (first && typeof first === "object" && typeof (first as Record<string, unknown>).message === "string") {
-      return String((first as Record<string, unknown>).message);
+    if (first && typeof first === "object") {
+      const message = (first as Record<string, unknown>).message;
+      if (typeof message === "string") return message;
     }
   }
   return `Cloudflare Workers AI HTTP ${status}`;
 }
 
-function usageFromCloudflare(payload: unknown) {
-  if (!payload || typeof payload !== "object") return { inputTokens: null, outputTokens: null };
+function usageFromCloudflare(payload: unknown): { inputTokens: number | null; outputTokenCount: number | null } {
+  if (!payload || typeof payload !== "object") return { inputTokens: null, outputTokenCount: null };
   const root = payload as Record<string, unknown>;
-  const result = root.result && typeof root.result === "object" ? root.result as Record<string, unknown> : {};
+  const result = root.result && typeof root.result === "object"
+    ? root.result as Record<string, unknown>
+    : {};
   const usage = result.usage && typeof result.usage === "object"
     ? result.usage as Record<string, unknown>
     : root.usage && typeof root.usage === "object"
@@ -206,18 +214,18 @@ function usageFromCloudflare(payload: unknown) {
   const inputTokens = typeof usage.prompt_tokens === "number"
     ? usage.prompt_tokens
     : typeof usage.input_tokens === "number" ? usage.input_tokens : null;
-  const outputTokens = typeof usage.completion_tokens === "number"
+  const outputTokenCount = typeof usage.completion_tokens === "number"
     ? usage.completion_tokens
     : typeof usage.output_tokens === "number" ? usage.output_tokens : null;
-  return { inputTokens, outputTokens };
+  return { inputTokens, outputTokenCount };
 }
 
-function estimatedNeurons(model: SupportedModel, inputTokens: number | null, outputTokens: number | null) {
-  if (inputTokens == null || outputTokens == null) return null;
+function estimatedNeurons(model: SupportedModel, inputTokens: number | null, outputTokenCount: number | null) {
+  if (inputTokens == null || outputTokenCount == null) return null;
   const rates = FREE_MODELS[model];
   return Math.round(
     (inputTokens / 1_000_000) * rates.inputNeuronsPerMillion
-    + (outputTokens / 1_000_000) * rates.outputNeuronsPerMillion,
+    + (outputTokenCount / 1_000_000) * rates.outputNeuronsPerMillion,
   );
 }
 
@@ -368,12 +376,12 @@ export async function POST(request: Request) {
       ...extractNumericTokens(section.titleKr || "").map((token) => token.normalized),
       ...section.numericTokens.map((token) => token.normalized),
     ];
-    const outputTokens = extractNumericTokens(adaptationText(adaptation));
-    const outputNumeric = outputTokens.map((token) => token.normalized);
+    const outputNumericTokens = extractNumericTokens(adaptationText(adaptation));
+    const outputNumeric = outputNumericTokens.map((token) => token.normalized);
     const numericPass = sameNumericMultiset(sourceNumeric, outputNumeric);
 
-    const { inputTokens, outputTokens } = usageFromCloudflare(cloudflarePayload);
-    const neuronEstimate = estimatedNeurons(model, inputTokens, outputTokens);
+    const { inputTokens, outputTokenCount } = usageFromCloudflare(cloudflarePayload);
+    const neuronEstimate = estimatedNeurons(model, inputTokens, outputTokenCount);
 
     const content = {
       units: adaptation.units,
@@ -402,13 +410,13 @@ export async function POST(request: Request) {
         ...extractNumericTokens(section.titleKr || ""),
         ...section.numericTokens,
       ],
-      output_numeric: outputTokens,
+      output_numeric: outputNumericTokens,
       numeric_status: numericPass ? "pass" : "fail",
       terminology_status: adaptation.terms.length ? "review" : "verified",
       status: numericPass && !structureIssues.length ? "review" : "draft",
       model,
       input_tokens: inputTokens,
-      output_tokens: outputTokens,
+      output_tokens: outputTokenCount,
       updated_at: new Date().toISOString(),
     };
 
