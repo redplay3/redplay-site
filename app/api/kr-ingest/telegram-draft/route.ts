@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 
+export const maxDuration = 60;
+
 type TelegramDraftAi = {
   recommend_publish: boolean;
   priority: "high" | "medium" | "low";
@@ -114,8 +116,10 @@ function adaptationText(row: AdaptationRow) {
 }
 
 function compactAdaptations(rows: AdaptationRow[]) {
-  const maxTotal = 52000;
-  const maxPerSection = 6500;
+  // Telegram needs a concise editorial overview, not the entire article payload.
+  // Keeping all sections but capping each one materially reduces AI latency on huge KR patch notes.
+  const maxTotal = 32000;
+  const maxPerSection = 3200;
   let total = 0;
   const sections: Array<Record<string, unknown>> = [];
   for (const row of rows.sort((a, b) => a.section_index - b.section_index)) {
@@ -213,23 +217,45 @@ export async function POST(request: Request) {
     sections: compactAdaptations(adaptations),
   };
 
-  const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiToken}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      messages: [
-        { role: "system", content: systemPrompt(item.edition) },
-        { role: "user", content: JSON.stringify(source) },
-      ],
-      max_tokens: 1900,
-      temperature: 0.15,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiToken}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: systemPrompt(item.edition) },
+          { role: "user", content: JSON.stringify(source) },
+        ],
+        max_tokens: 1200,
+        temperature: 0.15,
+      }),
+      signal: AbortSignal.timeout(50_000),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "неизвестная ошибка";
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    return NextResponse.json(
+      { error: timedOut ? "Telegram Composer не успел ответить за 50 секунд. Попробуй ещё раз." : `Cloudflare Workers AI недоступен: ${message}` },
+      { status: timedOut ? 504 : 502 },
+    );
+  }
+
   const cfPayload = await response.json().catch(() => null);
   if (!response.ok) return NextResponse.json({ error: cloudflareError(cfPayload, response.status) }, { status: 502 });
-  const rawOutput = cloudflareOutput(cfPayload);
-  if (!rawOutput) return NextResponse.json({ error: "Cloudflare не вернул Telegram draft" }, { status: 502 });
-  const ai = normalizeAi(rawOutput);
+
+  let ai: TelegramDraftAi;
+  try {
+    const rawOutput = cloudflareOutput(cfPayload);
+    if (!rawOutput) return NextResponse.json({ error: "Cloudflare не вернул Telegram draft" }, { status: 502 });
+    ai = normalizeAi(rawOutput);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Не удалось разобрать ответ Telegram Composer" },
+      { status: 502 },
+    );
+  }
+
   const usage = usageFromCloudflare(cfPayload);
 
   const draftRow = {
