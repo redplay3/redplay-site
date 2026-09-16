@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { KrChatGptHandoff } from "@/components/admin/kr-chatgpt-handoff";
 import { KrPrepareItem } from "@/components/admin/kr-prepare-item";
+import { KrQaRepair } from "@/components/admin/kr-qa-repair";
 import { KrReviewTabs, type KrReviewBlock, type KrStoredAdaptation } from "@/components/admin/kr-review-tabs";
 import { KrTelegramProposal, type KrTelegramDraft } from "@/components/admin/kr-telegram-proposal";
+import { isUsefulKrImage } from "@/lib/kr/media";
 import { assembleSemanticSections } from "@/lib/kr/semantic";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTopbar } from "../../layout";
@@ -93,9 +95,13 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
   }
 
   const sectionCount = blocks.length ? assembleSemanticSections(blocks).length : 0;
+  const numericFailures = adaptations.filter((row) => row.numeric_status === "fail").length;
+  const structureFailures = adaptations.filter((row) => row.content?.validation?.structure_status === "fail").length;
+  const usefulImages = blocks.filter((block) => block.block_type === "image" && isUsefulKrImage(block)).length;
   const articleReady = sectionCount > 0
     && adaptations.length >= sectionCount
-    && adaptations.every((row) => row.numeric_status !== "fail" && row.content?.validation?.structure_status !== "fail");
+    && numericFailures === 0
+    && structureFailures === 0;
 
   return <main className="admin-shell">
     <AdminTopbar />
@@ -131,6 +137,15 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
         </div>
         <KrPrepareItem url={item.primary_url} mode="refresh" />
       </section> : null}
+
+      {latest && blocks.length ? <KrQaRepair
+        snapshotId={latest.id}
+        sectionCount={sectionCount}
+        adaptationCount={adaptations.length}
+        numericFailures={numericFailures}
+        structureFailures={structureFailures}
+        usefulImages={usefulImages}
+      /> : null}
 
       {latest ? <KrTelegramProposal itemId={item.id} initialDraft={telegramDraft} articleReady={articleReady} /> : null}
       {latest && blocks.length ? <KrChatGptHandoff snapshotId={latest.id} /> : null}
