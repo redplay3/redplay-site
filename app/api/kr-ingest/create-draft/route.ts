@@ -119,7 +119,7 @@ function sourceFaithfulTable(sourceUnit: Extract<KrSemanticUnit, { type: "table"
     header: Boolean(cell.header),
     background: cell.background ?? null,
     color: cell.color ?? null,
-    align: cell.align ?? null,
+    align: cell.align ?? undefined,
     bold: Boolean(cell.bold),
   })));
 
