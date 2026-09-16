@@ -76,6 +76,47 @@ export function KrQaRepair({
     return readJson<{ error?: string }>(response, `Не удалось починить ${sectionId} / unit ${unitIndex + 1}`);
   }
 
+  async function rebuildTextSection(sectionId: string) {
+    const response = await fetch("/api/kr-ingest/rebuild-text-fidelity", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ snapshotId, sectionId }),
+    });
+    return readJson<{ error?: string; blocks?: number; structureStatus?: string; numericStatus?: string }>(response, `Не удалось пересобрать ${sectionId}`);
+  }
+
+  async function sourceFidelity() {
+    if (loading || !translated) return;
+    setLoading(true);
+    setMessage("Пересобираю текстовые source-блоки строго 1:1 с PLAYNC…");
+    const errors: string[] = [];
+    let translatedBlocks = 0;
+    try {
+      for (let index = 1; index <= sectionCount; index += 1) {
+        const sectionId = `semantic-${index}`;
+        setMessage(`PLAYNC 1:1 · раздел ${index}/${sectionCount}: ${sectionId}`);
+        try {
+          const result = await rebuildTextSection(sectionId);
+          translatedBlocks += result.blocks || 0;
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : `${sectionId}: ошибка`);
+        }
+      }
+
+      setMessage("Source-блоки пересобраны. Проверяю таблицы, структуру и цифры…");
+      const qa = await runRepair();
+      const tail = errors.length ? ` Ошибок разделов: ${errors.length}. ${errors.slice(0, 2).join(" · ")}` : "";
+      setMessage(qa.ready
+        ? `PLAYNC 1:1 готово: ${translatedBlocks} текстовых блоков закреплены за исходными позициями, QA пройден.${tail}`
+        : `PLAYNC 1:1 завершено. Осталось: структура FAIL ${qa.structureFailures ?? 0}, цифры FAIL ${qa.numericFailures ?? 0}.${tail}`);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось пересобрать структуру 1:1");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function repair() {
     if (loading) return;
     setLoading(true);
@@ -84,8 +125,6 @@ export function KrQaRepair({
       let qa = await runRepair();
       const errors: string[] = [];
 
-      // Repair only individual failed semantic units. A large class section therefore
-      // no longer waits for one multi-minute Vercel request containing 7–12 AI calls.
       for (let cycle = 1; cycle <= 2 && !qa.ready; cycle += 1) {
         const jobs = (qa.failedUnits || []).flatMap((group) =>
           group.unit_indexes.map((unitIndex) => ({ sectionId: group.section_id, unitIndex })),
@@ -132,7 +171,10 @@ export function KrQaRepair({
         </div>
         {usefulImages === 0 ? <p style={{ margin: "10px 0 0", color: "#747985", fontSize: 13, lineHeight: 1.5 }}>В исходном материале нет полезного арта: PLAYNC footer-баннер не считаем контентным изображением. Для публикации используем отдельную обложку RedPlay.</p> : null}
       </div>
-      {translated && (numericFailures > 0 || structureFailures > 0) ? <button type="button" className="admin-primary" disabled={loading} onClick={repair}>{loading ? "Автопочинка идёт…" : "Автопочинка QA"}</button> : null}
+      {translated ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <button type="button" className="admin-primary" disabled={loading} onClick={sourceFidelity}>{loading ? "Обработка…" : "Пересобрать 1:1 с PLAYNC"}</button>
+        {(numericFailures > 0 || structureFailures > 0) ? <button type="button" className="admin-primary" disabled={loading} onClick={repair}>Автопочинка QA</button> : null}
+      </div> : null}
     </div>
     {message ? <div style={{ marginTop: 12, padding: 11, borderRadius: 10, background: "#fff", color: "#555c68", fontSize: 13 }}>{message}</div> : null}
   </section>;
