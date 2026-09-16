@@ -1,20 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
 
-export type KrReviewBlock = {
-  id: string;
-  ordinal: number;
-  block_type: string;
-  source_type: string | null;
-  text_kr: string | null;
-  raw_html: string | null;
-  data: Record<string, unknown> | null;
-};
+export type KrReviewBlock = KrSemanticSourceBlock;
 
 type NumericToken = { raw: string; normalized: string; kind: "percent" | "number" };
 type TableCell = { text: string; colspan?: number; rowspan?: number; header?: boolean };
-type Section = { title: string | null; blocks: KrReviewBlock[] };
 type Tab = "redplay" | "original" | "qa";
 
 function numericTokens(block: KrReviewBlock): NumericToken[] {
@@ -49,25 +41,8 @@ function imageSource(block: KrReviewBlock) {
   return typeof value === "string" && value ? value : null;
 }
 
-function buildSections(blocks: KrReviewBlock[]): Section[] {
-  const sections: Section[] = [];
-  let current: Section = { title: null, blocks: [] };
-
-  for (const block of blocks) {
-    if (block.block_type === "heading" && block.text_kr) {
-      if (current.title || current.blocks.length) sections.push(current);
-      current = { title: block.text_kr, blocks: [] };
-      continue;
-    }
-    current.blocks.push(block);
-  }
-
-  if (current.title || current.blocks.length) sections.push(current);
-  return sections;
-}
-
 export function KrReviewTabs({ blocks }: { blocks: KrReviewBlock[] }) {
-  const sections = useMemo(() => buildSections(blocks), [blocks]);
+  const sections = useMemo(() => assembleSemanticSections(blocks), [blocks]);
   const [tab, setTab] = useState<Tab>("original");
   const numericCount = useMemo(() => blocks.reduce((sum, block) => sum + numericTokens(block).length, 0), [blocks]);
 
@@ -89,37 +64,54 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   return <button type="button" onClick={onClick} style={{ border: active ? "1px solid #f22d43" : "1px solid #d7dbe2", borderRadius: 999, background: active ? "#f22d43" : "#fff", color: active ? "#fff" : "#626874", padding: "9px 13px", fontSize: 12, fontWeight: 900, cursor: "pointer" }}>{children}</button>;
 }
 
-function RedPlayDraft({ sections }: { sections: Section[] }) {
+function RedPlayDraft({ sections }: { sections: KrSemanticSection[] }) {
   return <div style={{ display: "grid", gap: 16 }}>
     <div style={{ border: "1px solid #dfe2e8", borderRadius: 16, background: "#fff", padding: 18 }}>
-      <strong style={{ fontSize: 16 }}>Редакционная версия ещё не собрана</strong>
-      <p style={{ marginTop: 6, color: "#747985", fontSize: 13, lineHeight: 1.6 }}>Следующий этап будет собирать из исходной структуры нормальные разделы RedPlay, переводить их целиком и только потом создавать публикацию. Технические микроблоки сюда не попадут.</p>
+      <strong style={{ fontSize: 16 }}>Semantic Assembler готовит структуру RedPlay</strong>
+      <p style={{ marginTop: 6, color: "#747985", fontSize: 13, lineHeight: 1.6 }}>RAW-блоки больше не являются будущими абзацами статьи. Соседние фрагменты текста объединяются в смысловой текстовый узел, таблицы и изображения остаются самостоятельными элементами, а номера исходных блоков сохраняются только для QA.</p>
     </div>
 
-    {sections.map((section, index) => <article key={index} style={{ border: "1px solid #dfe2e8", borderRadius: 16, background: "#fff", padding: 18 }}>
-      <div style={{ color: "#9a6b00", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>Ожидает адаптации</div>
-      <h2 style={{ marginTop: 7, fontSize: 20, fontWeight: 950 }}>{section.title || (index === 0 ? "Введение" : `Раздел ${index + 1}`)}</h2>
-      <p style={{ marginTop: 8, color: "#747985", fontSize: 13 }}>Источник собран в {section.blocks.length} структурных элементов. Здесь появится единый русский раздел, а не перевод каждого элемента отдельно.</p>
-      <details style={{ marginTop: 14, borderTop: "1px solid #edf0f3", paddingTop: 12 }}>
-        <summary style={{ cursor: "pointer", color: "#6d7480", fontSize: 12, fontWeight: 850 }}>Показать оригинал KR</summary>
-        <div style={{ marginTop: 12 }}><OriginalSection section={section} /></div>
-      </details>
-    </article>)}
+    {sections.map((section, index) => {
+      const textUnits = section.units.filter((unit) => unit.type === "text").length;
+      const tables = section.units.filter((unit) => unit.type === "table").length;
+      const images = section.units.filter((unit) => unit.type === "image").length;
+      return <article key={section.id} style={{ border: "1px solid #dfe2e8", borderRadius: 16, background: "#fff", padding: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ color: "#9a6b00", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>Ожидает перевода и адаптации</div>
+          <div style={{ color: "#8a909a", fontSize: 11 }}>{section.kind.toUpperCase()} · {section.numericTokens.length} чисел</div>
+        </div>
+        <h2 style={{ marginTop: 7, fontSize: 20, lineHeight: 1.3, fontWeight: 950 }}>{section.titleKr || (index === 0 ? "Введение" : `Раздел ${index + 1}`)}</h2>
+        <p style={{ marginTop: 8, color: "#747985", fontSize: 13, lineHeight: 1.6 }}>Будущий русский раздел собирается целиком из {section.units.length} смысловых элементов, а не из {section.sourceBlocks.length} технических фрагментов.</p>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+          {textUnits ? <UnitBadge>{textUnits} текст.</UnitBadge> : null}
+          {tables ? <UnitBadge>{tables} табл.</UnitBadge> : null}
+          {images ? <UnitBadge>{images} изобр.</UnitBadge> : null}
+        </div>
+        <details style={{ marginTop: 14, borderTop: "1px solid #edf0f3", paddingTop: 12 }}>
+          <summary style={{ cursor: "pointer", color: "#6d7480", fontSize: 12, fontWeight: 850 }}>Показать оригинал KR</summary>
+          <div style={{ marginTop: 12 }}><OriginalSection section={section} /></div>
+        </details>
+      </article>;
+    })}
   </div>;
 }
 
-function OriginalArticle({ sections }: { sections: Section[] }) {
+function UnitBadge({ children }: { children: React.ReactNode }) {
+  return <span style={{ borderRadius: 999, background: "#f2f3f5", padding: "5px 8px", color: "#6f7580", fontSize: 11, fontWeight: 850 }}>{children}</span>;
+}
+
+function OriginalArticle({ sections }: { sections: KrSemanticSection[] }) {
   return <article style={{ width: "min(1050px,100%)", margin: "0 auto", border: "1px solid #dfe2e8", borderRadius: 18, background: "#fff", padding: "clamp(18px,3vw,34px)" }}>
-    {sections.map((section, index) => <section key={index} style={{ marginTop: index ? 32 : 0 }}>
-      {section.title ? <h2 style={{ marginBottom: 16, fontSize: 24, lineHeight: 1.25, fontWeight: 950 }}>{section.title}</h2> : null}
+    {sections.map((section, index) => <section key={section.id} style={{ marginTop: index ? 32 : 0 }}>
+      {section.titleKr ? <h2 style={{ marginBottom: 16, fontSize: 24, lineHeight: 1.25, fontWeight: 950 }}>{section.titleKr}</h2> : null}
       <OriginalSection section={section} />
     </section>)}
   </article>;
 }
 
-function OriginalSection({ section }: { section: Section }) {
+function OriginalSection({ section }: { section: KrSemanticSection }) {
   return <div style={{ display: "grid", gap: 12 }}>
-    {section.blocks.map((block) => <OriginalBlock key={block.id} block={block} />)}
+    {section.sourceBlocks.map((block) => <OriginalBlock key={block.id} block={block} />)}
   </div>;
 }
 
