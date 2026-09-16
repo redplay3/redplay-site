@@ -1,7 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeAdaptedUnits } from "@/lib/kr/adaptation-repair";
+import { imageAlt, imageSource, isUsefulKrImage } from "@/lib/kr/media";
 import { assembleSemanticSections, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
+import { sourceTableTextRows } from "@/lib/kr/table-geometry";
 
 type AdaptedUnit = {
   type: "text" | "table" | "image";
@@ -27,28 +30,6 @@ type StoredAdaptation = {
   status: string;
   model: string | null;
 };
-
-function tableRows(block: KrSemanticSourceBlock): string[][] {
-  const value = block.data?.rows;
-  if (!Array.isArray(value)) return [];
-  return value.filter(Array.isArray).map((row) => row.map((cell) => {
-    if (cell && typeof cell === "object" && "text" in (cell as Record<string, unknown>)) {
-      return String((cell as Record<string, unknown>).text ?? "");
-    }
-    return String(cell ?? "");
-  }));
-}
-
-function imageSource(block: KrSemanticSourceBlock) {
-  const value = block.data?.src;
-  return typeof value === "string" && value ? value : null;
-}
-
-function imageAlt(block: KrSemanticSourceBlock) {
-  const value = block.data?.alt;
-  if (typeof value === "string" && value) return value;
-  return block.text_kr || "";
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -103,7 +84,8 @@ export async function POST(request: Request) {
   let tableCount = 0;
   const packetSections = sections.map((section, sectionIndex) => {
     const adaptation = adaptationMap.get(section.id);
-    const adaptedUnits = Array.isArray(adaptation?.content?.units) ? adaptation!.content!.units! : [];
+    const storedUnits = Array.isArray(adaptation?.content?.units) ? adaptation!.content!.units! : [];
+    const adaptedUnits = adaptation ? normalizeAdaptedUnits(section, storedUnits) as AdaptedUnit[] : storedUnits;
 
     const units = section.units.map((unit, unitIndex) => {
       const adapted = adaptedUnits[unitIndex];
@@ -120,11 +102,12 @@ export async function POST(request: Request) {
         return {
           type: "table" as const,
           table_index: tableCount,
-          rows_kr: tableRows(unit.block),
+          rows_kr: sourceTableTextRows(unit.block),
           rows_ru: adapted?.type === "table" && Array.isArray(adapted.rows_ru) ? adapted.rows_ru : [],
           source_ordinals: unit.sourceOrdinals,
         };
       }
+      if (!isUsefulKrImage(unit.block)) return null;
       imageCount += 1;
       return {
         type: "image" as const,
@@ -134,7 +117,7 @@ export async function POST(request: Request) {
         caption_ru: adapted?.type === "image" ? String(adapted.caption_ru || "") : "",
         source_ordinals: unit.sourceOrdinals,
       };
-    });
+    }).filter(Boolean);
 
     return {
       section_id: section.id,
@@ -154,8 +137,8 @@ export async function POST(request: Request) {
     };
   });
 
-  const failedNumeric = adaptations.filter((item) => item.numeric_status === "fail").length;
-  const failedStructure = adaptations.filter((item) => item.content?.validation?.structure_status === "fail").length;
+  const failedNumeric = adaptations.filter((entry) => entry.numeric_status === "fail").length;
+  const failedStructure = adaptations.filter((entry) => entry.content?.validation?.structure_status === "fail").length;
   const generatedAt = new Date();
   const expiresAt = new Date(generatedAt.getTime() + 24 * 60 * 60 * 1000);
 
@@ -175,6 +158,7 @@ export async function POST(request: Request) {
         "Не превращать большой патчноут в пересказ всех строк: подробности остаются на RedPlay.",
         "Критичные цифры сохранять точно; если раздел не прошёл numeric/structure validation, явно предупредить редактора.",
         "Из изображений и таблиц предложить максимум 3 действительно полезных медиа.",
+        "Не использовать декоративные footer/banner изображения PLAYNC как медиа публикации.",
         "Финальное решение о публикации всегда принимает пользователь.",
       ],
     },
@@ -205,6 +189,7 @@ export async function POST(request: Request) {
       structure_failures: failedStructure,
       tables: tableCount,
       images: imageCount,
+      cover_required: imageCount === 0,
     },
     sections: packetSections,
   };
