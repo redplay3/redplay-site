@@ -75,24 +75,33 @@ function comparableFacts(text: string) {
     return `time:${Number(match[1])}:${match[2].padStart(2, "0")}`;
   });
 
-  // Korean large-number units. This makes 10억 equivalent to 1,000,000,000 / 1 млрд.
-  pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(억|만|천)\b/g, ranges, facts, (match) => {
+  // Korean large-number units. Korean letters are not JS \w chars, so do not use \b after the unit.
+  // 10억 = 1,000,000,000; 5만 = 50,000; 3천 = 3,000; 1조 = 1,000,000,000,000.
+  pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(조|억|만|천)/g, ranges, facts, (match) => {
     const value = normalizeDecimal(match[1]);
     if (value == null) return null;
-    const factor = match[2] === "억" ? 100_000_000 : match[2] === "만" ? 10_000 : 1_000;
+    const factor = match[2] === "조"
+      ? 1_000_000_000_000
+      : match[2] === "억"
+        ? 100_000_000
+        : match[2] === "만"
+          ? 10_000
+          : 1_000;
     return `n:${plainNumber(value * factor)}`;
   });
 
   // Russian large-number units.
-  pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(млрд\.?|миллиард(?:а|ов)?|млн\.?|миллион(?:а|ов)?|тыс\.?|тысяч(?:а|и)?)/gi, ranges, facts, (match) => {
+  pushMatches(text, /([+-]?\d+(?:[.,]\d+)?)\s*(трлн\.?|триллион(?:а|ов)?|млрд\.?|миллиард(?:а|ов)?|млн\.?|миллион(?:а|ов)?|тыс\.?|тысяч(?:а|и)?)/gi, ranges, facts, (match) => {
     const value = normalizeDecimal(match[1]);
     if (value == null) return null;
     const unit = match[2].toLowerCase();
-    const factor = unit.startsWith("млрд") || unit.startsWith("миллиард")
-      ? 1_000_000_000
-      : unit.startsWith("млн") || unit.startsWith("миллион")
-        ? 1_000_000
-        : 1_000;
+    const factor = unit.startsWith("трлн") || unit.startsWith("триллион")
+      ? 1_000_000_000_000
+      : unit.startsWith("млрд") || unit.startsWith("миллиард")
+        ? 1_000_000_000
+        : unit.startsWith("млн") || unit.startsWith("миллион")
+          ? 1_000_000
+          : 1_000;
     return `n:${plainNumber(value * factor)}`;
   });
 
@@ -103,17 +112,7 @@ function comparableFacts(text: string) {
   return facts;
 }
 
-function replaceMatchingNumericDates(sourceFacts: string[], outputText: string) {
-  const sourceDates = new Set(sourceFacts.filter((fact) => fact.startsWith("date:")));
-  if (!sourceDates.size) return outputText;
-  return outputText.replace(/\b(3[01]|[12]\d|0?[1-9])[./](1[0-2]|0?[1-9])\b/g, (full, dayRaw, monthRaw) => {
-    const fact = `date:${Number(monthRaw)}-${Number(dayRaw)}`;
-    return sourceDates.has(fact) ? `${Number(dayRaw)} сентября_placeholder_${Number(monthRaw)}` : full;
-  });
-}
-
 function outputFactsWithNumericDates(sourceFacts: string[], outputText: string) {
-  const facts = comparableFacts(outputText);
   const sourceDates = new Set(sourceFacts.filter((fact) => fact.startsWith("date:")));
   const ranges: Range[] = [];
   const dateFacts: string[] = [];
@@ -125,10 +124,10 @@ function outputFactsWithNumericDates(sourceFacts: string[], outputText: string) 
     dateFacts.push(fact);
     ranges.push({ start: match.index, end: pattern.lastIndex });
   }
-  if (!ranges.length) return facts;
+  if (!ranges.length) return comparableFacts(outputText);
 
-  // comparableFacts treated a dot date such as 16.09 as a decimal number. Remove
-  // that decimal fact and replace it with the matched calendar fact.
+  // comparableFacts would treat 16.09 as a decimal number. Mask matched source dates,
+  // then put them back as canonical date facts.
   const withoutDates = comparableFacts(masked(outputText, ranges));
   return [...withoutDates, ...dateFacts];
 }
