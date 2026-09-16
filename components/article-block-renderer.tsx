@@ -216,7 +216,7 @@ function NarrativeSkillTable({ block }: { block: ArticleTableBlock }) {
   return <section className="article-skill-card">
     <header><span>Описание навыка</span><h4>{title}</h4></header>
     {lead.map((line, index) => <p className="article-skill-lead" key={`${block.id}-lead-${index}`}>{line}</p>)}
-    {sections.filter((section) => section.items.length).map((section, index) => <div className="article-skill-section" key={`${block.id}-section-${index}`}><h5>{section.title}</h5><ul>{section.items.map((item, itemIndex) => <li key={`${block.id}-section-${index}-${itemIndex}`}>{item}</li>)}</ul></div>)}
+    {sections.map((section, index) => <div className="article-skill-section" key={`${block.id}-section-${index}`}><h5>{section.title}</h5>{section.items.length > 0 && <ul>{section.items.map((item, itemIndex) => <li key={`${block.id}-section-${index}-${itemIndex}`}>{item}</li>)}</ul>}</div>)}
     {dominance.length > 0 && <div className="article-skill-matrix"><h5>HP барьера по Dominance</h5><table><thead><tr><th>Dominance</th><th>HP барьера</th></tr></thead><tbody>{dominance.map((item, index) => <tr key={`${block.id}-dominance-${index}`}><td>{item.range}</td><td>{item.hp}</td></tr>)}</tbody></table></div>}
     {stats.length > 0 && <dl className="article-skill-stats">{stats.map((stat, index) => <div key={`${block.id}-stat-${index}`}><dt>{stat.label}</dt><dd>{stat.value}</dd></div>)}</dl>}
   </section>;
