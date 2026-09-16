@@ -3,7 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { extractNumericTokens } from "@/lib/kr/parser";
 import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
 
-const DEFAULT_MODEL = "gpt-5.6-terra";
+const DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it";
+
+const FREE_MODELS = {
+  "@cf/google/gemma-4-26b-a4b-it": { inputNeuronsPerMillion: 9091, outputNeuronsPerMillion: 27273 },
+  "@cf/zai-org/glm-4.7-flash": { inputNeuronsPerMillion: 5500, outputNeuronsPerMillion: 36400 },
+  "@cf/nvidia/nemotron-3-120b-a12b": { inputNeuronsPerMillion: 45455, outputNeuronsPerMillion: 136364 },
+} as const;
+
+type SupportedModel = keyof typeof FREE_MODELS;
 
 type AiUnit = {
   type: "text" | "table" | "image";
@@ -69,56 +77,18 @@ function sourcePayload(section: KrSemanticSection) {
         image_alt_kr: unit.block.text_kr || "",
       };
     }),
-    numeric_tokens: section.numericTokens.map((token) => token.raw),
+    numeric_tokens: [
+      ...extractNumericTokens(section.titleKr || "").map((token) => token.raw),
+      ...section.numericTokens.map((token) => token.raw),
+    ],
   };
 }
-
-const responseSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    title_ru: { type: "string" },
-    units: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          type: { type: "string", enum: ["text", "table", "image"] },
-          paragraphs_ru: { type: "array", items: { type: "string" } },
-          rows_ru: {
-            type: "array",
-            items: { type: "array", items: { type: "string" } },
-          },
-          caption_ru: { type: "string" },
-        },
-        required: ["type", "paragraphs_ru", "rows_ru", "caption_ru"],
-      },
-    },
-    terms: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          kr: { type: "string" },
-          en: { type: "string" },
-          ru: { type: "string" },
-          display: { type: "string" },
-          status: { type: "string", enum: ["unverified"] },
-        },
-        required: ["kr", "en", "ru", "display", "status"],
-      },
-    },
-  },
-  required: ["title_ru", "units", "terms"],
-} as const;
 
 function systemInstruction(edition: string | null) {
   return `Ты редактор RedPlay и локализуешь официальный корейский патчноут Lineage 2 ${edition === "main" ? "Main" : "Essence"} на русский язык.
 
 Правила обязательны:
-1. Перед тобой уже не DOM-фрагменты, а один ЦЕЛЫЙ смысловой раздел. Переводи и адаптируй его как единый раздел нормальной статьи.
+1. Перед тобой один ЦЕЛЫЙ смысловой раздел. Переводи и адаптируй его как единый раздел нормальной статьи, а не как набор разрозненных фрагментов.
 2. Нельзя сокращать факты, строки таблиц, условия, ограничения, уровни, проценты, количества или примечания. Не добавляй игровой анализ и новые факты на этом этапе.
 3. Сохрани порядок и количество units. type каждого output unit должен совпадать с соответствующим input unit.
 4. Для table сохрани ТОЧНО то же количество строк и ячеек в каждой строке. Переводи только текст ячеек.
@@ -127,25 +97,128 @@ function systemInstruction(edition: string | null) {
 7. Игровые названия: если корейское имя уверенно восстанавливается как английское название, используй формат English Name (Русское название). Не выдавай предложенный русский вариант за официальную локализацию. Добавь такую сущность в terms со status=unverified.
 8. Если английское имя нельзя восстановить уверенно, не выдумывай его: сохрани корейское имя в en и дай осторожный русский вариант в ru/display, status всё равно unverified.
 9. Для text заполняй paragraphs_ru, для table – rows_ru, для image – caption_ru. Неиспользуемые поля оставляй пустым массивом или пустой строкой.
-10. Верни только JSON по заданной схеме.`;
+10. Ответ должен быть ТОЛЬКО валидным JSON без Markdown и без пояснений вокруг него, строго такой формы:
+{"title_ru":"...","units":[{"type":"text|table|image","paragraphs_ru":[],"rows_ru":[],"caption_ru":""}],"terms":[{"kr":"...","en":"...","ru":"...","display":"...","status":"unverified"}]}`;
 }
 
-function responseOutputText(payload: unknown) {
+function parseJsonText(value: string) {
+  const cleaned = value
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned) as unknown;
+  } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1)) as unknown;
+    throw new Error("Модель не вернула валидный JSON");
+  }
+}
+
+function normalizeAdaptation(value: unknown): AiAdaptation {
+  if (!value || typeof value !== "object") throw new Error("Некорректная структура адаптации");
+  const root = value as Record<string, unknown>;
+  if (typeof root.title_ru !== "string" || !Array.isArray(root.units)) {
+    throw new Error("В адаптации отсутствует title_ru или units");
+  }
+
+  const units: AiUnit[] = root.units.map((entry, index) => {
+    if (!entry || typeof entry !== "object") throw new Error(`Unit ${index + 1}: некорректный объект`);
+    const unit = entry as Record<string, unknown>;
+    const type = unit.type;
+    if (type !== "text" && type !== "table" && type !== "image") {
+      throw new Error(`Unit ${index + 1}: неизвестный type`);
+    }
+    return {
+      type,
+      paragraphs_ru: Array.isArray(unit.paragraphs_ru) ? unit.paragraphs_ru.map((item) => String(item ?? "")) : [],
+      rows_ru: Array.isArray(unit.rows_ru)
+        ? unit.rows_ru.filter(Array.isArray).map((row) => row.map((cell) => String(cell ?? "")))
+        : [],
+      caption_ru: typeof unit.caption_ru === "string" ? unit.caption_ru : "",
+    };
+  });
+
+  const terms: AiTerm[] = Array.isArray(root.terms)
+    ? root.terms.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const term = entry as Record<string, unknown>;
+      return [{
+        kr: String(term.kr ?? ""),
+        en: String(term.en ?? ""),
+        ru: String(term.ru ?? ""),
+        display: String(term.display ?? term.ru ?? ""),
+        status: "unverified" as const,
+      }];
+    })
+    : [];
+
+  return { title_ru: root.title_ru, units, terms };
+}
+
+function cloudflareOutput(payload: unknown) {
   if (!payload || typeof payload !== "object") return null;
   const root = payload as Record<string, unknown>;
-  if (typeof root.output_text === "string" && root.output_text) return root.output_text;
-  if (!Array.isArray(root.output)) return null;
-  for (const item of root.output) {
-    if (!item || typeof item !== "object") continue;
-    const content = (item as Record<string, unknown>).content;
-    if (!Array.isArray(content)) continue;
-    for (const part of content) {
-      if (!part || typeof part !== "object") continue;
-      const record = part as Record<string, unknown>;
-      if (record.type === "output_text" && typeof record.text === "string") return record.text;
+  const result = root.result;
+  if (!result || typeof result !== "object") return null;
+  const record = result as Record<string, unknown>;
+
+  if (record.response && typeof record.response === "object") return record.response;
+  if (typeof record.response === "string") return parseJsonText(record.response);
+
+  if (Array.isArray(record.choices)) {
+    const first = record.choices[0];
+    if (first && typeof first === "object") {
+      const message = (first as Record<string, unknown>).message;
+      if (message && typeof message === "object") {
+        const content = (message as Record<string, unknown>).content;
+        if (typeof content === "string") return parseJsonText(content);
+      }
     }
   }
   return null;
+}
+
+function cloudflareError(payload: unknown, status: number) {
+  if (!payload || typeof payload !== "object") return `Cloudflare Workers AI HTTP ${status}`;
+  const root = payload as Record<string, unknown>;
+  if (Array.isArray(root.errors) && root.errors.length) {
+    const first = root.errors[0];
+    if (first && typeof first === "object" && typeof (first as Record<string, unknown>).message === "string") {
+      return String((first as Record<string, unknown>).message);
+    }
+  }
+  return `Cloudflare Workers AI HTTP ${status}`;
+}
+
+function usageFromCloudflare(payload: unknown) {
+  if (!payload || typeof payload !== "object") return { inputTokens: null, outputTokens: null };
+  const root = payload as Record<string, unknown>;
+  const result = root.result && typeof root.result === "object" ? root.result as Record<string, unknown> : {};
+  const usage = result.usage && typeof result.usage === "object"
+    ? result.usage as Record<string, unknown>
+    : root.usage && typeof root.usage === "object"
+      ? root.usage as Record<string, unknown>
+      : {};
+
+  const inputTokens = typeof usage.prompt_tokens === "number"
+    ? usage.prompt_tokens
+    : typeof usage.input_tokens === "number" ? usage.input_tokens : null;
+  const outputTokens = typeof usage.completion_tokens === "number"
+    ? usage.completion_tokens
+    : typeof usage.output_tokens === "number" ? usage.output_tokens : null;
+  return { inputTokens, outputTokens };
+}
+
+function estimatedNeurons(model: SupportedModel, inputTokens: number | null, outputTokens: number | null) {
+  if (inputTokens == null || outputTokens == null) return null;
+  const rates = FREE_MODELS[model];
+  return Math.round(
+    (inputTokens / 1_000_000) * rates.inputNeuronsPerMillion
+    + (outputTokens / 1_000_000) * rates.outputNeuronsPerMillion,
+  );
 }
 
 function adaptationText(adaptation: AiAdaptation) {
@@ -208,7 +281,7 @@ export async function POST(request: Request) {
   const { data: allowed } = await supabase.rpc("is_admin");
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  let payload: { snapshotId?: string; sectionId?: string };
+  let payload: { snapshotId?: string; sectionId?: string; model?: string };
   try {
     payload = await request.json();
   } catch {
@@ -218,11 +291,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Нужны snapshotId и sectionId" }, { status: 400 });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "В Vercel не задан OPENAI_API_KEY" }, { status: 503 });
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!accountId || !apiToken) {
+    return NextResponse.json({ error: "В Vercel нужны CLOUDFLARE_ACCOUNT_ID и CLOUDFLARE_API_TOKEN" }, { status: 503 });
   }
-  const model = process.env.KR_TRANSLATION_MODEL || DEFAULT_MODEL;
+
+  const requestedModel = payload.model || process.env.KR_TRANSLATION_MODEL || DEFAULT_MODEL;
+  if (!(requestedModel in FREE_MODELS)) {
+    return NextResponse.json({ error: "Эта модель не разрешена для KR Translator" }, { status: 400 });
+  }
+  const model = requestedModel as SupportedModel;
 
   try {
     const { data: snapshot, error: snapshotError } = await supabase
@@ -250,65 +329,62 @@ export async function POST(request: Request) {
     if (sectionIndex < 0) return NextResponse.json({ error: "Смысловой раздел не найден" }, { status: 404 });
     const section = sections[sectionIndex];
 
-    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        store: false,
-        reasoning: { effort: "medium" },
-        instructions: systemInstruction(item?.edition || null),
-        input: JSON.stringify(sourcePayload(section)),
-        max_output_tokens: 16000,
-        text: {
-          verbosity: "medium",
-          format: {
-            type: "json_schema",
-            name: "redplay_kr_section",
-            strict: true,
-            schema: responseSchema,
-          },
+    const inferenceInput: Record<string, unknown> = {
+      messages: [
+        { role: "system", content: systemInstruction(item?.edition || null) },
+        { role: "user", content: JSON.stringify(sourcePayload(section)) },
+      ],
+      temperature: 0.15,
+      max_tokens: 16000,
+      stream: false,
+    };
+    if (model === "@cf/google/gemma-4-26b-a4b-it") {
+      inferenceInput.chat_template_kwargs = { enable_thinking: false };
+    }
+
+    const cloudflareResponse = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiToken}`,
+          "content-type": "application/json",
         },
-      }),
-    });
+        body: JSON.stringify(inferenceInput),
+      },
+    );
 
-    const aiPayload = await openAiResponse.json() as Record<string, unknown>;
-    if (!openAiResponse.ok) {
-      const errorValue = aiPayload.error;
-      const message = errorValue && typeof errorValue === "object" && typeof (errorValue as Record<string, unknown>).message === "string"
-        ? String((errorValue as Record<string, unknown>).message)
-        : `OpenAI API HTTP ${openAiResponse.status}`;
-      throw new Error(message);
+    const cloudflarePayload = await cloudflareResponse.json() as Record<string, unknown>;
+    if (!cloudflareResponse.ok || cloudflarePayload.success === false) {
+      throw new Error(cloudflareError(cloudflarePayload, cloudflareResponse.status));
     }
 
-    const outputText = responseOutputText(aiPayload);
-    if (!outputText) throw new Error("Модель не вернула структурированный текст");
-
-    let adaptation: AiAdaptation;
-    try {
-      adaptation = JSON.parse(outputText) as AiAdaptation;
-    } catch {
-      throw new Error("Не удалось разобрать JSON адаптации");
-    }
+    const rawAdaptation = cloudflareOutput(cloudflarePayload);
+    if (!rawAdaptation) throw new Error("Cloudflare Workers AI не вернул адаптацию");
+    const adaptation = normalizeAdaptation(rawAdaptation);
 
     const structureIssues = validateStructure(section, adaptation);
-    const sourceNumeric = section.numericTokens.map((token) => token.normalized);
+    const sourceNumeric = [
+      ...extractNumericTokens(section.titleKr || "").map((token) => token.normalized),
+      ...section.numericTokens.map((token) => token.normalized),
+    ];
     const outputTokens = extractNumericTokens(adaptationText(adaptation));
     const outputNumeric = outputTokens.map((token) => token.normalized);
     const numericPass = sameNumericMultiset(sourceNumeric, outputNumeric);
 
-    const usage = aiPayload.usage && typeof aiPayload.usage === "object" ? aiPayload.usage as Record<string, unknown> : {};
-    const inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : null;
-    const outputTokenCount = typeof usage.output_tokens === "number" ? usage.output_tokens : null;
+    const { inputTokens, outputTokens } = usageFromCloudflare(cloudflarePayload);
+    const neuronEstimate = estimatedNeurons(model, inputTokens, outputTokens);
 
     const content = {
       units: adaptation.units,
       validation: {
         structure_status: structureIssues.length ? "fail" : "pass",
         structure_issues: structureIssues,
+      },
+      meta: {
+        provider: "cloudflare-workers-ai",
+        estimated_neurons: neuronEstimate,
+        free_daily_budget: 10000,
       },
     };
 
@@ -322,14 +398,17 @@ export async function POST(request: Request) {
       content,
       terms: adaptation.terms,
       source_ordinals: section.sourceOrdinals,
-      source_numeric: section.numericTokens,
+      source_numeric: [
+        ...extractNumericTokens(section.titleKr || ""),
+        ...section.numericTokens,
+      ],
       output_numeric: outputTokens,
       numeric_status: numericPass ? "pass" : "fail",
       terminology_status: adaptation.terms.length ? "review" : "verified",
       status: numericPass && !structureIssues.length ? "review" : "draft",
       model,
       input_tokens: inputTokens,
-      output_tokens: outputTokenCount,
+      output_tokens: outputTokens,
       updated_at: new Date().toISOString(),
     };
 
@@ -341,11 +420,22 @@ export async function POST(request: Request) {
 
     if (saveError) {
       const migrationMissing = saveError.code === "42P01" || /kr_ingest_adaptations/i.test(saveError.message || "");
-      throw new Error(migrationMissing ? "Примени миграцию docs/kr-adaptation.sql в Supabase" : saveError.message);
+      throw new Error(migrationMissing
+        ? "Таблица адаптаций ещё не создана. Выполни docs/kr-adaptation.sql в Supabase."
+        : saveError.message);
     }
 
-    return NextResponse.json({ ok: true, adaptation: saved });
+    return NextResponse.json({
+      ok: true,
+      provider: "cloudflare-workers-ai",
+      model,
+      estimatedNeurons: neuronEstimate,
+      adaptation: saved,
+    });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Не удалось адаптировать раздел" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Не удалось адаптировать раздел" },
+      { status: 500 },
+    );
   }
 }
