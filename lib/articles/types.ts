@@ -52,7 +52,7 @@ export type ArticleTableCell = {
   text: string;
   header?: boolean;
   bold?: boolean;
-  align?: "left" | "center" | "right";
+  align?: "left" | "center" | "right" | null;
   rowspan?: number;
   colspan?: number;
   color?: string | null;
@@ -106,4 +106,3 @@ export type ArticleDocument = {
   seo?: { title?: string; description?: string; keywords?: string[] };
   videoUrl?: string;
 };
-
