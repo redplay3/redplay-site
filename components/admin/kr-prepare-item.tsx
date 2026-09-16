@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function KrPrepareItem({ url }: { url: string }) {
+export function KrPrepareItem({ url, mode = "prepare" }: { url: string; mode?: "prepare" | "refresh" }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +27,8 @@ export function KrPrepareItem({ url }: { url: string }) {
     }
   }
 
+  const refresh = mode === "refresh";
+
   return <div style={{ display: "grid", gap: 10, justifyItems: "start" }}>
     <button
       type="button"
@@ -43,10 +45,12 @@ export function KrPrepareItem({ url }: { url: string }) {
         opacity: loading ? 0.7 : 1,
       }}
     >
-      {loading ? "Загружаю оригинал…" : "Подготовить материал"}
+      {loading ? "Загружаю оригинал…" : refresh ? "Обновить оригинал" : "Подготовить материал"}
     </button>
     <small style={{ color: "#747985", lineHeight: 1.5 }}>
-      Загрузит официальный PLAYNC, создаст snapshot, разберёт таблицы и подготовит смысловые разделы. Публикации на сайт не будет.
+      {refresh
+        ? "Повторно проверит официальный PLAYNC. Если оригинал изменился или источник теперь разбирается полнее, создаст новый snapshot. Публикации на сайт не будет."
+        : "Загрузит официальный PLAYNC, создаст snapshot, разберёт таблицы и подготовит смысловые разделы. Публикации на сайт не будет."}
     </small>
     {error ? <div style={{ color: "#c62435", fontSize: 13, fontWeight: 750 }}>{error}</div> : null}
   </div>;
