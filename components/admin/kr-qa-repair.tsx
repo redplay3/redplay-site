@@ -117,15 +117,32 @@ export function KrQaRepair({
     }
   }
 
-  async function repair() {
+  async function recheckNumbers() {
     if (loading) return;
     setLoading(true);
-    setMessage("Нормализую таблицы и перепроверяю QA без AI…");
+    setMessage("Перепроверяю числовые факты без AI и без изменения перевода…");
+    try {
+      const qa = await runRepair();
+      setMessage(qa.ready
+        ? "Числовой QA пройден. Текст и таблицы не изменялись."
+        : `Перепроверка завершена. Осталось: структура FAIL ${qa.structureFailures ?? 0}, цифры FAIL ${qa.numericFailures ?? 0}.`);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось перепроверить цифры");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function repairStructure() {
+    if (loading) return;
+    setLoading(true);
+    setMessage("Нормализую таблицы и ищу только реальные структурные ошибки…");
     try {
       let qa = await runRepair();
       const errors: string[] = [];
 
-      for (let cycle = 1; cycle <= 2 && !qa.ready; cycle += 1) {
+      for (let cycle = 1; cycle <= 2 && (qa.structureFailures || 0) > 0; cycle += 1) {
         const jobs = (qa.failedUnits || []).flatMap((group) =>
           group.unit_indexes.map((unitIndex) => ({ sectionId: group.section_id, unitIndex })),
         );
@@ -133,7 +150,7 @@ export function KrQaRepair({
 
         for (let index = 0; index < jobs.length; index += 1) {
           const job = jobs[index];
-          setMessage(`AI-починка ${cycle}/2 · ${index + 1}/${jobs.length}: ${job.sectionId}, блок ${job.unitIndex + 1}`);
+          setMessage(`AI-починка структуры ${cycle}/2 · ${index + 1}/${jobs.length}: ${job.sectionId}, блок ${job.unitIndex + 1}`);
           try {
             await rebuildUnit(job.sectionId, job.unitIndex);
           } catch (error) {
@@ -141,17 +158,16 @@ export function KrQaRepair({
           }
         }
 
-        setMessage(`AI-починка ${cycle}/2 завершена. Повторно сверяю структуру и цифры…`);
         qa = await runRepair();
       }
 
       const tail = errors.length ? ` Ошибок отдельных блоков: ${errors.length}. ${errors.slice(0, 2).join(" · ")}` : "";
       setMessage(qa.ready
-        ? `QA пройден: таблицы, структура и числовые факты совпадают.${tail}`
-        : `Автопочинка завершена. Осталось: структура FAIL ${qa.structureFailures ?? 0}, цифры FAIL ${qa.numericFailures ?? 0}.${tail}`);
+        ? `Структура и QA пройдены.${tail}`
+        : `Починка структуры завершена. Осталось: структура FAIL ${qa.structureFailures ?? 0}, цифры FAIL ${qa.numericFailures ?? 0}.${tail}`);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось перепроверить статью");
+      setMessage(error instanceof Error ? error.message : "Не удалось починить структуру");
     } finally {
       setLoading(false);
     }
@@ -173,7 +189,8 @@ export function KrQaRepair({
       </div>
       {translated ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
         <button type="button" className="admin-primary" disabled={loading} onClick={sourceFidelity}>{loading ? "Обработка…" : "Пересобрать 1:1 с PLAYNC"}</button>
-        {(numericFailures > 0 || structureFailures > 0) ? <button type="button" className="admin-primary" disabled={loading} onClick={repair}>Автопочинка QA</button> : null}
+        {structureFailures > 0 ? <button type="button" className="admin-primary" disabled={loading} onClick={repairStructure}>AI-починка структуры</button> : null}
+        {structureFailures === 0 && numericFailures > 0 ? <button type="button" className="admin-primary" disabled={loading} onClick={recheckNumbers}>Перепроверить цифры</button> : null}
       </div> : null}
     </div>
     {message ? <div style={{ marginTop: 12, padding: 11, borderRadius: 10, background: "#fff", color: "#555c68", fontSize: 13 }}>{message}</div> : null}
