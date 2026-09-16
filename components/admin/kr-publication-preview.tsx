@@ -1,7 +1,7 @@
 import { KrPublicationTable } from "@/components/admin/kr-publication-table";
 import { isUsefulKrImage } from "@/lib/kr/media";
 import { assembleSemanticSections, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
-import { applyVerifiedRuTerminology } from "@/lib/kr/verified-terminology";
+import { sourceTableCells } from "@/lib/kr/table-geometry";
 import type { KrStoredAdaptation } from "@/components/admin/kr-review-tabs";
 
 type AdaptedUnit = {
@@ -11,37 +11,13 @@ type AdaptedUnit = {
   caption_ru?: string;
 };
 
-type TableCell = { text: string; colspan?: number; rowspan?: number; header?: boolean };
-
-function verified(value: string) {
-  return applyVerifiedRuTerminology(value);
-}
-
-function tableRows(block: KrSemanticSourceBlock): TableCell[][] {
-  const value = block.data?.rows;
-  if (!Array.isArray(value)) return [];
-  return value.filter(Array.isArray).map((row) => row.map((cell) => {
-    if (cell && typeof cell === "object") {
-      const record = cell as Record<string, unknown>;
-      return {
-        text: String(record.text ?? ""),
-        colspan: Number(record.colspan || 1),
-        rowspan: Number(record.rowspan || 1),
-        header: Boolean(record.header),
-      };
-    }
-    return { text: String(cell ?? ""), colspan: 1, rowspan: 1, header: false };
-  }));
-}
-
 function paragraphLines(value: string) {
   return value.split(/\n+/).map((line) => line.trim()).filter(Boolean);
 }
 
 function TextUnit({ paragraphs }: { paragraphs: string[] }) {
   return <div style={{ display: "grid", gap: 10 }}>
-    {paragraphs.map((rawParagraph, index) => {
-      const paragraph = verified(rawParagraph);
+    {paragraphs.map((paragraph, index) => {
       const parts = paragraphLines(paragraph);
       const bulletish = parts.length > 1 && parts.slice(1).some((line) => /^[-•※]/.test(line));
       if (bulletish) {
@@ -74,7 +50,7 @@ export function KrPublicationPreview({
           <small style={{ display: "block", color: "#ff6576", fontWeight: 900, letterSpacing: ".04em" }}>REDPLAY · ПРЕВЬЮ ПУБЛИКАЦИИ</small>
           <strong style={{ display: "block", marginTop: 4, fontSize: 19 }}>Как материал будет выглядеть для читателя</strong>
         </div>
-        <span style={{ color: "#aeb4be", fontSize: 12 }}>QA-таблицы ниже остаются техническими</span>
+        <span style={{ color: "#aeb4be", fontSize: 12 }}>Структура таблиц повторяет PLAYNC</span>
       </summary>
 
       <article style={{ width: "min(1120px,100%)", margin: "0 auto", padding: "clamp(18px,3vw,34px)" }}>
@@ -83,23 +59,19 @@ export function KrPublicationPreview({
           if (!adaptation) return null;
           const units = Array.isArray(adaptation.content?.units) ? adaptation.content!.units as AdaptedUnit[] : [];
           return <section key={section.id} style={{ marginTop: sectionIndex ? 38 : 0, paddingTop: sectionIndex ? 30 : 0, borderTop: sectionIndex ? "1px solid #eceff3" : undefined }}>
-            <h2 style={{ margin: "0 0 18px", fontSize: "clamp(23px,3vw,31px)", lineHeight: 1.18, letterSpacing: "-.02em" }}>{verified(adaptation.title_ru || section.titleKr || `Раздел ${sectionIndex + 1}`)}</h2>
+            <h2 style={{ margin: "0 0 18px", fontSize: "clamp(23px,3vw,31px)", lineHeight: 1.18, letterSpacing: "-.02em" }}>{adaptation.title_ru || section.titleKr || `Раздел ${sectionIndex + 1}`}</h2>
             <div style={{ display: "grid", gap: 17 }}>
               {section.units.map((sourceUnit, unitIndex) => {
                 const unit = units[unitIndex];
                 if (!unit || unit.type !== sourceUnit.type) return null;
                 if (unit.type === "text") return <TextUnit key={unitIndex} paragraphs={Array.isArray(unit.paragraphs_ru) ? unit.paragraphs_ru : []} />;
-                if (unit.type === "table" && sourceUnit.type === "table") {
-                  const rows = Array.isArray(unit.rows_ru) ? unit.rows_ru.map((row) => row.map((cell) => verified(cell))) : [];
-                  return <KrPublicationTable key={unitIndex} rowsRu={rows} sourceRows={tableRows(sourceUnit.block)} />;
-                }
+                if (unit.type === "table" && sourceUnit.type === "table") return <KrPublicationTable key={unitIndex} rowsRu={Array.isArray(unit.rows_ru) ? unit.rows_ru : []} sourceRows={sourceTableCells(sourceUnit.block)} />;
                 if (unit.type === "image" && sourceUnit.type === "image" && isUsefulKrImage(sourceUnit.block)) {
                   const src = typeof sourceUnit.block.data?.src === "string" ? sourceUnit.block.data.src : "";
                   if (!src) return null;
-                  const caption = verified(unit.caption_ru || "");
                   return <figure key={unitIndex} style={{ margin: 0 }}>
-                    <img src={src} alt={caption || sourceUnit.block.text_kr || "KR source"} style={{ width: "100%", maxHeight: 620, objectFit: "contain", borderRadius: 14, background: "#f5f6f8" }} />
-                    {caption ? <figcaption style={{ marginTop: 7, color: "#747985", fontSize: 12 }}>{caption}</figcaption> : null}
+                    <img src={src} alt={unit.caption_ru || sourceUnit.block.text_kr || "KR source"} style={{ width: "100%", maxHeight: 620, objectFit: "contain", borderRadius: 14, background: "#f5f6f8" }} />
+                    {unit.caption_ru ? <figcaption style={{ marginTop: 7, color: "#747985", fontSize: 12 }}>{unit.caption_ru}</figcaption> : null}
                   </figure>;
                 }
                 return null;
