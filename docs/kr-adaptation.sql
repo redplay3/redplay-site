@@ -1,5 +1,6 @@
 -- KR semantic adaptations. Выполнить один раз в Supabase SQL Editor после docs/kr-ingest.sql.
 -- Хранит редакционную RU-версию смыслового раздела отдельно от immutable KR snapshot.
+-- Примечание: изменение Preview environment variables требует нового Vercel deployment.
 
 create table if not exists public.kr_ingest_adaptations (
   id uuid primary key default gen_random_uuid(),
