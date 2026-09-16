@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { KrReviewTabs, type KrReviewBlock } from "@/components/admin/kr-review-tabs";
+import { KrReviewTabs, type KrReviewBlock, type KrStoredAdaptation } from "@/components/admin/kr-review-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTopbar } from "../../layout";
 
@@ -70,6 +70,16 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
     : { data: [] };
   const blocks = (blockData || []) as KrReviewBlock[];
 
+  let adaptations: KrStoredAdaptation[] = [];
+  if (latest) {
+    const { data: adaptationData } = await supabase
+      .from("kr_ingest_adaptations")
+      .select("id,snapshot_id,section_id,section_index,section_kind,title_kr,title_ru,content,terms,source_ordinals,source_numeric,output_numeric,numeric_status,terminology_status,status,model,input_tokens,output_tokens,updated_at")
+      .eq("snapshot_id", latest.id)
+      .order("section_index", { ascending: true });
+    adaptations = (adaptationData || []) as KrStoredAdaptation[];
+  }
+
   return <main className="admin-shell">
     <AdminTopbar />
     <div className="admin-wrap">
@@ -97,7 +107,9 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
         </div>
       </section> : null}
 
-      {blocks.length ? <KrReviewTabs blocks={blocks} /> : <div className="admin-empty"><p>У последнего snapshot пока нет распознанных блоков.</p></div>}
+      {blocks.length && latest
+        ? <KrReviewTabs blocks={blocks} snapshotId={latest.id} initialAdaptations={adaptations} />
+        : <div className="admin-empty"><p>У последнего snapshot пока нет распознанных блоков.</p></div>}
     </div>
   </main>;
 }
