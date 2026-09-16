@@ -203,8 +203,9 @@ export async function POST(request: Request) {
     const adaptation = map.get(section.id)!;
     const adaptedUnits = Array.isArray(adaptation.content?.units) ? adaptation.content!.units! : [];
     const articleBlocks: ArticleBlock[] = [];
-    if (sectionIndex > 0) articleBlocks.push({ id: id("heading"), type: "heading", text: cleanTitle(adaptation.title_ru), level: 2 });
 
+    // The public article renderer already renders section.label as the visible
+    // section heading. Do not add an identical heading block inside the section.
     section.units.forEach((sourceUnit, unitIndex) => {
       const adapted = adaptedUnits[unitIndex];
       if (!adapted || adapted.type !== sourceUnit.type) return;
