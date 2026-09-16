@@ -3,10 +3,16 @@ export type KrTableCell = {
   colspan: number;
   rowspan: number;
   header: boolean;
+  background?: string | null;
+  color?: string | null;
+  align?: "left" | "center" | "right" | null;
+  bold?: boolean;
 };
 
 type BlockLike = {
   data?: Record<string, unknown> | null;
+  raw_html?: string | null;
+  rawHtml?: string | null;
 };
 
 function positiveInt(value: unknown) {
@@ -14,10 +20,45 @@ function positiveInt(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 1;
 }
 
+function safeCssColor(value: string | null | undefined) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]+)$/i.test(trimmed)) return trimmed;
+  return null;
+}
+
+function cellPresentation(rawHtml: string | null | undefined) {
+  const rows: Array<Array<Pick<KrTableCell, "background" | "color" | "align" | "bold">>> = [];
+  if (!rawHtml) return rows;
+
+  const rowMatches = rawHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+  for (const row of rowMatches) {
+    const cells: Array<Pick<KrTableCell, "background" | "color" | "align" | "bold">> = [];
+    const cellPattern = /<(th|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = cellPattern.exec(row))) {
+      const attrs = match[2] || "";
+      const inner = match[3] || "";
+      const styleScope = `${attrs} ${inner}`;
+      const background = safeCssColor(styleScope.match(/background-color\s*:\s*([^;"']+)/i)?.[1]);
+      const color = safeCssColor(styleScope.match(/(?:^|[;"'])\s*color\s*:\s*([^;"']+)/i)?.[1]);
+      const alignRaw = styleScope.match(/text-align\s*:\s*(left|center|right)/i)?.[1]?.toLowerCase();
+      const align = alignRaw === "left" || alignRaw === "center" || alignRaw === "right" ? alignRaw : null;
+      const bold = /<(?:strong|b)\b/i.test(inner) || /font-weight\s*:\s*(?:bold|[6-9]00)/i.test(styleScope);
+      cells.push({ background, color, align, bold });
+    }
+    rows.push(cells);
+  }
+  return rows;
+}
+
 export function sourceTableCells(block: BlockLike): KrTableCell[][] {
   const value = block.data?.rows;
   if (!Array.isArray(value)) return [];
-  return value.filter(Array.isArray).map((row) => row.map((cell) => {
+  const presentation = cellPresentation(block.raw_html || block.rawHtml);
+
+  return value.filter(Array.isArray).map((row, rowIndex) => row.map((cell, cellIndex) => {
+    const visual = presentation[rowIndex]?.[cellIndex] || {};
     if (cell && typeof cell === "object") {
       const record = cell as Record<string, unknown>;
       return {
@@ -25,9 +66,22 @@ export function sourceTableCells(block: BlockLike): KrTableCell[][] {
         colspan: positiveInt(record.colspan),
         rowspan: positiveInt(record.rowspan),
         header: Boolean(record.header),
+        background: visual.background ?? (typeof record.background === "string" ? record.background : null),
+        color: visual.color ?? (typeof record.color === "string" ? record.color : null),
+        align: visual.align ?? (record.align === "left" || record.align === "center" || record.align === "right" ? record.align : null),
+        bold: visual.bold ?? Boolean(record.bold),
       };
     }
-    return { text: String(cell ?? ""), colspan: 1, rowspan: 1, header: false };
+    return {
+      text: String(cell ?? ""),
+      colspan: 1,
+      rowspan: 1,
+      header: false,
+      background: visual.background ?? null,
+      color: visual.color ?? null,
+      align: visual.align ?? null,
+      bold: visual.bold ?? false,
+    };
   }));
 }
 
