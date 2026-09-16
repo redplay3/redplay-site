@@ -108,6 +108,14 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
         </div>
       </section> : null}
 
+      {latest && blocks.length ? <section style={{ marginTop: 16, border: "1px solid #dfe2e8", borderRadius: 14, background: "#fff", padding: 16 }}>
+        <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
+          <strong>Оригинал PLAYNC</strong>
+          <small style={{ color: "#747985", lineHeight: 1.5 }}>Можно безопасно перепроверить источник. Новый snapshot появится только если содержимое реально изменилось.</small>
+        </div>
+        <KrPrepareItem url={item.primary_url} mode="refresh" />
+      </section> : null}
+
       {blocks.length && latest
         ? <KrReviewTabs blocks={blocks} snapshotId={latest.id} initialAdaptations={adaptations} />
         : <section style={{ marginTop: 22, border: "1px solid #dfe2e8", borderRadius: 16, background: "#fff", padding: 20 }}>
@@ -120,7 +128,7 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
                 : "Радар уже поставил публикацию в очередь. Пока это только ссылка и метаданные – оригинал ещё не загружался, Cloudflare AI не запускался."}
             </p>
           </div>
-          <KrPrepareItem url={item.primary_url} />
+          <KrPrepareItem url={item.primary_url} mode={latest ? "refresh" : "prepare"} />
         </section>}
     </div>
   </main>;
