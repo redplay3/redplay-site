@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { adaptationStructureIssues, normalizeAdaptedUnits, type AdaptedUnitLike } from "@/lib/kr/adaptation-repair";
+import { isUsefulKrImage } from "@/lib/kr/media";
 import { compareNumericFacts, factsToNumericTokens } from "@/lib/kr/numeric-validation";
 import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
 import { sourceTableTextRows } from "@/lib/kr/table-geometry";
@@ -10,17 +11,19 @@ function sourceSectionText(section: KrSemanticSection) {
   for (const unit of section.units) {
     if (unit.type === "text") parts.push(...unit.paragraphs);
     else if (unit.type === "table") parts.push(...sourceTableTextRows(unit.block).flat());
-    else parts.push(unit.block.text_kr || "");
+    else if (isUsefulKrImage(unit.block)) parts.push(unit.block.text_kr || "");
   }
   return parts.filter(Boolean).join("\n");
 }
 
-function outputSectionText(title: string, units: AdaptedUnitLike[]) {
+function outputSectionText(section: KrSemanticSection, title: string, units: AdaptedUnitLike[]) {
   const parts = [title];
-  for (const unit of units) {
+  for (let index = 0; index < units.length; index += 1) {
+    const unit = units[index];
+    const sourceUnit = section.units[index];
     if (unit.type === "text") parts.push(...(unit.paragraphs_ru || []));
     else if (unit.type === "table") parts.push(...(unit.rows_ru || []).flat());
-    else if (unit.caption_ru) parts.push(unit.caption_ru);
+    else if (sourceUnit?.type === "image" && isUsefulKrImage(sourceUnit.block) && unit.caption_ru) parts.push(unit.caption_ru);
   }
   return parts.filter(Boolean).join("\n");
 }
@@ -68,7 +71,7 @@ export async function POST(request: Request) {
     const normalizedUnits = normalizeAdaptedUnits(section, units);
     const structureIssues = adaptationStructureIssues(section, normalizedUnits);
     const sourceText = sourceSectionText(section);
-    const outputText = outputSectionText(String(row.title_ru || section.titleKr || ""), normalizedUnits);
+    const outputText = outputSectionText(section, String(row.title_ru || section.titleKr || ""), normalizedUnits);
     const numeric = compareNumericFacts(sourceText, outputText);
 
     const nextContent = {
@@ -80,7 +83,7 @@ export async function POST(request: Request) {
         structure_issues: structureIssues,
         numeric_fact_differences: numeric.differences,
         repaired_at: new Date().toISOString(),
-        repair_version: "kr-repair/0.2",
+        repair_version: "kr-repair/0.4",
       },
     };
 
