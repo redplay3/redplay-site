@@ -4,7 +4,7 @@ import { isUsefulKrImage } from "@/lib/kr/media";
 import { assembleSemanticSections, type KrSemanticSourceBlock, type KrSemanticUnit } from "@/lib/kr/semantic";
 import { sourceTableCells, type KrTableCell } from "@/lib/kr/table-geometry";
 import { applyVerifiedRuTerminology } from "@/lib/kr/verified-terminology";
-import type { ArticleBlock, ArticleSection } from "@/lib/articles/types";
+import type { ArticleBlock, ArticleSection, ArticleTableCell } from "@/lib/articles/types";
 
 type AdaptedUnit = {
   type: "text" | "table" | "image";
@@ -99,9 +99,6 @@ function logicalTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, ro
   }
 
   const totalColumns = Math.max(1, ...grid.map((row) => row.length));
-  // A true second header row exists when the first header contains rowspan cells.
-  // Plain colspan alone (for example "Изготавливаемый предмет" spanning two
-  // physical columns) must not consume the first data row as a fake header.
   const multiHeader = Boolean(sourceRows[0]?.some((cell) => (cell.rowspan || 1) > 1)) && sourceRows.length > 1;
   const headerDepth = multiHeader ? 2 : 1;
   const columns = Array.from({ length: totalColumns }, (_, column) => {
@@ -121,7 +118,14 @@ function logicalTable(sourceUnit: Extract<KrSemanticUnit, { type: "table" }>, ro
     });
   });
 
-  return { id: id("table"), type: "table", columns, rows, compact: totalColumns <= 3 };
+  const cells: ArticleTableCell[][] = sourceRows.map((row, rowIndex) => row.map((cell, cellIndex) => ({
+    text: verified(String(rowsRu[rowIndex]?.[cellIndex] ?? cell.text ?? "")),
+    colspan: Math.max(1, cell.colspan || 1),
+    rowspan: Math.max(1, cell.rowspan || 1),
+    header: Boolean(cell.header) || rowIndex < headerDepth,
+  })));
+
+  return { id: id("table"), type: "table", columns, rows, compact: totalColumns <= 3, cells };
 }
 
 function imageBlock(unit: Extract<KrSemanticUnit, { type: "image" }>, adaptation: AdaptedUnit): ArticleBlock | null {
