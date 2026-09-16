@@ -18,6 +18,9 @@ create index if not exists kr_chatgpt_handoffs_expiry_idx
 
 alter table public.kr_chatgpt_handoffs enable row level security;
 
+grant select, insert, update, delete on table public.kr_chatgpt_handoffs to authenticated;
+grant select, insert, update, delete on table public.kr_chatgpt_handoffs to service_role;
+
 drop policy if exists kr_chatgpt_handoffs_admin_all on public.kr_chatgpt_handoffs;
 create policy kr_chatgpt_handoffs_admin_all
 on public.kr_chatgpt_handoffs
