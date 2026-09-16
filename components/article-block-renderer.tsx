@@ -9,6 +9,7 @@ import { ArticleVideoPlaylist } from "./article-video-playlist";
 import { ForgedDwarfSkillShowcase } from "./forged-dwarf-skill-showcase";
 import { ArticleVideoEmbed } from "./article-video-embed";
 import { ArticleRichTextContent } from "./article-rich-text";
+import { StructuredPlayncTable } from "./structured-plaync-table";
 
 const icons = {
   alert: CircleAlert,
@@ -176,6 +177,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "cta-cards":
         return <div key={block.id} className="article-link-grid">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <a className={`article-link-card ${item.scope}`} href={safeOutboundUrl(item.url)} target="_blank" rel="sponsored noopener noreferrer" key={`${block.id}-${index}`}><Gift size={24}/><div><small>{audienceLabel(item.scope)}</small><strong>{item.title}</strong><p>{item.text}</p><span>{item.action} <ArrowUpRight size={15}/></span></div></a>)}</div>;
       case "table":
+        if (block.cells?.length) return <StructuredPlayncTable key={block.id} cells={block.cells}/>;
         return <div key={block.id} className="article-data-table-wrap"><table className={`article-data-table${block.compact ? " is-compact" : ""}`}><thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={`${block.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${block.id}-${rowIndex}-${cellIndex}`}>{cleanTableCell(cell)}</td>)}</tr>)}</tbody></table></div>;
       case "flow":
         return <div key={block.id} className="replica-flow">{block.items.flatMap((item, index) => [<div key={`${block.id}-item-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</div>, ...(index < block.items.length - 1 ? [<ChevronRight key={`${block.id}-arrow-${index}`}/>] : [])])}</div>;
