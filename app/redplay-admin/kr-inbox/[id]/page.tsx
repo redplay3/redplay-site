@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { KrPrepareItem } from "@/components/admin/kr-prepare-item";
 import { KrReviewTabs, type KrReviewBlock, type KrStoredAdaptation } from "@/components/admin/kr-review-tabs";
+import { KrTelegramProposal, type KrTelegramDraft } from "@/components/admin/kr-telegram-proposal";
+import { assembleSemanticSections } from "@/lib/kr/semantic";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTopbar } from "../../layout";
 
@@ -72,6 +74,7 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
   const blocks = (blockData || []) as KrReviewBlock[];
 
   let adaptations: KrStoredAdaptation[] = [];
+  let telegramDraft: KrTelegramDraft | null = null;
   if (latest) {
     const { data: adaptationData } = await supabase
       .from("kr_ingest_adaptations")
@@ -79,7 +82,19 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
       .eq("snapshot_id", latest.id)
       .order("section_index", { ascending: true });
     adaptations = (adaptationData || []) as KrStoredAdaptation[];
+
+    const { data: draftData } = await supabase
+      .from("kr_telegram_drafts")
+      .select("id,item_id,snapshot_id,status,priority,recommend_publish,recommendation_reason,title,body,source_url,model,input_tokens,output_tokens,char_count,updated_at")
+      .eq("snapshot_id", latest.id)
+      .maybeSingle();
+    telegramDraft = (draftData || null) as KrTelegramDraft | null;
   }
+
+  const sectionCount = blocks.length ? assembleSemanticSections(blocks).length : 0;
+  const articleReady = sectionCount > 0
+    && adaptations.length >= sectionCount
+    && adaptations.every((row) => row.numeric_status !== "fail" && row.content?.validation?.structure_status !== "fail");
 
   return <main className="admin-shell">
     <AdminTopbar />
@@ -115,6 +130,8 @@ export default async function KrInboxItemPage({ params }: { params: Promise<{ id
         </div>
         <KrPrepareItem url={item.primary_url} mode="refresh" />
       </section> : null}
+
+      {latest ? <KrTelegramProposal itemId={item.id} initialDraft={telegramDraft} articleReady={articleReady} /> : null}
 
       {blocks.length && latest
         ? <KrReviewTabs blocks={blocks} snapshotId={latest.id} initialAdaptations={adaptations} />
