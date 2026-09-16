@@ -3,29 +3,56 @@ import { createClient } from "@/lib/supabase/server";
 import { adaptationStructureIssues, normalizeAdaptedUnits, type AdaptedUnitLike } from "@/lib/kr/adaptation-repair";
 import { isUsefulKrImage } from "@/lib/kr/media";
 import { compareNumericFacts, factsToNumericTokens } from "@/lib/kr/numeric-validation";
-import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
-import { sourceTableTextRows } from "@/lib/kr/table-geometry";
+import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock, type KrSemanticUnit } from "@/lib/kr/semantic";
+import { sourceTableTextRows, translatedTableShapeIssues } from "@/lib/kr/table-geometry";
+
+function sourceUnitText(unit: KrSemanticUnit) {
+  if (unit.type === "text") return unit.paragraphs.join("\n");
+  if (unit.type === "table") return sourceTableTextRows(unit.block).flat().join("\n");
+  return isUsefulKrImage(unit.block) ? (unit.block.text_kr || "") : "";
+}
+
+function outputUnitText(sourceUnit: KrSemanticUnit, unit: AdaptedUnitLike | undefined) {
+  if (!unit || sourceUnit.type !== unit.type) return "";
+  if (unit.type === "text") return (unit.paragraphs_ru || []).join("\n");
+  if (unit.type === "table") return (unit.rows_ru || []).flat().join("\n");
+  return isUsefulKrImage(sourceUnit.block) ? String(unit.caption_ru || "") : "";
+}
 
 function sourceSectionText(section: KrSemanticSection) {
-  const parts = [section.titleKr || ""];
-  for (const unit of section.units) {
-    if (unit.type === "text") parts.push(...unit.paragraphs);
-    else if (unit.type === "table") parts.push(...sourceTableTextRows(unit.block).flat());
-    else if (isUsefulKrImage(unit.block)) parts.push(unit.block.text_kr || "");
-  }
-  return parts.filter(Boolean).join("\n");
+  return [section.titleKr || "", ...section.units.map(sourceUnitText)].filter(Boolean).join("\n");
 }
 
 function outputSectionText(section: KrSemanticSection, title: string, units: AdaptedUnitLike[]) {
-  const parts = [title];
-  for (let index = 0; index < units.length; index += 1) {
-    const unit = units[index];
-    const sourceUnit = section.units[index];
-    if (unit.type === "text") parts.push(...(unit.paragraphs_ru || []));
-    else if (unit.type === "table") parts.push(...(unit.rows_ru || []).flat());
-    else if (sourceUnit?.type === "image" && isUsefulKrImage(sourceUnit.block) && unit.caption_ru) parts.push(unit.caption_ru);
+  return [
+    title,
+    ...section.units.map((sourceUnit, index) => outputUnitText(sourceUnit, units[index])),
+  ].filter(Boolean).join("\n");
+}
+
+function failedUnitIndexes(section: KrSemanticSection, units: AdaptedUnitLike[]) {
+  const failed = new Set<number>();
+
+  for (let index = 0; index < section.units.length; index += 1) {
+    const source = section.units[index];
+    const output = units[index];
+    if (!output || source.type !== output.type) {
+      failed.add(index);
+      continue;
+    }
+
+    if (source.type === "table" && output.type === "table") {
+      if (translatedTableShapeIssues(source.block, Array.isArray(output.rows_ru) ? output.rows_ru : []).length) {
+        failed.add(index);
+      }
+    }
+
+    const sourceText = sourceUnitText(source);
+    const outputText = outputUnitText(source, output);
+    if (sourceText && !compareNumericFacts(sourceText, outputText).pass) failed.add(index);
   }
-  return parts.filter(Boolean).join("\n");
+
+  return [...failed].sort((a, b) => a - b);
 }
 
 export async function POST(request: Request) {
@@ -63,6 +90,8 @@ export async function POST(request: Request) {
   if (adaptationError) return NextResponse.json({ error: adaptationError.message }, { status: 500 });
 
   const repaired: Array<Record<string, unknown>> = [];
+  const failedUnits: Array<{ section_id: string; unit_indexes: number[] }> = [];
+
   for (const row of rows || []) {
     const section = sectionMap.get(row.section_id);
     if (!section) continue;
@@ -73,6 +102,13 @@ export async function POST(request: Request) {
     const sourceText = sourceSectionText(section);
     const outputText = outputSectionText(section, String(row.title_ru || section.titleKr || ""), normalizedUnits);
     const numeric = compareNumericFacts(sourceText, outputText);
+    const unitIndexes = failedUnitIndexes(section, normalizedUnits);
+
+    // A rare title-only numeric mismatch has no unit to target. Rebuild the first text
+    // unit rather than falling back to rebuilding a whole large section.
+    if ((structureIssues.length || !numeric.pass) && !unitIndexes.length && section.units.length) {
+      unitIndexes.push(0);
+    }
 
     const nextContent = {
       ...content,
@@ -82,8 +118,9 @@ export async function POST(request: Request) {
         structure_status: structureIssues.length ? "fail" : "pass",
         structure_issues: structureIssues,
         numeric_fact_differences: numeric.differences,
+        failed_unit_indexes: unitIndexes,
         repaired_at: new Date().toISOString(),
-        repair_version: "kr-repair/0.4",
+        repair_version: "kr-repair/0.5",
       },
     };
 
@@ -101,12 +138,14 @@ export async function POST(request: Request) {
       .eq("id", row.id);
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+    if (unitIndexes.length) failedUnits.push({ section_id: row.section_id, unit_indexes: unitIndexes });
     repaired.push({
       section_id: row.section_id,
       structure_status: structureIssues.length ? "fail" : "pass",
       structure_issues: structureIssues.length,
       numeric_status: numericStatus,
       numeric_differences: numeric.differences,
+      failed_unit_indexes: unitIndexes,
     });
   }
 
@@ -119,6 +158,7 @@ export async function POST(request: Request) {
     structureFailures,
     numericFailures,
     ready: repaired.length >= sections.length && structureFailures === 0 && numericFailures === 0,
+    failedUnits,
     repaired,
   });
 }
