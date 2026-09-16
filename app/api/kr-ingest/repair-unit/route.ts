@@ -21,10 +21,13 @@ function sourceUnitText(unit: KrSemanticUnit) {
 }
 
 function outputUnitText(sourceUnit: KrSemanticUnit, unit: AdaptedUnitLike | undefined) {
-  if (!unit || sourceUnit.type !== unit.type) return "";
-  if (unit.type === "text") return (unit.paragraphs_ru || []).join("\n");
-  if (unit.type === "table") return (unit.rows_ru || []).flat().join("\n");
-  return isUsefulKrImage(sourceUnit.block) ? String(unit.caption_ru || "") : "";
+  if (!unit) return "";
+  if (sourceUnit.type === "text" && unit.type === "text") return (unit.paragraphs_ru || []).join("\n");
+  if (sourceUnit.type === "table" && unit.type === "table") return (unit.rows_ru || []).flat().join("\n");
+  if (sourceUnit.type === "image" && unit.type === "image") {
+    return isUsefulKrImage(sourceUnit.block) ? String(unit.caption_ru || "") : "";
+  }
+  return "";
 }
 
 function sourceSectionText(section: KrSemanticSection) {
@@ -93,12 +96,16 @@ function normalizeUnit(raw: Record<string, unknown>, source: KrSemanticUnit): Ad
 function usage(payload: unknown) {
   if (!payload || typeof payload !== "object") return { input: 0, output: 0 };
   const root = payload as Record<string, unknown>;
-  const result = root.result && typeof root.result === "object" ? root.result as Record<string, unknown> : {};
-  const raw = result.usage && typeof result.usage === "object" ? result.usage as Record<string, unknown> : {};
+  const result = root.result && typeof root.result === "object" ? resultAsRecord(root.result) : {};
+  const raw = result.usage && typeof result.usage === "object" ? resultAsRecord(result.usage) : {};
   return {
     input: Number(raw.prompt_tokens || raw.input_tokens || 0) || 0,
     output: Number(raw.completion_tokens || raw.output_tokens || 0) || 0,
   };
+}
+
+function resultAsRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
 }
 
 export async function POST(request: Request) {
@@ -111,7 +118,8 @@ export async function POST(request: Request) {
 
   let body: { snapshotId?: string; sectionId?: string; unitIndex?: number };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 }); }
-  if (!body.snapshotId || !body.sectionId || !Number.isInteger(body.unitIndex)) {
+  const validUnitIndex = typeof body.unitIndex === "number" && Number.isInteger(body.unitIndex) && body.unitIndex >= 0;
+  if (!body.snapshotId || !body.sectionId || !validUnitIndex) {
     return NextResponse.json({ error: "Нужны snapshotId, sectionId и unitIndex" }, { status: 400 });
   }
 
@@ -133,7 +141,7 @@ export async function POST(request: Request) {
     const sections = assembleSemanticSections((blockData || []) as KrSemanticSourceBlock[]);
     const section = sections.find((value) => value.id === body.sectionId);
     if (!section) return NextResponse.json({ error: "Раздел не найден" }, { status: 404 });
-    const unitIndex = Number(body.unitIndex);
+    const unitIndex = body.unitIndex as number;
     const sourceUnit = section.units[unitIndex];
     if (!sourceUnit) return NextResponse.json({ error: "Unit не найден" }, { status: 404 });
 
