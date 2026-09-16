@@ -26,6 +26,24 @@ const priorityMeta = {
   low: { label: "Низкий", icon: "⚪", fg: "#656b75", bg: "#f4f5f7", border: "#d9dde3" },
 } as const;
 
+async function readApiPayload(response: Response): Promise<Record<string, unknown>> {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return {
+      error: `Сервер вернул пустой ответ (HTTP ${response.status}). Вероятнее всего, функция была остановлена по таймауту.`,
+    };
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : { error: "Сервер вернул неожиданный ответ" };
+  } catch {
+    const preview = raw.replace(/\s+/g, " ").trim().slice(0, 180);
+    return {
+      error: `Сервер вернул некорректный ответ (HTTP ${response.status})${preview ? `: ${preview}` : ""}`,
+    };
+  }
+}
+
 export function KrTelegramProposal({ itemId, initialDraft, articleReady }: { itemId: string; initialDraft: KrTelegramDraft | null; articleReady: boolean }) {
   const [draft, setDraft] = useState<KrTelegramDraft | null>(initialDraft);
   const [loading, setLoading] = useState(false);
@@ -41,8 +59,9 @@ export function KrTelegramProposal({ itemId, initialDraft, articleReady }: { ite
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ itemId, force }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Не удалось собрать Telegram-предложку");
+      const payload = await readApiPayload(response);
+      if (!response.ok) throw new Error(String(payload.error || "Не удалось собрать Telegram-предложку"));
+      if (!payload.draft) throw new Error(String(payload.error || "Telegram Composer не вернул черновик"));
       setDraft(payload.draft as KrTelegramDraft);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось собрать Telegram-предложку");
@@ -61,8 +80,9 @@ export function KrTelegramProposal({ itemId, initialDraft, articleReady }: { ite
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ draftId: draft.id, status }),
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Не удалось изменить статус");
+      const payload = await readApiPayload(response);
+      if (!response.ok) throw new Error(String(payload.error || "Не удалось изменить статус"));
+      if (!payload.draft) throw new Error(String(payload.error || "Сервер не вернул обновлённый черновик"));
       setDraft(payload.draft as KrTelegramDraft);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось изменить статус");
