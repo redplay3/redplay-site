@@ -78,9 +78,9 @@ const gameLinks = [
   { name: "Special Project", short: "SP", tag: "Фарм и честный прогресс", text: "Развивай персонажа через охоту и добычу адены, собирай экипировку в игре и двигайся вперёд без L-монет.", cta: "Начать в Special Project", url: "https://ru.4game.com/s2s/redplay_eva", image: "/game-special.webp", featured: true },
 ];
 const fallbackVideos: Video[] = [
-  { id: "5Gk5mmBJQ0A", title: "Апнул все камни 8 уровня на 1 млрд! Боевая мощь взлетела", url: "https://www.youtube.com/watch?v=5Gk5mmBJQ0A", thumbnail: "https://i.ytimg.com/vi/5Gk5mmBJQ0A/hqdefault.jpg", published: "RedPlay" },
-  { id: "eJQ8OaBT2Ug", title: "Какой класс выбрать новичку в Lineage 2", url: "https://www.youtube.com/watch?v=eJQ8OaBT2Ug", thumbnail: "https://i.ytimg.com/vi/eJQ8OaBT2Ug/hqdefault.jpg", published: "RedPlay" },
-  { id: "_qeKLeVCvPs", title: "Арбалетчика переработали: новый топ PvE-класс?", url: "https://www.youtube.com/watch?v=_qeKLeVCvPs", thumbnail: "https://i.ytimg.com/vi/_qeKLeVCvPs/hqdefault.jpg", published: "RedPlay" },
+  { id: "eXb8yeCAmG4", title: "Я возвращаюсь в Lineage 2 Main! Новые сервера ADEN и RUNE – старт с нуля", url: "https://www.youtube.com/watch?v=eXb8yeCAmG4", thumbnail: "https://i.ytimg.com/vi/eXb8yeCAmG4/hqdefault.jpg", published: "RedPlay" },
+  { id: "MBx29frNvAk", title: "40 000 на заточку! Венец +10 и боевая мощь взлетела", url: "https://www.youtube.com/watch?v=MBx29frNvAk", thumbnail: "https://i.ytimg.com/vi/MBx29frNvAk/hqdefault.jpg", published: "RedPlay" },
+  { id: "zT6UhPTusio", title: "3 млрд опыта или 5,8 млн адены в час? Тест 16 локаций", url: "https://www.youtube.com/watch?v=zT6UhPTusio", thumbnail: "https://i.ytimg.com/vi/zT6UhPTusio/hqdefault.jpg", published: "RedPlay" },
 ];
 const heroSlides = [
   { kicker: "КОРЕЯ • БОЛЬШОЕ ОБНОВЛЕНИЕ", title: "FORGED IN BATTLE", text: "Все изменения классов, новые зоны и предметы — разобрали, перевели и собрали в одном месте.", cta: "Читать патчноут", tone: "red" },
