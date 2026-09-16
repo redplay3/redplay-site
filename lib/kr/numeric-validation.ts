@@ -8,7 +8,7 @@ const RU_MONTHS: Record<string, number> = {
   март: 3, марта: 3, марте: 3, марту: 3,
   апрель: 4, апреля: 4, апреле: 4, апрелю: 4,
   май: 5, мая: 5, мае: 5, маю: 5,
-  июнь: 6, июня: 6, июне: 6, июню: 6,
+  июнь: 6, июня: 6, июне: 6, июлю: 6,
   июль: 7, июля: 7, июле: 7, июлю: 7,
   август: 8, августа: 8, августе: 8, августу: 8,
   сентябрь: 9, сентября: 9, сентябре: 9, сентябрю: 9,
@@ -63,6 +63,12 @@ function comparableFacts(text: string) {
     return `date:${Number(match[1])}-${Number(match[2])}`;
   });
 
+  // PLAYNC often uses compact month/day notation in tables: 9/16~9/30.
+  // Treat only unambiguous month/day pairs (day > 12) as dates here.
+  pushMatches(text, /\b(1[0-2]|0?[1-9])\/(3[01]|[12]\d|1[3-9])\b/g, ranges, facts, (match) => {
+    return `date:${Number(match[1])}-${Number(match[2])}`;
+  });
+
   // Russian calendar dates: 16 сентября.
   const monthWords = Object.keys(RU_MONTHS).sort((a, b) => b.length - a.length).join("|");
   pushMatches(text, new RegExp(`(3[01]|[12]\\d|[1-9])\\s+(${monthWords})`, "gi"), ranges, facts, (match) => {
@@ -70,7 +76,10 @@ function comparableFacts(text: string) {
     return month ? `date:${month}-${Number(match[1])}` : null;
   });
 
-  // Clock time should compare as a single fact, not as two unrelated numbers.
+  // Clock time should compare as one fact. Korean 20시 / 20시 30분 is equivalent to 20:00 / 20:30.
+  pushMatches(text, /\b([01]?\d|2[0-3])\s*시(?:\s*([0-5]?\d)\s*분)?/g, ranges, facts, (match) => {
+    return `time:${Number(match[1])}:${String(match[2] || "0").padStart(2, "0")}`;
+  });
   pushMatches(text, /\b([01]?\d|2[0-3]):([0-5]\d)\b/g, ranges, facts, (match) => {
     return `time:${Number(match[1])}:${match[2].padStart(2, "0")}`;
   });
