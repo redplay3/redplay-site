@@ -130,7 +130,8 @@
 .next-telegram .article-next-card-icon{background:#32aee71b;color:#42bbf2}
 .article-next-games>a{position:relative;display:grid;min-width:0;min-height:154px;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:1rem;overflow:hidden;border:1px solid #ffffff14;border-radius:.85rem;background:#1a1c25;padding:1.1rem;color:#fff;transition:border-color .2s,box-shadow .2s}
 .article-next-games>a:hover{border-color:#ffffff35;box-shadow:inset 0 0 0 1px #ffffff0d}
-.article-next-games>a>span{position:relative;z-index:2}
+.article-next-games>a>span:not(.next-game-shade){position:relative;z-index:2}
+.article-next-games .next-game-shade{position:absolute;inset:0;width:100%;height:100%;z-index:1}
 .next-game-copy{min-width:0}
 .article-next-games .next-game-copy>strong{margin-top:.28rem;font-size:1.08rem;line-height:1.2}
 .article-next-games .next-game-copy>span{display:block;margin-top:.25rem;color:#ffffffa3;font-size:.72rem;font-weight:650;line-height:1.35}
