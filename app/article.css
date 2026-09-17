@@ -94,3 +94,20 @@
 /* Keep future editorial blocks from widening the mobile article viewport. */
 @media(max-width:760px){.article-page{overflow-x:clip}}
 
+/* Intentional two-level layout for the end-of-article navigation. */
+.article-next-primary{display:grid;grid-template-columns:2fr 1fr 1fr;gap:.65rem;margin-top:1.25rem}
+.article-next-games{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.65rem;margin-top:.65rem}
+.article-next-primary>a,.article-next-games>a{position:relative;display:grid;min-width:0;min-height:138px;grid-template-columns:auto minmax(0,1fr) auto;align-items:end;gap:.75rem;overflow:hidden;border:1px solid #ffffff13;border-radius:.8rem;background:#1a1c25;padding:1rem;color:#fff;transition:border-color .2s,box-shadow .2s}
+.article-next-games>a{min-height:148px}
+.article-next-primary>a:hover,.article-next-games>a:hover{border-color:#ffffff35;box-shadow:inset 0 0 0 1px #ffffff0d}
+.article-next-primary>a>svg,.article-next-primary>a>span,.article-next-games>a>svg,.article-next-games>a>span{position:relative;z-index:2}
+.article-next-primary small,.article-next-primary strong,.article-next-games small,.article-next-games strong{display:block}
+.article-next-primary small,.article-next-games small{color:#ffffff61;font-size:.62rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.article-next-primary strong,.article-next-games strong{margin-top:.25rem;font-size:.82rem;line-height:1.25}
+.article-next-primary>a>svg:last-child,.article-next-games>a>svg:last-child{width:2rem;height:2rem;border:1px solid #ffffff1c;border-radius:50%;padding:.45rem;background:#090b1166}
+.article-next-primary>.next-section{background:radial-gradient(circle at 0 100%,#f22d431f,transparent 44%),#1a1c25}
+.article-next-games .next-game>img{transition:transform .35s ease}
+.article-next-games .next-game:hover>img{transform:scale(1.035)}
+.article-next-games .next-game-shade{background:linear-gradient(90deg,#0d0f16f2 0%,#0d0f16b8 55%,#0d0f165e),linear-gradient(0deg,#0d0f16d9,transparent 75%)}
+@media(max-width:760px){.article-next{padding:1.15rem}.article-next-head h2{font-size:1.85rem!important}.article-next-primary{grid-template-columns:1fr 1fr}.article-next-primary>.next-section{grid-column:1/-1}.article-next-primary>.next-youtube,.article-next-primary>.next-telegram{min-height:140px;grid-template-columns:minmax(0,1fr) auto;align-content:space-between}.article-next-primary>.next-youtube>svg:first-child,.article-next-primary>.next-telegram>svg:first-child{grid-column:1/-1}.article-next-games{grid-template-columns:1fr}.article-next-games>a{min-height:140px}}
+

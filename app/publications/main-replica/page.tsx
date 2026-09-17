@@ -429,7 +429,15 @@ export default async function ReplicaArticle() {
         </section>
 
         <ArticleSharePanel title="Replica для Lineage 2 Main: межсерверные вторжения, Вершина Богов и 13 новых агатионов"/>
-        <section className="article-next"><div className="article-next-head"><span>Продолжить с RedPlay</span><h2>Выбери следующий шаг</h2><p>Открой другие обновления, посмотри живой разбор или получай быстрые новости.</p></div><div className="article-next-grid"><Link className="next-section" href="/lineage-2/main/updates"><Bell size={24}/><span><small>Lineage 2 Main</small><strong>Все обновления и патчноуты</strong></span><ArrowUpRight size={17}/></Link><a className="next-youtube" href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer"><Youtube size={24}/><span><small>YouTube</small><strong>Подписаться на видеоразбор</strong></span><ArrowUpRight size={17}/></a><a className="next-telegram" href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer"><Send size={24}/><span><small>Telegram</small><strong>Новости, тесты и обсуждение</strong></span><ArrowUpRight size={17}/></a><a className="next-game" href={mainLink} target="_blank" rel="sponsored noopener noreferrer"><img src="/game-main.webp" alt=""/><span className="next-game-shade"/><span><small>Lineage 2 Main</small><strong>Начать играть с бонусами</strong></span><ArrowUpRight size={17}/></a></div></section>
+        <section className="article-next">
+          <div className="article-next-head"><span>Продолжить с RedPlay</span><h2>Выбери следующий шаг</h2><p>Открой другие обновления, посмотри живой разбор или получай быстрые новости.</p></div>
+          <div className="article-next-primary">
+            <Link className="next-section" href="/lineage-2/main/updates"><Bell size={24}/><span><small>Lineage 2 Main</small><strong>Все обновления и патчноуты</strong></span><ArrowUpRight size={17}/></Link>
+            <a className="next-youtube" href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer"><Youtube size={24}/><span><small>YouTube</small><strong>Видео и живые разборы</strong></span><ArrowUpRight size={17}/></a>
+            <a className="next-telegram" href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer"><Send size={24}/><span><small>Telegram</small><strong>Новости и обсуждение</strong></span><ArrowUpRight size={17}/></a>
+          </div>
+          <div className="article-next-games"><a className="next-game" href={mainLink} target="_blank" rel="sponsored noopener noreferrer"><img src="/game-main.webp" alt=""/><span className="next-game-shade"/><span><small>Lineage 2 Main</small><strong>Бонусы новым и вернувшимся игрокам</strong></span><ArrowUpRight size={17}/></a></div>
+        </section>
 
       </article>
 
