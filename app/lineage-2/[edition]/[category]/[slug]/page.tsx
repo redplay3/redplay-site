@@ -146,7 +146,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
   return <main className="article-page">
     <RememberEditionPreference edition={article.edition}/>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>
-    <header className="article-header"><div className="mx-auto flex h-[68px] max-w-[1460px] items-center gap-5 px-4 sm:px-6 lg:px-8">
+    <header className="article-header"><div className="article-header-inner mx-auto flex h-[68px] max-w-[1460px] items-center gap-5 px-4 sm:px-6 lg:px-8">
       <Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link>
       <span className="hidden h-6 w-px bg-white/12 sm:block"/>
       <Link href="/" className="article-back"><ArrowLeft size={16}/> На главную</Link>
