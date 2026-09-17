@@ -171,7 +171,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
       <article className="article-body">
         <div className="article-status"><span><Bell size={16}/> {article.label || "Материал RedPlay"}</span><p>Обновлено: {formatDate(article.updated_at)}</p><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer">Следить в Telegram <ArrowUpRight size={14}/></a></div>
         {article.edition === "main"
-          ? sections.map((section, index) => <section id={section.id} key={section.id}>{index > 0 && <div className="article-block-heading"><span className="article-section-number">{String(index).padStart(2, "0")}</span><h2>{section.label}</h2></div>}<ArticleBlockRenderer blocks={section.blocks}/></section>)
+          ? sections.map((section, index) => <section id={section.id} key={section.id}>{index > 0 && <div className="article-block-heading"><span className="article-section-number">{String(index + 1).padStart(2, "0")}</span><h2>{section.label}</h2></div>}<ArticleBlockRenderer blocks={section.blocks}/></section>)
           : <ArticleAudienceContent sections={sections} targets={audienceTargets} articleSlug={article.slug}/>
         }
         <ArticleSharePanel title={article.title}/>

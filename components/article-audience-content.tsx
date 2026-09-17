@@ -31,7 +31,7 @@ export function ArticleAudienceContent({ sections, targets, articleSlug }: { sec
       const visible = section.blocks.some((block) => audience === "all" || !block.scope || block.scope === "all" || block.scope === audience);
       if (!visible) return null;
       return <Fragment key={section.id}>
-        <section id={section.id}>{index > 0 && <div className="article-block-heading"><span className="article-section-number">{String(index).padStart(2, "0")}</span><h2>{section.label}</h2></div>}<ArticleBlockRenderer blocks={section.blocks} audience={hasBoth ? audience : targets[0]} insertDwarfSkillShowcase={isForgedArticle}/></section>
+        <section id={section.id}>{index > 0 && <div className="article-block-heading"><span className="article-section-number">{String(index + 1).padStart(2, "0")}</span><h2>{section.label}</h2></div>}<ArticleBlockRenderer blocks={section.blocks} audience={hasBoth ? audience : targets[0]} insertDwarfSkillShowcase={isForgedArticle}/></section>
         {index === 0 && dwarfOverview && <ArticleBlockRenderer blocks={[dwarfOverview]} audience={hasBoth ? audience : targets[0]}/>}
       </Fragment>;
     })}

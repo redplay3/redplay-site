@@ -10,6 +10,8 @@ export function ArticleNavigation({ items }: { items: ArticleNavItem[] }) {
   const [active, setActive] = useState(items[0]?.id || "");
   const [showTop, setShowTop] = useState(false);
   const progressRef = useRef<HTMLSpanElement>(null);
+  const requestedSectionRef = useRef<string | null>(null);
+  const requestedSectionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let frame = 0;
@@ -18,11 +20,20 @@ export function ArticleNavigation({ items }: { items: ArticleNavItem[] }) {
       const progress = height > 0 ? Math.min(100, Math.max(0, window.scrollY / height * 100)) : 0;
       if (progressRef.current) progressRef.current.style.width = `${progress}%`;
       setShowTop((value) => value === (window.scrollY > 720) ? value : !value);
+
+      const requestedSection = requestedSectionRef.current;
+      if (requestedSection) {
+        setActive((value) => value === requestedSection ? value : requestedSection);
+        return;
+      }
+
       let current = items[0]?.id || "";
       for (const item of items) {
         const node = document.getElementById(item.id);
         if (node && node.getBoundingClientRect().top <= 190) current = item.id;
       }
+      const reachedPageEnd = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
+      if (reachedPageEnd && items.length) current = items[items.length - 1].id;
       setActive((value) => value === current ? value : current);
     };
     const scheduleUpdate = () => {
@@ -39,6 +50,7 @@ export function ArticleNavigation({ items }: { items: ArticleNavItem[] }) {
       window.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
       if (frame) window.cancelAnimationFrame(frame);
+      if (requestedSectionTimerRef.current) window.clearTimeout(requestedSectionTimerRef.current);
     };
   }, [items]);
 
@@ -47,8 +59,22 @@ export function ArticleNavigation({ items }: { items: ArticleNavItem[] }) {
     if (!node) return;
     if (window.innerWidth < 761) {
       setOpen(false);
-      const top = node.getBoundingClientRect().top + window.scrollY - 78;
-      window.requestAnimationFrame(() => window.scrollTo({ top, behavior: "auto" }));
+      setActive(id);
+      requestedSectionRef.current = id;
+      if (requestedSectionTimerRef.current) window.clearTimeout(requestedSectionTimerRef.current);
+      requestedSectionTimerRef.current = window.setTimeout(() => {
+        requestedSectionRef.current = null;
+        requestedSectionTimerRef.current = null;
+      }, 1200);
+
+      // Wait until the mobile menu has closed before measuring. A double frame
+      // avoids iOS Safari restoring the previous scroll anchor after the state update.
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        const node = document.getElementById(id);
+        if (!node) return;
+        const top = node.getBoundingClientRect().top + window.scrollY - 78;
+        window.scrollTo({ top, behavior: "auto" });
+      }));
       return;
     }
     node.scrollIntoView({ behavior: "smooth", block: "start" });
