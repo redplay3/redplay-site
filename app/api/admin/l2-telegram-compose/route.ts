@@ -29,6 +29,21 @@ type FeedRow = {
   first_seen_at: string;
 };
 
+type Material = {
+  order: number;
+  id: string;
+  edition: string;
+  category: string;
+  title: string;
+  summary: string | null;
+  raw_context: string;
+  source_url: string;
+  source_date: string | null;
+  mode: "short" | "detailed";
+  primary: boolean;
+  editor_note: string;
+};
+
 const composerTool = {
   name: "submitRedPlayTelegramPost",
   description: "Return one ready-to-edit RedPlay Telegram post.",
@@ -140,6 +155,52 @@ function referralize(body: string) {
   }).join("\n");
 }
 
+function cleanFallbackText(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/💜\s*Играть.*$/i, "")
+    .trim();
+}
+
+function fallbackText(material: Material) {
+  const summary = cleanFallbackText(material.summary || "");
+  if (summary) return material.mode === "detailed" ? summary.slice(0, 520) : summary.slice(0, 240);
+
+  // raw_context may contain several neighboring announcements. Use it only when
+  // the selected title is clearly present; otherwise keep the fallback factual.
+  const context = cleanFallbackText(material.raw_context || "");
+  if (context && context.toLowerCase().includes(material.title.toLowerCase().replace(/^\[[^\]]+]\s*/, ""))) {
+    return material.mode === "detailed" ? context.slice(0, 520) : context.slice(0, 240);
+  }
+  return "";
+}
+
+function fallbackPost(materials: Material[]) {
+  const ordered = [...materials].sort((a, b) => Number(b.primary) - Number(a.primary) || a.order - b.order);
+  const groups: Array<{ editions: string[]; heading: string }> = [
+    { editions: ["main"], heading: "⚔️ MAIN" },
+    { editions: ["essence"], heading: "👾 ESSENCE" },
+    { editions: ["special"], heading: "🛡 SPECIAL PROJECT" },
+    { editions: ["essence_special", "all", "unknown"], heading: "👾 ESSENCE + 🛡 SPECIAL PROJECT" },
+  ];
+  const dateLabel = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Kyiv", day: "numeric", month: "long" }).format(new Date());
+  const lines: string[] = [`🔥 **Что нового в Lineage 2 – ${dateLabel}**`];
+
+  for (const group of groups) {
+    const items = ordered.filter((item) => group.editions.includes(item.edition));
+    if (!items.length) continue;
+    lines.push("", group.heading, "");
+    for (const item of items) {
+      lines.push(`${item.primary ? "🔥" : "•"} **${item.title}**`);
+      const description = fallbackText(item);
+      if (description) lines.push(description);
+      lines.push(`[Подробнее](${item.source_url})`, "");
+    }
+  }
+  lines.push("RedPlay | Lineage 2");
+  return referralize(lines.join("\n").replace(/\n{3,}/g, "\n\n").trim()).slice(0, 3900);
+}
+
 function systemPrompt() {
   return `Ты Telegram-редактор RedPlay по Lineage 2. Пользователь УЖЕ выбрал конкретные материалы и сам определил глубину каждого. Не выбирай материалы за него и не добавляй другие новости.
 
@@ -205,7 +266,7 @@ export async function POST(request: Request) {
   const missing = ids.filter((id) => !byId.has(id));
   if (missing.length) return NextResponse.json({ error: "Часть выбранных материалов больше не найдена в базе" }, { status: 409 });
 
-  const materials = selections.map((selection, index) => {
+  const materials: Material[] = selections.map((selection, index) => {
     const row = byId.get(selection.id)!;
     return {
       order: index + 1,
@@ -225,43 +286,54 @@ export async function POST(request: Request) {
 
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  if (!accountId || !apiToken) return NextResponse.json({ error: "Cloudflare Workers AI не настроен" }, { status: 503 });
   const model = process.env.L2_TELEGRAM_MODEL || process.env.KR_TELEGRAM_MODEL || DEFAULT_MODEL;
 
-  let response: Response;
-  try {
-    response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiToken}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: systemPrompt() },
-          { role: "user", content: JSON.stringify({ materials }) },
-        ],
-        tools: [composerTool],
-        tool_choice: "required",
-        chat_template_kwargs: { enable_thinking: false },
-        max_tokens: 1800,
-        temperature: 0.18,
-      }),
-      signal: AbortSignal.timeout(50_000),
-    });
-  } catch (error) {
-    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-    return NextResponse.json({ error: timedOut ? "Composer не успел ответить за 50 секунд. Попробуй ещё раз." : `Cloudflare Workers AI недоступен: ${error instanceof Error ? error.message : "неизвестная ошибка"}` }, { status: timedOut ? 504 : 502 });
+  let body = "";
+  let fallbackReason: string | null = null;
+
+  if (!accountId || !apiToken) {
+    fallbackReason = "Cloudflare Workers AI не настроен";
+  } else {
+    try {
+      const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiToken}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemPrompt() },
+            { role: "user", content: JSON.stringify({ materials }) },
+          ],
+          tools: [composerTool],
+          tool_choice: "required",
+          chat_template_kwargs: { enable_thinking: false },
+          max_tokens: 1800,
+          temperature: 0.18,
+        }),
+        signal: AbortSignal.timeout(50_000),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        fallbackReason = cloudflareError(payload, response.status);
+      } else {
+        try {
+          const output = cloudflareOutput(payload);
+          if (!output) throw new Error("Cloudflare не вернул результат Composer");
+          body = referralize(normalizeBody(output));
+        } catch (error) {
+          fallbackReason = error instanceof Error ? error.message : "Не удалось разобрать ответ Composer";
+        }
+      }
+    } catch (error) {
+      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+      fallbackReason = timedOut
+        ? "Composer не успел ответить за 50 секунд"
+        : `Cloudflare Workers AI недоступен: ${error instanceof Error ? error.message : "неизвестная ошибка"}`;
+    }
   }
 
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) return NextResponse.json({ error: cloudflareError(payload, response.status) }, { status: 502 });
-
-  let body: string;
-  try {
-    const output = cloudflareOutput(payload);
-    if (!output) throw new Error("Cloudflare не вернул результат Composer");
-    body = referralize(normalizeBody(output));
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Не удалось разобрать ответ Composer" }, { status: 502 });
-  }
+  if (!body) body = fallbackPost(materials);
+  if (!body) return NextResponse.json({ error: fallbackReason || "Не удалось сформировать пост" }, { status: 502 });
 
   const now = new Date().toISOString();
   const digestDate = kyivDateKey();
@@ -269,7 +341,7 @@ export async function POST(request: Request) {
     .from("l2_ru_telegram_digests")
     .upsert({
       digest_date: digestDate,
-      status: "draft",
+      status: "composed",
       body,
       item_ids: ids,
       generated_at: now,
@@ -279,7 +351,7 @@ export async function POST(request: Request) {
     .single();
   if (saveError) return NextResponse.json({ error: saveError.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, body, digest });
+  return NextResponse.json({ ok: true, body, digest, fallback: Boolean(fallbackReason), warning: fallbackReason });
 }
 
 export async function PATCH(request: Request) {
