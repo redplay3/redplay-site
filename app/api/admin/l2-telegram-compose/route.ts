@@ -35,29 +35,46 @@ type Material = {
   edition: string;
   category: string;
   title: string;
-  summary: string | null;
-  raw_context: string;
-  source_url: string;
-  source_date: string | null;
+  sourceUrl: string;
+  sourceDate: string | null;
   mode: "short" | "detailed";
   primary: boolean;
-  editor_note: string;
+  editorNote: string;
+  context: string;
 };
 
+type AiDescription = { id: string; description: string };
+
 const composerTool = {
-  name: "submitRedPlayTelegramPost",
-  description: "Return one ready-to-edit RedPlay Telegram post.",
+  name: "submitRedPlayDescriptions",
+  description: "Return concise factual descriptions for the supplied RedPlay Telegram materials.",
   parameters: {
     type: "object",
     properties: {
-      body: {
-        type: "string",
-        description: "The full Russian Telegram post, ready for editor review.",
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            description: { type: "string" },
+          },
+          required: ["id", "description"],
+        },
       },
     },
-    required: ["body"],
+    required: ["items"],
   },
 } as const;
+
+const GROUPS = [
+  { key: "main", editions: ["main"], heading: `**[⚔️ MAIN](${REFERRALS.main})**` },
+  { key: "essence", editions: ["essence"], heading: `**[👾 ESSENCE](${REFERRALS.essence})**` },
+  { key: "special", editions: ["special"], heading: `**[🛡 SPECIAL PROJECT](${REFERRALS.special})**` },
+  { key: "essence_special", editions: ["essence_special"], heading: `**[👾 ESSENCE](${REFERRALS.essence}) + [🛡 SPECIAL PROJECT](${REFERRALS.special})**` },
+  { key: "all", editions: ["all"], heading: "**🌐 ВСЕ ВЕРСИИ**" },
+  { key: "unknown", editions: ["unknown"], heading: "**🌐 LINEAGE 2**" },
+] as const;
 
 function kyivDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -138,87 +155,168 @@ function cloudflareError(payload: unknown, status: number) {
   return `Cloudflare Workers AI HTTP ${status}`;
 }
 
-function normalizeBody(value: unknown) {
-  if (!value || typeof value !== "object") throw new Error("Некорректный ответ Telegram Composer");
-  const body = String((value as Record<string, unknown>).body ?? "").trim();
-  if (!body) throw new Error("Telegram Composer не вернул текст поста");
-  return body.slice(0, 3900);
-}
-
-function referralize(body: string) {
-  return body.split(/\r?\n/).map((line) => {
-    const plain = line.replace(/\*\*/g, "").replace(/^\s+|\s+$/g, "");
-    if (/^⚔️\s*MAIN\b/i.test(plain)) return `**[⚔️ MAIN](${REFERRALS.main})**`;
-    if (/^👾\s*ESSENCE\b/i.test(plain)) return `**[👾 ESSENCE](${REFERRALS.essence})**`;
-    if (/^🛡\s*(SPECIAL|SPECIAL PROJECT)\b/i.test(plain)) return `**[🛡 SPECIAL PROJECT](${REFERRALS.special})**`;
-    return line;
-  }).join("\n");
-}
-
-function cleanFallbackText(value: string) {
+function cleanTitle(value: string) {
   return value
+    .replace(/^\s*\[[^\]]+\]\s*/u, "")
+    .replace(/^\s*[▫️•]\s*/u, "")
     .replace(/\s+/g, " ")
-    .replace(/💜\s*Играть.*$/i, "")
     .trim();
 }
 
-function fallbackText(material: Material) {
-  const summary = cleanFallbackText(material.summary || "");
-  if (summary) return material.mode === "detailed" ? summary.slice(0, 520) : summary.slice(0, 240);
+function cleanContext(value: string) {
+  return value
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !/^💜\s*Играть/i.test(line) && !/^#/.test(line))
+    .join("\n")
+    .replace(/\s*🗣\s*Подробнее[^\n]*$/i, "")
+    .trim();
+}
 
-  // raw_context may contain several neighboring announcements. Use it only when
-  // the selected title is clearly present; otherwise keep the fallback factual.
-  const context = cleanFallbackText(material.raw_context || "");
-  if (context && context.toLowerCase().includes(material.title.toLowerCase().replace(/^\[[^\]]+]\s*/, ""))) {
-    return material.mode === "detailed" ? context.slice(0, 520) : context.slice(0, 240);
-  }
+function isAggregateContext(value: string) {
+  const lines = value.split("\n").map((line) => line.trim()).filter(Boolean);
+  const itemLines = lines.filter((line) => /^[▫️•]\s*\[[^\]]+\]/u.test(line));
+  if (itemLines.length >= 2) return true;
+  const taggedLines = lines.filter((line) => /\[(?:Акция|Ивент|Коды?|Событие)[^\]]*\]/i.test(line));
+  return taggedLines.length >= 2;
+}
+
+function isolatedContext(row: FeedRow) {
+  const summary = cleanContext(row.summary || "");
+  if (summary && !isAggregateContext(summary)) return summary;
+
+  const raw = cleanContext(row.raw_context || "");
+  if (!raw || isAggregateContext(raw)) return "";
+
+  const title = cleanTitle(row.title).toLowerCase();
+  const rawLower = raw.toLowerCase();
+  if (title && rawLower.includes(title)) return raw;
+  if (row.title && rawLower.includes(row.title.toLowerCase())) return raw;
   return "";
 }
 
-function fallbackPost(materials: Material[]) {
-  const ordered = [...materials].sort((a, b) => Number(b.primary) - Number(a.primary) || a.order - b.order);
-  const groups: Array<{ editions: string[]; heading: string }> = [
-    { editions: ["main"], heading: "⚔️ MAIN" },
-    { editions: ["essence"], heading: "👾 ESSENCE" },
-    { editions: ["special"], heading: "🛡 SPECIAL PROJECT" },
-    { editions: ["essence_special", "all", "unknown"], heading: "👾 ESSENCE + 🛡 SPECIAL PROJECT" },
-  ];
-  const dateLabel = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Kyiv", day: "numeric", month: "long" }).format(new Date());
-  const lines: string[] = [`🔥 **Что нового в Lineage 2 – ${dateLabel}**`];
+function truncateAtWord(value: string, max: number) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  const sliced = clean.slice(0, max + 1);
+  const cut = sliced.lastIndexOf(" ");
+  return `${(cut > max * 0.65 ? sliced.slice(0, cut) : sliced.slice(0, max)).trim()}…`;
+}
 
-  for (const group of groups) {
-    const items = ordered.filter((item) => group.editions.includes(item.edition));
-    if (!items.length) continue;
-    lines.push("", group.heading, "");
-    for (const item of items) {
-      lines.push(`${item.primary ? "🔥" : "•"} **${item.title}**`);
-      const description = fallbackText(item);
-      if (description) lines.push(description);
-      lines.push(`[Подробнее](${item.source_url})`, "");
-    }
+function sanitizeDescription(value: string) {
+  return value
+    .replace(/\*\*/g, "")
+    .replace(/\[[^\]]+\]\([^\)]+\)/g, "")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/\s*Подробнее\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function editionLabel(edition: string) {
+  if (edition === "main") return "Main";
+  if (edition === "essence") return "Essence";
+  if (edition === "special") return "Special Project";
+  if (edition === "essence_special") return "Essence и Special Project";
+  if (edition === "all") return "всех версий Lineage 2";
+  return "Lineage 2";
+}
+
+function genericDescription(material: Material) {
+  const version = editionLabel(material.edition);
+  if (material.category === "promo") return `Акция для ${version}.`;
+  if (material.category === "code") return `Код для ${version}.`;
+  if (material.category === "event") return `Игровое событие для ${version}.`;
+  if (material.category === "update") return `Обновление для ${version}.`;
+  if (material.category === "notice") return `Важная информация для ${version}.`;
+  if (material.category === "maintenance") return `Информация о профилактических работах для ${version}.`;
+  return `Материал для ${version}.`;
+}
+
+function categoryIcon(category: string) {
+  if (category === "promo") return "🎁";
+  if (category === "event") return "🎯";
+  if (category === "code") return "🎟️";
+  if (category === "update") return "⚡";
+  if (category === "notice") return "📌";
+  if (category === "maintenance") return "🛠️";
+  return "•";
+}
+
+function normalizeAiDescriptions(value: unknown, allowedIds: Set<string>) {
+  const result = new Map<string, string>();
+  if (!value || typeof value !== "object") return result;
+  const items = (value as Record<string, unknown>).items;
+  if (!Array.isArray(items)) return result;
+
+  for (const raw of items) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as Record<string, unknown>;
+    const id = String(row.id || "").trim();
+    if (!id || !allowedIds.has(id)) continue;
+    const description = sanitizeDescription(String(row.description || ""));
+    if (description) result.set(id, description);
   }
-  lines.push("RedPlay | Lineage 2");
-  return referralize(lines.join("\n").replace(/\n{3,}/g, "\n\n").trim()).slice(0, 3900);
+  return result;
 }
 
 function systemPrompt() {
-  return `Ты Telegram-редактор RedPlay по Lineage 2. Пользователь УЖЕ выбрал конкретные материалы и сам определил глубину каждого. Не выбирай материалы за него и не добавляй другие новости.
+  return `Ты готовишь только КОРОТКИЕ ОПИСАНИЯ выбранных материалов для Telegram-редактора RedPlay по Lineage 2.
 
-Собери ОДИН готовый русскоязычный Telegram-пост.
+КРИТИЧЕСКИЕ ПРАВИЛА:
+1. Для каждого входного material верни ровно одну запись с тем же id.
+2. Пиши только описание. НЕ пиши заголовок материала, название версии, ссылки, Markdown, эмодзи или слово «Подробнее».
+3. Используй ТОЛЬКО поле context и editor_note. Не добавляй факты из памяти.
+4. Если context пустой или не содержит конкретных фактов именно об этом событии — верни пустую строку description. Сервер сам сделает безопасную подпись.
+5. Не переносить сведения из соседних акций/ивентов. Один material = одно событие.
+6. short: 1 короткое предложение. detailed: до 3 коротких предложений, только если context реально содержит достаточно фактов.
+7. Сохраняй важные даты, цифры и награды, если они прямо есть в context.
+8. editor_note — только редакторский акцент; он не является новым фактом.
+9. Вызови submitRedPlayDescriptions ровно один раз.`;
+}
 
-Правила:
-1. Используй только переданные материалы. Ничего не придумывай и не дополняй фактами из памяти.
-2. Если mode=short: максимум 1-2 коротких предложения по материалу.
-3. Если mode=detailed: дай содержательный блок, но только по подтверждённым данным; обычно 3-6 предложений или коротких пунктов.
-4. primary=true означает главную новость: поставь её первой и дай ей сильнее вводный акцент. Главная новость может быть только одна.
-5. editor_note — внутренняя подсказка редактора. Учти её смысл, но не цитируй как служебную заметку.
-6. raw_context может содержать несколько событий из одного Telegram-поста. Для каждого объекта ориентируйся прежде всего на его title и source_url. Не приписывай выбранному событию детали соседних событий.
-7. Разделяй материалы по версиям. Используй заголовки строго: ⚔️ MAIN, 👾 ESSENCE, 🛡 SPECIAL PROJECT. Не вставляй реферальные URL — сервер добавит их сам.
-8. Для конкретного материала можно добавить строку [Подробнее](source_url), если ссылка реально помогает читателю. Не делай голую простыню URL.
-9. Стиль RedPlay: живо, конкретно, без официальной воды и без чрезмерного количества эмодзи.
-10. Не повторяй одно и то же разными словами. Не пиши про профилактику, мерч или рекорды, если редактор сам их не выбрал.
-11. Общий объём обычно 700-2200 знаков, но при нескольких detailed-материалах можно больше, максимум 3800 знаков.
-12. Не отвечай обычным текстом. Вызови submitRedPlayTelegramPost ровно один раз.`;
+function materialDescription(material: Material, ai: Map<string, string>, max: number) {
+  const fromAi = ai.get(material.id);
+  if (material.context && fromAi) return truncateAtWord(fromAi, max);
+  if (material.context) return truncateAtWord(sanitizeDescription(material.context), max);
+  return genericDescription(material);
+}
+
+function buildPost(materials: Material[], ai: Map<string, string>) {
+  const primary = materials.find((item) => item.primary) || null;
+  const primaryGroup = primary ? GROUPS.find((group) => group.editions.includes(primary.edition as never))?.key : null;
+  const groups = primaryGroup
+    ? [...GROUPS].sort((a, b) => Number(b.key === primaryGroup) - Number(a.key === primaryGroup))
+    : [...GROUPS];
+
+  const dateLabel = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Kyiv",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+  const lines: string[] = [`🔥 **Что нового в Lineage 2 – ${dateLabel}**`];
+  const perDescription = Math.max(140, Math.min(480, Math.floor(2400 / Math.max(1, materials.length))));
+
+  for (const group of groups) {
+    const groupItems = materials
+      .filter((item) => group.editions.includes(item.edition as never))
+      .sort((a, b) => Number(b.primary) - Number(a.primary) || a.order - b.order);
+    if (!groupItems.length) continue;
+
+    lines.push("", group.heading, "");
+    for (const item of groupItems) {
+      const title = cleanTitle(item.title) || "Lineage 2";
+      lines.push(`${item.primary ? "🔥" : categoryIcon(item.category)} **${title}**`);
+      const max = item.mode === "detailed" ? perDescription : Math.min(220, perDescription);
+      const description = materialDescription(item, ai, max);
+      if (description) lines.push(description);
+      lines.push(`[Подробнее](${item.sourceUrl})`, "");
+    }
+  }
+
+  lines.push("**RedPlay | Lineage 2**");
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 async function requireAdmin() {
@@ -244,7 +342,8 @@ export async function POST(request: Request) {
 
   const unique = new Map<string, ComposeItemInput>();
   requested.forEach((item) => {
-    if (item?.id) unique.set(String(item.id), {
+    if (!item?.id) return;
+    unique.set(String(item.id), {
       id: String(item.id),
       mode: item.mode === "detailed" ? "detailed" : "short",
       primary: Boolean(item.primary),
@@ -270,30 +369,28 @@ export async function POST(request: Request) {
     const row = byId.get(selection.id)!;
     return {
       order: index + 1,
-      id: row.id,
-      edition: row.edition,
-      category: row.category,
-      title: row.title,
-      summary: row.summary,
-      raw_context: row.raw_context.slice(0, 5000),
-      source_url: row.source_url,
-      source_date: row.published_at || row.first_seen_at,
+      id: String(row.id),
+      edition: String(row.edition),
+      category: String(row.category),
+      title: cleanTitle(String(row.title)),
+      sourceUrl: String(row.source_url),
+      sourceDate: row.published_at || row.first_seen_at,
       mode: selection.mode,
       primary: Boolean(selection.primary),
-      editor_note: selection.note || "",
+      editorNote: selection.note || "",
+      context: isolatedContext(row),
     };
   });
+
+  const aiDescriptions = new Map<string, string>();
+  const aiCandidates = materials.filter((item) => item.context);
+  let warning: string | null = null;
 
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
   const model = process.env.L2_TELEGRAM_MODEL || process.env.KR_TELEGRAM_MODEL || DEFAULT_MODEL;
 
-  let body = "";
-  let fallbackReason: string | null = null;
-
-  if (!accountId || !apiToken) {
-    fallbackReason = "Cloudflare Workers AI не настроен";
-  } else {
+  if (aiCandidates.length && accountId && apiToken) {
     try {
       const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`, {
         method: "POST",
@@ -301,39 +398,51 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           messages: [
             { role: "system", content: systemPrompt() },
-            { role: "user", content: JSON.stringify({ materials }) },
+            {
+              role: "user",
+              content: JSON.stringify({
+                materials: aiCandidates.map((item) => ({
+                  id: item.id,
+                  title: item.title,
+                  edition: item.edition,
+                  category: item.category,
+                  context: item.context,
+                  mode: item.mode,
+                  editor_note: item.editorNote,
+                })),
+              }),
+            },
           ],
           tools: [composerTool],
           tool_choice: "required",
           chat_template_kwargs: { enable_thinking: false },
-          max_tokens: 1800,
-          temperature: 0.18,
+          max_tokens: 1000,
+          temperature: 0.1,
         }),
-        signal: AbortSignal.timeout(50_000),
+        signal: AbortSignal.timeout(45_000),
       });
 
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        fallbackReason = cloudflareError(payload, response.status);
+        warning = cloudflareError(payload, response.status);
       } else {
-        try {
-          const output = cloudflareOutput(payload);
-          if (!output) throw new Error("Cloudflare не вернул результат Composer");
-          body = referralize(normalizeBody(output));
-        } catch (error) {
-          fallbackReason = error instanceof Error ? error.message : "Не удалось разобрать ответ Composer";
-        }
+        const output = cloudflareOutput(payload);
+        const parsed = normalizeAiDescriptions(output, new Set(aiCandidates.map((item) => item.id)));
+        parsed.forEach((description, id) => aiDescriptions.set(id, description));
+        if (!parsed.size) warning = "AI не вернул отдельные описания; использована безопасная сборка по источникам";
       }
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-      fallbackReason = timedOut
-        ? "Composer не успел ответить за 50 секунд"
-        : `Cloudflare Workers AI недоступен: ${error instanceof Error ? error.message : "неизвестная ошибка"}`;
+      warning = timedOut
+        ? "AI не успел ответить; использована безопасная сборка по источникам"
+        : `AI недоступен; использована безопасная сборка по источникам`;
     }
+  } else if (aiCandidates.length) {
+    warning = "AI не настроен; использована безопасная сборка по источникам";
   }
 
-  if (!body) body = fallbackPost(materials);
-  if (!body) return NextResponse.json({ error: fallbackReason || "Не удалось сформировать пост" }, { status: 502 });
+  const body = buildPost(materials, aiDescriptions);
+  if (!body) return NextResponse.json({ error: "Не удалось сформировать пост" }, { status: 502 });
 
   const now = new Date().toISOString();
   const digestDate = kyivDateKey();
@@ -351,7 +460,7 @@ export async function POST(request: Request) {
     .single();
   if (saveError) return NextResponse.json({ error: saveError.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, body, digest, fallback: Boolean(fallbackReason), warning: fallbackReason });
+  return NextResponse.json({ ok: true, body, digest, warning, sourceSafe: true });
 }
 
 export async function PATCH(request: Request) {
