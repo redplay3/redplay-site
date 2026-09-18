@@ -91,6 +91,7 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
   const [bonusGroup, setBonusGroup] = useState<BonusGroup>("Main");
   const [isMobile, setIsMobile] = useState(false);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const promptRef = useRef<HTMLElement | null>(null);
 
   const chooseGroup = useCallback((requested?: BonusGroup) => {
     return requested || groupFromPath(pathname) || savedGroup() || "Main";
@@ -235,6 +236,34 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
   }, [promptOpen]);
 
   useEffect(() => {
+    if (!promptOpen || !isMobile) {
+      document.documentElement.style.removeProperty("--bonus-mobile-prompt-height");
+      return;
+    }
+
+    const prompt = promptRef.current;
+    if (!prompt) return;
+
+    const updatePromptHeight = () => {
+      const height = Math.ceil(prompt.getBoundingClientRect().height);
+      document.documentElement.style.setProperty("--bonus-mobile-prompt-height", `${height}px`);
+    };
+
+    updatePromptHeight();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePromptHeight);
+    observer?.observe(prompt);
+    window.addEventListener("resize", updatePromptHeight);
+    window.visualViewport?.addEventListener("resize", updatePromptHeight);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updatePromptHeight);
+      window.visualViewport?.removeEventListener("resize", updatePromptHeight);
+      document.documentElement.style.removeProperty("--bonus-mobile-prompt-height");
+    };
+  }, [isMobile, promptOpen]);
+
+  useEffect(() => {
     if (!bonusOpen || !isMobile) return;
     const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -281,7 +310,7 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
       </section>
     </div>, document.body)}
 
-    {publicPath && promptOpen && <aside className="bonus-mobile-prompt" aria-label="Бонус для игроков Lineage 2">
+    {publicPath && promptOpen && <aside ref={promptRef} className="bonus-mobile-prompt" aria-label="Бонус для игроков Lineage 2">
       <button type="button" className="bonus-prompt-close" onClick={closePrompt} aria-label="Закрыть предложение"><X size={19}/></button>
       <span className="bonus-prompt-icon"><Gift size={20}/></span>
       <span className="bonus-prompt-copy"><strong>Бонус на старте</strong><small>Выбери Main или два варианта Essence</small></span>
