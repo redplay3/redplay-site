@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { BonusOfferProvider } from "@/components/bonus-offer-provider";
 import { allSeoKeywords, DEFAULT_DESCRIPTION, DEFAULT_TITLE, safeJsonLd, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -70,5 +71,5 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     ],
   };
 
-  return <html lang="ru"><body className="antialiased"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>{children}</body></html>;
+  return <html lang="ru"><body className="antialiased"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/><BonusOfferProvider>{children}</BonusOfferProvider></body></html>;
 }
