@@ -168,3 +168,9 @@
 .article-page .key-grid>div:has(>svg)>strong{grid-column:2;grid-row:1;margin-top:0}
 .article-page .key-grid>div:has(>svg)>p{grid-column:1/-1;grid-row:2;margin-top:.65rem!important}
 
+/* Global publication hero: keep titles readable over artwork with text or bright details. */
+.article-page .article-hero-shade{background:var(--rp-article-hero-shade)}
+.article-page .article-hero h1{position:relative;text-shadow:var(--rp-article-title-shadow)}
+.article-page .article-deck{text-shadow:0 2px 14px #000,0 1px 2px #000c}
+@media(max-width:760px){.article-page .article-hero-shade{background:linear-gradient(0deg,#080a0ffa 0%,#080a0fe8 42%,#080a0f8c 72%,#080a0f73 100%),linear-gradient(90deg,#080a0fc7,transparent 95%)}}
+
