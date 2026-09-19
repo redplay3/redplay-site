@@ -7,6 +7,7 @@ export const knowledgeSections = [
   { title: "Зоны охоты", description: "Уровни, монстры, награды и требования к персонажу.", icon: "zones", href: "zones" },
   { title: "Предметы", description: "Экипировка, ресурсы, способы получения и улучшения.", icon: "items", href: "items" },
   { title: "Гайды", description: "Проверенные сборки, маршруты развития и механики.", icon: "guides", href: "guides" },
+  { title: "Тесты", description: "Реальные замеры классов и локаций с методикой и ограничениями.", icon: "tests", href: "tests" },
   { title: "Калькуляторы", description: "Заточка, фарм, прокачка и сравнение характеристик.", icon: "calculators", href: "calculators" },
 ] as const;
 
