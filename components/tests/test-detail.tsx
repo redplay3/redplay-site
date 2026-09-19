@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Check, ChevronRight, Clock3, Database, Film, FlaskConical, History, Link2, Scale, ShieldCheck, Target, X } from "lucide-react";
 import type { EvidenceKind, TestRecord } from "@/lib/tests/types";
@@ -19,16 +20,16 @@ function formatValue(value: number | null, metric: "xp" | "adena") {
 }
 
 function ResultBars({ test, metric }: { test: TestRecord; metric: "xp" | "adena" }) {
-  const values = test.scenarios.flatMap((scenario) => test.contenders.map((contender) => scenario.values[contender.id]?.[metric === "xp" ? "xpPerHour" : "adenaPerHour"] || 0));
+  const values = test.scenarios.flatMap((scenario) => test.contenders.filter((contender) => !scenario.contenderIds || scenario.contenderIds.includes(contender.id)).map((contender) => scenario.values[contender.id]?.[metric === "xp" ? "xpPerHour" : "adenaPerHour"] || 0));
   const max = Math.max(...values, 1);
   return <div className={styles.resultScenarios}>
     {test.scenarios.map((scenario) => <section className={styles.scenarioCard} key={`${scenario.id}-${metric}`}>
       <div className={styles.scenarioHead}><div><span>{scenario.durationMinutes} минут · пересчёт на час</span><h3>{scenario.name}</h3></div><strong>+{metric === "xp" ? scenario.xpDeltaPercent : scenario.adenaDeltaPercent ?? "—"}%</strong></div>
       <div className={styles.bars}>
-        {test.contenders.map((contender) => {
+        {test.contenders.filter((contender) => !scenario.contenderIds || scenario.contenderIds.includes(contender.id)).map((contender) => {
           const value = scenario.values[contender.id]?.[metric === "xp" ? "xpPerHour" : "adenaPerHour"] ?? null;
           return <div className={styles.barRow} key={contender.id}>
-            <div className={styles.barLabel}><strong>{contender.shortName}</strong><span>{value === null ? formatValue(value, metric) : `${formatValue(value, metric)} / ч`}</span></div>
+            <div className={styles.barLabel}><strong>{contender.shortName}</strong><span>{value === null ? scenario.unavailableReason?.[contender.id] || formatValue(value, metric) : `${formatValue(value, metric)} / ч`}</span></div>
             <div className={styles.barTrack}><i className={contender.accent === "cyan" ? styles.cyanBar : styles.redBar} style={{ width: value === null ? "0%" : `${Math.max(4, value / max * 100)}%` }}/></div>
           </div>;
         })}
@@ -72,6 +73,7 @@ export function TestDetail({ test }: { test: TestRecord }) {
           <div className={styles.methodGrid}>{test.method.map((item, index) => <div key={item}><span>{String(index + 1).padStart(2, "0")}</span><p>{item}</p></div>)}</div>
           <div className={styles.entityLinks}><Link2 size={17}/><div>{test.relations.map((ref) => <span key={`${ref.type}-${ref.id}`}><small>{ref.type === "class" ? "Класс" : "Локация"}</small>{ref.name}</span>)}</div></div>
           {test.characterStats && <div className={styles.statsTableWrap}><div className={styles.tableTitle}><div><strong>Характеристики перед сравнением</strong><p>Сопоставимый буст не сделал боевые показатели одинаковыми — это часть результата реролла.</p></div><EvidenceBadge kind="measurement"/></div><table className={styles.statsTable}><thead><tr><th>Параметр</th>{test.contenders.map((item) => <th key={item.id}>{item.shortName}</th>)}</tr></thead><tbody>{test.characterStats.map((row) => <tr key={row.label}><td>{row.label}</td>{test.contenders.map((item) => <td key={item.id}>{row.values[item.id]}</td>)}</tr>)}</tbody></table></div>}
+          {!!test.evidenceImages?.length && <div className={styles.evidenceImages}>{test.evidenceImages.map((item) => <figure key={item.src}><Image src={item.src} alt={item.alt} width={item.width || 1920} height={item.height || 1080} sizes="(max-width: 900px) 100vw, 850px"/><figcaption><EvidenceBadge kind="measurement"/><span>{item.caption}</span></figcaption></figure>)}</div>}
         </section>
 
         <section id="results" className={styles.contentSection}>

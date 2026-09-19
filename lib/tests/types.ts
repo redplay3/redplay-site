@@ -24,7 +24,9 @@ export type TestScenario = {
   id: string;
   name: string;
   durationMinutes: number;
+  contenderIds?: string[];
   values: Record<string, TestResultValue>;
+  unavailableReason?: Record<string, string>;
   xpDeltaPercent: number;
   adenaDeltaPercent: number | null;
   winnerXp: string;
@@ -66,5 +68,6 @@ export type TestRecord = {
   applicability: string[];
   notProven: string[];
   video: { status: "linked" | "awaiting-url"; title: string; url?: string };
+  evidenceImages?: Array<{ src: string; alt: string; caption: string; width?: number; height?: number }>;
   history: Array<{ version: string; label: string; state: string }>;
 };
