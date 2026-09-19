@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { articleCategories } from "@/lib/articles/catalog";
 import type { ArticleCategory, ArticleEdition } from "@/lib/articles/types";
 import { SITE_URL } from "@/lib/seo";
+import { redplayTests } from "@/lib/tests/data";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export const revalidate = 300;
@@ -18,6 +19,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     { url: SITE_URL, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/lineage-2/main/updates/replica`, lastModified: new Date("2026-09-12"), changeFrequency: "weekly", priority: 0.9 },
+    { url: `${SITE_URL}/lineage-2/tests`, changeFrequency: "weekly", priority: 0.85 },
+    ...redplayTests.filter((test) => test.status === "published").map((test) => ({ url: `${SITE_URL}/lineage-2/tests/${test.slug}`, changeFrequency: "monthly" as const, priority: 0.8 })),
   ];
 
   for (const edition of ["main", "essence"] as const) {
