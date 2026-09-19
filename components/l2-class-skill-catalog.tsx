@@ -163,7 +163,7 @@ function SkillEntry({ bundle }: { bundle: SkillBundle }) {
   ].filter(Boolean) as string[][];
 
   return <article className={`${styles.skill} ${open ? styles.open : ""}`}>
-    <button className={styles.skillHead} type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+    <button className={`${styles.skillHead} skill-catalog-entry`} type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
       <span className={styles.iconWrap}>
         {icon?.public_url ? <img src={icon.public_url} alt="" loading="lazy"/> : <span className={styles.iconFallback}/>}
       </span>
@@ -174,7 +174,7 @@ function SkillEntry({ bundle }: { bundle: SkillBundle }) {
       </span>
       <span className={styles.desktopType}>{shortType(level.type_label || bundle.skill.type_label)}</span>
       <span className={styles.summary}>{preview(level.description_text)}</span>
-      <span className={styles.headMeta}>
+      <span className={`${styles.headMeta} skill-toggle-meta`}>
         {level.consumable && <small>Руда Духов</small>}
         <ChevronDown size={18}/>
       </span>

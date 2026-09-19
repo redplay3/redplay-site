@@ -143,3 +143,11 @@
 @media(max-width:760px){.article-next{padding:1.15rem}.article-next-head h2{font-size:1.85rem!important}.article-next-primary{grid-template-columns:1fr 1fr}.article-next-primary>.next-section{grid-column:1/-1}.article-next-primary>a{min-height:126px;padding:.85rem}.article-next-primary>.next-youtube,.article-next-primary>.next-telegram{min-height:136px}.article-next-card-icon{width:2.15rem;height:2.15rem}.article-next-games{grid-template-columns:1fr}.article-next-games>a{min-height:176px;grid-template-columns:1fr;align-content:end;gap:.75rem;padding:1rem}.next-game-action{justify-self:start}.article-next-games .next-game-shade{background:linear-gradient(90deg,#0b0d14f5,#0b0d147a),linear-gradient(0deg,#0b0d14f2 0%,#0b0d1494 58%,transparent)}}
 @media(max-width:420px){.article-next-primary{grid-template-columns:1fr}.article-next-primary>.next-section{grid-column:auto}.article-next-primary>a,.article-next-primary>.next-youtube,.article-next-primary>.next-telegram{min-height:116px}.article-next-games>a{min-height:184px}}
 
+/* Editorial phrases replace numeric counters in these highlights. */
+@media(max-width:760px){.article-highlights .highlight-stat{min-height:5.75rem;align-items:flex-start;padding:.9rem .72rem}.article-highlights .highlight-stat strong{font-size:.82rem;line-height:1.25}.article-highlights .highlight-stat span{font-size:.62rem;line-height:1.35}}
+
+/* Make the skill disclosure affordance obvious beside the Spirit Ore badge. */
+.article-page .skill-toggle-meta svg{box-sizing:border-box;width:32px;height:32px;flex:none;border:1px solid #ffffff2e;border-radius:50%;background:#ffffff0d;padding:6px;color:#fff;box-shadow:0 4px 14px #0005}
+.article-page .skill-catalog-entry[aria-expanded="true"] .skill-toggle-meta svg{border-color:#ff6b7e80;background:#f22d4322;color:#ff8391}
+@media(max-width:620px){.article-page .skill-catalog-entry{grid-template-columns:48px minmax(0,1fr) 34px!important}.article-page .skill-toggle-meta{width:34px;justify-content:center}}
+
