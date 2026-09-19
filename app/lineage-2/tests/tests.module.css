@@ -14,3 +14,4 @@
 
 /* Product-version badges keep measurements from different Lineage 2 editions distinct. */
 .cardTop{align-items:flex-start;gap:12px}.cardBadges{display:flex;flex-wrap:wrap;align-items:center;gap:7px}.editionBadge{display:inline-flex;align-items:center;width:max-content;border:1px solid;border-radius:999px;padding:6px 9px;font-size:9px;font-weight:950;letter-spacing:.07em;text-transform:uppercase}.editionMain{border-color:#3f79d54d;background:#edf4ff;color:#285fae}.editionEssence{border-color:#8c57c84d;background:#f5effc;color:#7442a9}.heroMeta .editionBadge{padding:8px 11px}.heroMeta .editionMain{border-color:#6aa0ff66;background:#3f79d526;color:#a8c7ff}.heroMeta .editionEssence{border-color:#bd83ff66;background:#8c57c826;color:#d9b9ff}
+.videoPanel a{display:inline-flex;margin-top:11px;border-radius:999px;background:#f22d43;padding:9px 13px;color:#fff;font-size:11px;font-weight:950}.videoPanel a:hover{background:#ff4055}
