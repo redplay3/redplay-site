@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { TelegramMonitorClient } from "@/components/admin/telegram-monitor";
 import { createClient } from "@/lib/supabase/server";
-import { AdminTopbar } from "../layout";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
 import "./telegram.css";
 
 function kyivDateKey(date = new Date()) {

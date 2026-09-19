@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { ArticleEditor } from "@/components/admin/article-editor";
 import { createClient } from "@/lib/supabase/server";
-import { AdminTopbar } from "../../layout";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
 
 export default async function NewArticlePage() {
   const supabase = await createClient();

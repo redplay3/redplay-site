@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { KrIngestProbe } from "@/components/admin/kr-ingest-probe";
 import { createClient } from "@/lib/supabase/server";
-import { AdminTopbar } from "../layout";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
 
 type InboxRow = {
   id: string;

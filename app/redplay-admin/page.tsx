@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Eye, FilePlus2, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { AdminTopbar } from "./layout";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
 
 type ArticleRow = { id: string; title: string; edition: string; category: string; slug: string; status: string; updated_at: string };
 

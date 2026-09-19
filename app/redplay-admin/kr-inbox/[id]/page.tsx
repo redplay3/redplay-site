@@ -10,7 +10,7 @@ import { KrTelegramProposal, type KrTelegramDraft } from "@/components/admin/kr-
 import { isUsefulKrImage } from "@/lib/kr/media";
 import { assembleSemanticSections } from "@/lib/kr/semantic";
 import { createClient } from "@/lib/supabase/server";
-import { AdminTopbar } from "../../layout";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
 
 type InboxItem = {
   id: string;
