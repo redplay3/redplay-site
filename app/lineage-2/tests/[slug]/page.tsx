@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { TestDetail } from "@/components/tests/test-detail";
-import { getRedplayTest, redplayTests } from "@/lib/tests/data";
+import { getRedplayTest, redplayTestAliases, redplayTests } from "@/lib/tests/data";
 
 type Params = { slug: string };
 
 export function generateStaticParams() {
-  return redplayTests.map((test) => ({ slug: test.slug }));
+  return [...redplayTests.map((test) => test.slug), ...Object.keys(redplayTestAliases)].map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
@@ -20,8 +20,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 }
 
 export default async function TestPage({ params }: { params: Promise<Params> }) {
-  const test = getRedplayTest((await params).slug);
+  const slug = (await params).slug;
+  const test = getRedplayTest(slug);
   if (!test) notFound();
+  if (test.slug !== slug) redirect(`/lineage-2/tests/${test.slug}`);
   return <TestDetail test={test}/>;
 }
-

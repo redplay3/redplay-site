@@ -31,7 +31,7 @@ export default function TestsPage() {
     </div></section>
 
     <section className={styles.catalogSection}><div className={styles.catalogWrap}>
-      <div className={styles.catalogHeading}><div><span>Первые замеры</span><h2>Какой вопрос вы решаете?</h2></div><p>{redplayTests.length} теста · все в черновике</p></div>
+      <div className={styles.catalogHeading}><div><span>Первые замеры</span><h2>Какой вопрос вы решаете?</h2></div><p>{redplayTests.length} исследования · оба в черновике</p></div>
       <TestsCatalog tests={redplayTests}/>
       <div className={styles.architectureNote}><strong>Почему это отдельный раздел</strong><p>Тест хранит связи с классами и локациями, условия замера и версии результатов. Один тест можно показать на странице Самурая, Диверсанта, ТОИ 9 или ТОИ 11 — без копирования содержания в четыре статьи.</p></div>
     </div></section>

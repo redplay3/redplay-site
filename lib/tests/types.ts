@@ -1,5 +1,6 @@
 export type TestStatus = "draft" | "published" | "archived";
 export type TestKind = "class-comparison" | "location-comparison";
+export type TestEdition = "main" | "essence-special";
 export type EvidenceKind = "measurement" | "calculation" | "interpretation";
 
 export type TestEntityRef = {
@@ -52,7 +53,7 @@ export type TestRecord = {
   question: string;
   answer: string;
   summary: string;
-  edition: string;
+  edition: TestEdition;
   testedAt: string | null;
   patch: string | null;
   sampleLabel: string;

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Check, ChevronRight, Clock3, Database, Film, FlaskConical, History, Link2, Scale, ShieldCheck, Target, X } from "lucide-react";
-import type { EvidenceKind, TestRecord } from "@/lib/tests/types";
+import type { EvidenceKind, TestEdition, TestRecord } from "@/lib/tests/types";
 import styles from "@/app/lineage-2/tests/tests.module.css";
 
 function EvidenceBadge({ kind }: { kind: EvidenceKind }) {
@@ -12,6 +12,11 @@ function EvidenceBadge({ kind }: { kind: EvidenceKind }) {
   };
   return <span className={`${styles.evidenceBadge} ${styles[kind]}`}>{labels[kind]}</span>;
 }
+
+const editionLabels: Record<TestEdition, string> = {
+  main: "MAIN",
+  "essence-special": "ESSENCE · SPECIAL",
+};
 
 function formatValue(value: number | null, metric: "xp" | "adena") {
   if (value === null) return "Нет исходных данных";
@@ -49,7 +54,7 @@ export function TestDetail({ test }: { test: TestRecord }) {
 
     <section className={styles.detailHero}><div className={styles.detailHeroInner}>
       <div className={styles.breadcrumb}><Link href="/">Главная</Link><ChevronRight size={13}/><Link href="/lineage-2/tests">RedPlay Tests</Link><ChevronRight size={13}/><span>{test.number}</span></div>
-      <div className={styles.heroMeta}><span><FlaskConical size={15}/>{test.number}</span><span><Clock3 size={15}/>{test.sampleLabel}</span></div>
+      <div className={styles.heroMeta}><span><FlaskConical size={15}/>{test.number}</span><span className={`${styles.editionBadge} ${test.edition === "main" ? styles.editionMain : styles.editionEssence}`}>{editionLabels[test.edition]}</span><span><Clock3 size={15}/>{test.sampleLabel}</span></div>
       <h1>{test.title}</h1>
       <p>{test.question}</p>
       <div className={styles.heroAnswer}><small>Короткий ответ</small><strong>{test.answer}</strong></div>

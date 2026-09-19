@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowRight, FlaskConical, MapPinned, Swords } from "lucide-react";
-import type { TestKind, TestRecord } from "@/lib/tests/types";
+import type { TestEdition, TestKind, TestRecord } from "@/lib/tests/types";
 import styles from "@/app/lineage-2/tests/tests.module.css";
 
 type Filter = "all" | TestKind;
@@ -13,6 +13,11 @@ const filters: Array<{ id: Filter; label: string }> = [
   { id: "class-comparison", label: "Выбор класса" },
   { id: "location-comparison", label: "Выбор локации" },
 ];
+
+const editionLabels: Record<TestEdition, string> = {
+  main: "MAIN",
+  "essence-special": "ESSENCE · SPECIAL",
+};
 
 export function TestsCatalog({ tests }: { tests: TestRecord[] }) {
   const [filter, setFilter] = useState<Filter>("all");
@@ -25,7 +30,7 @@ export function TestsCatalog({ tests }: { tests: TestRecord[] }) {
     <div className={styles.catalogGrid}>
       {visible.map((test) => <Link className={styles.testCard} href={`/lineage-2/tests/${test.slug}`} key={test.id}>
         <div className={styles.cardTop}>
-          <span className={styles.testNumber}><FlaskConical size={15}/>{test.number}</span>
+          <div className={styles.cardBadges}><span className={styles.testNumber}><FlaskConical size={15}/>{test.number}</span><span className={`${styles.editionBadge} ${test.edition === "main" ? styles.editionMain : styles.editionEssence}`}>{editionLabels[test.edition]}</span></div>
           <span className={styles.draftBadge}>Черновик</span>
         </div>
         <div className={styles.cardIcon}>{test.kind === "class-comparison" ? <Swords/> : <MapPinned/>}</div>
@@ -39,4 +44,3 @@ export function TestsCatalog({ tests }: { tests: TestRecord[] }) {
     </div>
   </>;
 }
-
