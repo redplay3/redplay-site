@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Check, ChevronRight, Clock3, Database, Film, FlaskConical, History, Link2, Scale, ShieldCheck, Target, X } from "lucide-react";
+import { ArticleVideoEmbed } from "@/components/article-video-embed";
 import type { EvidenceKind, TestEdition, TestRecord } from "@/lib/tests/types";
 import styles from "@/app/lineage-2/tests/tests.module.css";
 
@@ -17,6 +18,20 @@ const editionLabels: Record<TestEdition, string> = {
   main: "MAIN",
   "essence-special": "ESSENCE · SPECIAL",
 };
+
+function youtubeVideoId(value?: string) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.hostname === "youtu.be") return url.pathname.split("/").filter(Boolean)[0] || null;
+    if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com"].includes(url.hostname)) {
+      return url.searchParams.get("v") || url.pathname.match(/\/(?:embed|shorts|live)\/([^/?#]+)/)?.[1] || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 function formatValue(value: number | null, metric: "xp" | "adena") {
   if (value === null) return "Нет исходных данных";
@@ -45,6 +60,7 @@ function ResultBars({ test, metric }: { test: TestRecord; metric: "xp" | "adena"
 }
 
 export function TestDetail({ test }: { test: TestRecord }) {
+  const videoId = youtubeVideoId(test.video.url);
   return <main className={styles.page}>
     <header className={styles.header}><div className={styles.headerInner}>
       <Link href="/" className={styles.brand}><span>R</span><strong>REDPLAY</strong></Link>
@@ -102,7 +118,7 @@ export function TestDetail({ test }: { test: TestRecord }) {
           <div className={styles.limitGrid}><div className={styles.warningPanel}><h3><AlertTriangle size={19}/> Ограничения данных</h3><ul>{test.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div><div className={styles.noProofPanel}><h3><X size={19}/> Нельзя утверждать</h3><ul>{test.notProven.map((item) => <li key={item}>{item}</li>)}</ul></div></div>
         </section>
 
-        <section className={styles.videoPanel}><div className={styles.videoIcon}><Film size={28}/></div><div><span>Видео теста</span><h2>{test.video.title}</h2>{test.video.status === "linked" && test.video.url ? <a href={test.video.url} target="_blank" rel="noreferrer">Смотреть видео на YouTube</a> : <p>URL ролика не был сохранён в исходной сводке. Блок готов и будет подключён без изменения страницы, когда ссылка будет подтверждена.</p>}</div><span className={styles.videoStatus}>{test.video.status === "linked" ? "Видео подключено" : "Ожидает ссылку"}</span></section>
+        <section className={styles.videoPanel}><div className={styles.videoIcon}><Film size={28}/></div><div><span>Видео теста</span><h2>{test.video.title}</h2>{!videoId && <p>URL ролика не был сохранён в исходной сводке. Блок готов и будет подключён без изменения страницы, когда ссылка будет подтверждена.</p>}</div><span className={styles.videoStatus}>{videoId ? "Встроенный плеер" : "Ожидает ссылку"}</span>{videoId && <div className={styles.videoPlayer}><ArticleVideoEmbed videoId={videoId} title={test.video.title} orientation="horizontal"/></div>}</section>
 
         <section id="history" className={styles.contentSection}>
           <div className={styles.sectionIntro}><span>07 · История замеров</span><h2>Новый патч не переписывает старый результат</h2><p>Каждый повтор сохраняется отдельной версией. Так можно увидеть изменение класса или локации во времени.</p></div>
