@@ -168,12 +168,12 @@
 .article-page .key-grid>div:has(>svg)>strong{grid-column:2;grid-row:1;margin-top:0}
 .article-page .key-grid>div:has(>svg)>p{grid-column:1/-1;grid-row:2;margin-top:.65rem!important}
 
-/* Global publication hero: preserve the artwork and protect only the title area. */
+/* Global publication hero: a decorative left backdrop, a sharp cover and one local copy panel. */
 .article-page .article-hero-shade{background:var(--rp-article-hero-shade)}
-.article-page .article-title-wrap{position:relative;isolation:isolate;width:fit-content;max-width:100%;margin-top:1.25rem}
-.article-page .article-title-wrap::before{content:"";position:absolute;z-index:0;inset:-.12em -1.6em -.1em -.28em;border-radius:1.2rem;background:var(--rp-article-title-scrim);filter:blur(16px);pointer-events:none}
-.article-page .article-title-wrap h1{position:relative;z-index:1;width:fit-content;margin-top:0;text-shadow:var(--rp-article-title-shadow)}
-.article-page .article-title-wrap h1>span{position:relative;z-index:1}
+.article-page .article-hero-copy{position:relative;isolation:isolate;width:fit-content;max-width:100%;margin-top:1.75rem}
+.article-page .article-hero-copy::before{content:"";position:absolute;z-index:0;inset:-1rem -2.5rem -1.15rem -1.25rem;border-radius:1.4rem;background:var(--rp-article-copy-scrim);box-shadow:0 0 36px 16px #06080c38;backdrop-filter:blur(12px) brightness(.72) saturate(.9);mask-image:radial-gradient(ellipse 92% 105% at 34% 50%,#000 58%,#000d 72%,transparent 100%);pointer-events:none}
+.article-page .article-hero-copy>*{position:relative;z-index:1}
+.article-page .article-hero-copy h1{width:fit-content;text-shadow:var(--rp-article-title-shadow)}
 .article-page .article-deck{text-shadow:0 2px 12px #000e,0 1px 2px #000}
-@media(max-width:760px){.article-page .article-hero-shade{background:linear-gradient(0deg,#090b11c7 0%,#090b114d 16%,transparent 40%),linear-gradient(180deg,#090b114d 0%,transparent 20%)}.article-page .article-title-wrap::before{inset:-.1em -.6em -.08em -.18em;border-radius:.8rem;filter:blur(10px)}}
+@media(max-width:760px){.article-page .article-hero-shade{background:linear-gradient(0deg,#090b11b8 0%,#090b113d 14%,transparent 34%),linear-gradient(180deg,#090b1145 0%,transparent 18%)}.article-page .article-hero-copy{width:100%;margin-top:1.1rem}.article-page .article-hero-copy::before{inset:-.8rem -.55rem -1rem -.55rem;border-radius:1rem;background:#06080cbf;box-shadow:0 0 24px 10px #06080c38;backdrop-filter:blur(10px) brightness(.62);mask-image:none}}
 
