@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Eye, ImagePlus, Plus, Save, Send, Trash2, Upload, Video } from "lucide-react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
+import { L2ClassSkillCatalog } from "@/components/l2-class-skill-catalog";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { articleCategories, articleEditions, buildArticlePath } from "@/lib/articles/catalog";
-import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleSection } from "@/lib/articles/types";
+import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleIcon, ArticleSection } from "@/lib/articles/types";
 import { articleSeoTitle, categorySeo, editionSeo } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseConfig } from "@/lib/supabase/config";
@@ -22,6 +23,7 @@ type EditorArticle = {
   status?: "draft" | "scheduled" | "published";
   cover?: { src?: string; alt?: string };
   tags?: string[];
+  highlights?: Array<{ icon: ArticleIcon; value: string; label: string }>;
   content?: ArticleSection[];
   video_url?: string | null;
   published_at?: string | null;
@@ -315,7 +317,7 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
       const audienceTags = article.edition === "essence" ? targets.map((target) => target === "essence" ? "Essence" : "Special Project") : [];
       const customSeoTitle = article.seo?.title?.trim();
       const finalSeoTitle = customSeoTitle ? (/redplay/i.test(customSeoTitle) ? customSeoTitle : articleSeoTitle(customSeoTitle, article.edition)) : articleSeoTitle(article.title, article.edition);
-      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: [], content: sections, seo: { title: finalSeoTitle, description: article.seo?.description?.trim() || article.description, keywords: ordinaryTags }, video_url: article.video_url || null, published_at: status === "published" ? article.published_at || new Date().toISOString() : null };
+      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: article.highlights || [], content: sections, seo: { title: finalSeoTitle, description: article.seo?.description?.trim() || article.description, keywords: ordinaryTags }, video_url: article.video_url || null, published_at: status === "published" ? article.published_at || new Date().toISOString() : null };
       const query = article.id ? supabase.from("articles").update(payload).eq("id", article.id) : supabase.from("articles").insert(payload);
       const { data, error } = await query.select("id").single();
       if (error) throw error;
@@ -366,5 +368,5 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
   </div>)}
   <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving || uploadProgress !== null} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving || uploadProgress !== null} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving || uploadProgress !== null} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
   {message && <div className={`admin-toast${uploadProgress !== null ? " is-progress" : ""}`}>{uploadProgress !== null && <span style={{ width: `${uploadProgress}%` }}/>}<p>{message}</p></div>}
-  <aside className="editor-panel editor-preview"><div className="editor-preview-head"><strong><Eye size={15}/> Предпросмотр</strong><span className="admin-status">{article.status || "draft"}</span></div><div className="article-body">{sections.map((section) => <section id={section.id} key={section.id}><ArticleBlockRenderer blocks={section.blocks}/></section>)}</div></aside></div>;
+  <aside className="editor-panel editor-preview"><div className="editor-preview-head"><strong><Eye size={15}/> Предпросмотр</strong><span className="admin-status">{article.status || "draft"}</span></div><div className="article-body">{sections.map((section) => <section id={section.id} key={section.id}><ArticleBlockRenderer blocks={section.blocks}/>{article.slug === "samurai-guide-2026" && section.id === "skills" && <L2ClassSkillCatalog classSlug="crow_3" title="Полная база навыков"/>}</section>)}</div></aside></div>;
 }
