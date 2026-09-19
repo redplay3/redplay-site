@@ -3,6 +3,7 @@ import {
   Layers3, Map, Play, Send, Shield, Sparkles, Swords,
 } from "lucide-react";
 import { Fragment } from "react";
+import type { CSSProperties } from "react";
 import type { ArticleAudience, ArticleBlock, ArticleIcon, ArticleTableCell } from "@/lib/articles/types";
 import referenceStyles from "./article-reference.module.css";
 import { ArticleVideoPlaylist } from "./article-video-playlist";
@@ -357,7 +358,15 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "table":
         return <div key={block.id} className="article-data-table-wrap" tabIndex={0} aria-label="Таблица с данными"><EnhancedArticleTable block={block}/></div>;
       case "flow":
-        return <div key={block.id} className="replica-flow">{block.items.flatMap((item, index) => [<div key={`${block.id}-item-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</div>, ...(index < block.items.length - 1 ? [<ChevronRight key={`${block.id}-arrow-${index}`}/>] : [])])}</div>;
+        return <div
+          key={block.id}
+          className="replica-flow"
+          style={{
+            "--flow-columns": block.items
+              .map((_, index) => index < block.items.length - 1 ? "minmax(0,1fr) auto" : "minmax(0,1fr)")
+              .join(" "),
+          } as CSSProperties}
+        >{block.items.flatMap((item, index) => [<div key={`${block.id}-item-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</div>, ...(index < block.items.length - 1 ? [<ChevronRight key={`${block.id}-arrow-${index}`}/>] : [])])}</div>;
       case "image":
         return <figure key={block.id} className="article-wide-image"><img src={block.src} alt={block.alt}/>{block.caption && <figcaption>{block.caption}</figcaption>}</figure>;
       case "disclosure":
