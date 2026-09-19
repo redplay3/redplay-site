@@ -7,7 +7,7 @@ import { ArticleBlockRenderer } from "@/components/article-block-renderer";
 import { L2ClassSkillCatalog } from "@/components/l2-class-skill-catalog";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { articleCategories, articleEditions, buildArticlePath } from "@/lib/articles/catalog";
-import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleSection } from "@/lib/articles/types";
+import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleIcon, ArticleSection } from "@/lib/articles/types";
 import { articleSeoTitle, categorySeo, editionSeo } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseConfig } from "@/lib/supabase/config";
@@ -23,6 +23,7 @@ type EditorArticle = {
   status?: "draft" | "scheduled" | "published";
   cover?: { src?: string; alt?: string };
   tags?: string[];
+  highlights?: Array<{ icon: ArticleIcon; value: string; label: string }>;
   content?: ArticleSection[];
   video_url?: string | null;
   published_at?: string | null;
@@ -316,7 +317,7 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
       const audienceTags = article.edition === "essence" ? targets.map((target) => target === "essence" ? "Essence" : "Special Project") : [];
       const customSeoTitle = article.seo?.title?.trim();
       const finalSeoTitle = customSeoTitle ? (/redplay/i.test(customSeoTitle) ? customSeoTitle : articleSeoTitle(customSeoTitle, article.edition)) : articleSeoTitle(article.title, article.edition);
-      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: [], content: sections, seo: { title: finalSeoTitle, description: article.seo?.description?.trim() || article.description, keywords: ordinaryTags }, video_url: article.video_url || null, published_at: status === "published" ? article.published_at || new Date().toISOString() : null };
+      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: article.highlights || [], content: sections, seo: { title: finalSeoTitle, description: article.seo?.description?.trim() || article.description, keywords: ordinaryTags }, video_url: article.video_url || null, published_at: status === "published" ? article.published_at || new Date().toISOString() : null };
       const query = article.id ? supabase.from("articles").update(payload).eq("id", article.id) : supabase.from("articles").insert(payload);
       const { data, error } = await query.select("id").single();
       if (error) throw error;
