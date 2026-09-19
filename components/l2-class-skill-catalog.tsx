@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, LoaderCircle } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./l2-class-skill-catalog.module.css";
 
@@ -140,6 +140,125 @@ function iconForLevel(skill: SkillBundle, level: LevelRow) {
   return exact || skill.icons[0];
 }
 
+function levelOptionLabel(level: LevelRow) {
+  const skillLevel = `${level.skill_level}${level.sub_level ? `.${level.sub_level}` : ""}`;
+  const characterLevel = level.character_level !== null ? ` · персонаж ${level.character_level}` : "";
+  return `Ур. ${skillLevel} · ${level.name_ru}${characterLevel}`;
+}
+
+function SkillLevelPicker({ levels, value, onChange }: { levels: LevelRow[]; value: number; onChange: (index: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const current = levels[value] || levels[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+
+  const select = (index: number) => {
+    onChange(index);
+    setOpen(false);
+  };
+
+  return <div className={styles.levelPicker} ref={rootRef}>
+    <span>Уровень навыка</span>
+    <div className={styles.levelSelect}>
+      <button
+        type="button"
+        className={styles.levelTrigger}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((shown) => !shown)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            const direction = event.key === "ArrowDown" ? 1 : -1;
+            select((value + direction + levels.length) % levels.length);
+          }
+        }}
+      >
+        <span>{levelOptionLabel(current)}</span>
+        <ChevronDown size={18}/>
+      </button>
+      {open && <div className={styles.levelMenu} id={listId} role="listbox" aria-label="Выбор уровня навыка">
+        {levels.map((item, index) => <button
+          type="button"
+          role="option"
+          aria-selected={index === value}
+          className={index === value ? styles.selectedLevel : undefined}
+          onClick={() => select(index)}
+          key={item.id}
+        >
+          <span>{levelOptionLabel(item)}</span>
+          {index === value && <Check size={17}/>}
+        </button>)}
+      </div>}
+    </div>
+  </div>;
+}
+
+const effectMetricPatterns: Array<{ label: string; suffix: string; pattern: RegExp }> = [
+  { label: "Количество атак", suffix: "", pattern: /атакует (?:цель|противников) (\d+) раза/i },
+  { label: "Мощность", suffix: "", pattern: /Мощность\s+(\d+)/i },
+  { label: "Количество целей", suffix: "", pattern: /не более\s+(\d+)\s+целей/i },
+  { label: "Игнорирование защиты", suffix: "%", pattern: /Игнорирует\s+(\d+)%\s+защиты/i },
+  { label: "Макс. HP", suffix: "%", pattern: /Макс\.\s*HP\s*\+(\d+)%/i },
+  { label: "Физ. защита", suffix: "", pattern: /Физ\.\s*Защ\.?\s*\+(\d+)/i },
+  { label: "Снижение физ. урона", suffix: "%", pattern: /Получаемый урон от физ\. умений\s*-(\d+)%/i },
+  { label: "Мощность физ. умений", suffix: "%", pattern: /Мощность физ\. умений\s*\+(\d+)%/i },
+];
+
+function effectMetrics(value: string) {
+  return effectMetricPatterns.flatMap(({ label, suffix, pattern }) => {
+    const match = value.match(pattern);
+    return match ? [{ label, suffix, value: Number(match[1]) }] : [];
+  });
+}
+
+function modificationChangeText(value: string) {
+  const [, changes = ""] = value.split(/<Эффект модификации>/i);
+  return cleanEffect(changes);
+}
+
+function ModificationCard({ modification, baseDescription }: { modification: ModificationRow; baseDescription: string }) {
+  const baseMetrics = new Map(effectMetrics(baseDescription).map((metric) => [metric.label, metric]));
+  const changedMetrics = effectMetrics(modification.effect).filter((metric) => baseMetrics.get(metric.label)?.value !== metric.value);
+  const changeText = modificationChangeText(modification.effect);
+
+  return <div className={styles.mod}>
+    <div className={styles.modTitle}>
+      <strong>{modification.name}</strong>
+      {modification.base_level !== null && <small>от ур. {modification.base_level}</small>}
+    </div>
+    {changedMetrics.length > 0 && <div className={styles.modMetrics}>
+      {changedMetrics.map((metric) => {
+        const base = baseMetrics.get(metric.label);
+        const baseValue = base?.value ?? 0;
+        const delta = metric.value - baseValue;
+        return <div key={metric.label}>
+          <span>{metric.label}</span>
+          <strong>
+            <del>{baseValue}{metric.suffix}</del><b aria-hidden="true">→</b>
+            <ins>{metric.value}{metric.suffix}</ins>
+          </strong>
+          {delta !== 0 && <em>{delta > 0 ? "+" : ""}{delta}{metric.suffix}</em>}
+        </div>;
+      })}
+    </div>}
+    {changeText && <div className={styles.modChanges}><span>Что меняется</span><p>{changeText}</p></div>}
+    {!changeText && modification.effect && <p className={styles.modEffect}>{cleanEffect(modification.effect)}</p>}
+    {modification.cost && <div className={styles.modCost}><span>Стоимость и шанс</span><p>{cleanCost(modification.cost)}</p></div>}
+  </div>;
+}
+
 function SkillEntry({ bundle }: { bundle: SkillBundle }) {
   const [open, setOpen] = useState(false);
   const [levelIndex, setLevelIndex] = useState(0);
@@ -181,14 +300,7 @@ function SkillEntry({ bundle }: { bundle: SkillBundle }) {
     </button>
 
     {open && <div className={styles.details}>
-      {bundle.levels.length > 1 && <div className={styles.levelPicker}>
-        <span>Уровень навыка</span>
-        <select value={levelIndex} onChange={(event) => setLevelIndex(Number(event.target.value))}>
-          {bundle.levels.map((item, index) => <option value={index} key={item.id}>
-            {item.skill_level}{item.sub_level ? `.${item.sub_level}` : ""} · {item.name_ru}
-          </option>)}
-        </select>
-      </div>}
+      {bundle.levels.length > 1 && <SkillLevelPicker levels={bundle.levels} value={levelIndex} onChange={setLevelIndex}/>}
 
       <div className={styles.detailGrid}>
         <div className={styles.description}>
@@ -211,11 +323,11 @@ function SkillEntry({ bundle }: { bundle: SkillBundle }) {
           <small>{bundle.modifications.length}</small>
         </div>
         <div className={styles.modGrid}>
-          {bundle.modifications.map((modification) => <div className={styles.mod} key={modification.id}>
-            <strong>{modification.name}</strong>
-            {modification.effect && <p>{cleanEffect(modification.effect)}</p>}
-            {modification.cost && <small>{cleanCost(modification.cost)}</small>}
-          </div>)}
+          {bundle.modifications.map((modification) => <ModificationCard
+            modification={modification}
+            baseDescription={bundle.levels.find((item) => item.skill_level === modification.base_level)?.description_text || bundle.levels[0]?.description_text || ""}
+            key={modification.id}
+          />)}
         </div>
       </div>}
 
