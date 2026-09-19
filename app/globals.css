@@ -22,7 +22,7 @@
   --rp-dark-text-muted:#b8bec8;
   --rp-dark-border:#ffffff1f;
   --rp-dark-border-strong:#ffffff33;
-  --rp-article-hero-shade:linear-gradient(0deg,#090b11 1%,#090b11c5 38%,#090b113e 76%,#090b117d 100%),linear-gradient(90deg,#0a0c11b0,transparent 70%);
+  --rp-article-hero-shade:linear-gradient(0deg,#090b11d9 0%,#090b1152 14%,transparent 42%),linear-gradient(180deg,#090b115c 0%,transparent 26%);
   --rp-article-title-scrim:radial-gradient(ellipse at 42% 52%,#06080cdb 0%,#06080cb8 42%,#06080c66 64%,transparent 82%);
   --rp-article-title-mask:radial-gradient(ellipse at 42% 52%,#000 34%,#000d 56%,transparent 84%);
   --rp-article-title-shadow:0 3px 22px #000e,0 1px 3px #000;
