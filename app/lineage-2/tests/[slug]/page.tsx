@@ -15,7 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   return {
     title: `${test.number} — ${test.shortTitle}`,
     description: test.answer,
-    robots: { index: false, follow: false },
+    alternates: { canonical: `/lineage-2/tests/${test.slug}` },
+    openGraph: { type: "article", title: `${test.number} — ${test.shortTitle}`, description: test.answer, url: `/lineage-2/tests/${test.slug}` },
   };
 }
 

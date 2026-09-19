@@ -65,7 +65,7 @@ export function TestDetail({ test }: { test: TestRecord }) {
     <header className={styles.header}><div className={styles.headerInner}>
       <Link href="/" className={styles.brand}><span>R</span><strong>REDPLAY</strong></Link>
       <Link href="/lineage-2/tests" className={styles.back}><ArrowLeft size={16}/> Все тесты</Link>
-      <span className={styles.previewPill}>Preview · не опубликовано</span>
+      <span className={styles.previewPill}>RedPlay Tests</span>
     </div></header>
 
     <section className={styles.detailHero}><div className={styles.detailHeroInner}>
@@ -79,7 +79,7 @@ export function TestDetail({ test }: { test: TestRecord }) {
     <div className={styles.detailLayout}>
       <aside className={styles.toc} aria-label="Содержание теста">
         <strong>В этом тесте</strong>
-        <a href="#decision">Решение</a><a href="#method">Методика</a><a href="#results">Результаты</a><a href="#meaning">Что это значит</a><a href="#fit">Применимость</a><a href="#limits">Ограничения</a><a href="#history">История</a>
+        <a href="#decision">Решение</a><a href="#method">Методика</a><a href="#results">Результаты</a><a href="#meaning">Что это значит</a><a href="#video">Видео</a><a href="#evidence">Исходники</a><a href="#fit">Применимость</a><a href="#limits">Ограничения</a><a href="#history">История</a>
       </aside>
 
       <article className={styles.detailBody}>
@@ -94,7 +94,6 @@ export function TestDetail({ test }: { test: TestRecord }) {
           <div className={styles.methodGrid}>{test.method.map((item, index) => <div key={item}><span>{String(index + 1).padStart(2, "0")}</span><p>{item}</p></div>)}</div>
           <div className={styles.entityLinks}><Link2 size={17}/><div>{test.relations.map((ref) => <span key={`${ref.type}-${ref.id}`}><small>{ref.type === "class" ? "Класс" : "Локация"}</small>{ref.name}</span>)}</div></div>
           {test.characterStats && <div className={styles.statsTableWrap}><div className={styles.tableTitle}><div><strong>Характеристики перед сравнением</strong><p>Сопоставимый буст не сделал боевые показатели одинаковыми — это часть результата реролла.</p></div><EvidenceBadge kind="measurement"/></div><table className={styles.statsTable}><thead><tr><th>Параметр</th>{test.contenders.map((item) => <th key={item.id}>{item.shortName}</th>)}</tr></thead><tbody>{test.characterStats.map((row) => <tr key={row.label}><td>{row.label}</td>{test.contenders.map((item) => <td key={item.id}>{row.values[item.id]}</td>)}</tr>)}</tbody></table></div>}
-          {!!test.evidenceImages?.length && <div className={styles.evidenceImages}>{test.evidenceImages.map((item) => <figure key={item.src}><Image src={item.src} alt={item.alt} width={item.width || 1920} height={item.height || 1080} sizes="(max-width: 900px) 100vw, 850px"/><figcaption><EvidenceBadge kind="measurement"/><span>{item.caption}</span></figcaption></figure>)}</div>}
         </section>
 
         <section id="results" className={styles.contentSection}>
@@ -108,6 +107,13 @@ export function TestDetail({ test }: { test: TestRecord }) {
           <div className={styles.meaningGrid}><div className={styles.factPanel}><div><ShieldCheck size={20}/><EvidenceBadge kind="measurement"/></div><h3>Что показали числа</h3><ul>{test.measuredFacts.map((item) => <li key={item}><Check size={16}/>{item}</li>)}</ul></div><div className={styles.interpretationPanel}><div><Scale size={20}/><EvidenceBadge kind="interpretation"/></div><h3>Как RedPlay это читает</h3><ul>{test.interpretation.map((item) => <li key={item}><ChevronRight size={16}/>{item}</li>)}</ul></div></div>
         </section>
 
+        <section id="video" className={styles.videoPanel}><div className={styles.videoIcon}><Film size={28}/></div><div><span>Видео теста</span><h2>{test.video.title}</h2>{!videoId && <p>URL ролика не был сохранён в исходной сводке. Блок готов и будет подключён без изменения страницы, когда ссылка будет подтверждена.</p>}</div><span className={styles.videoStatus}>{videoId ? "Встроенный плеер" : "Ожидает ссылку"}</span>{videoId && <div className={styles.videoPlayer}><ArticleVideoEmbed videoId={videoId} title={test.video.title} orientation="horizontal"/></div>}</section>
+
+        {!!test.evidenceImages?.length && <section id="evidence" className={styles.contentSection}>
+          <div className={styles.sectionIntro}><span>Первичные материалы</span><h2>Что было зафиксировано в игре</h2><p>Исходные таблицы оставлены для проверки цифр. Они подтверждают измерения, но не заменяют вывод и ограничения теста.</p></div>
+          <div className={styles.evidenceImages}>{test.evidenceImages.map((item) => <figure key={item.src}><Image src={item.src} alt={item.alt} width={item.width || 1920} height={item.height || 1080} sizes="(max-width: 900px) 100vw, 850px"/><figcaption><EvidenceBadge kind="measurement"/><span>{item.caption}</span></figcaption></figure>)}</div>
+        </section>}
+
         <section id="fit" className={styles.contentSection}>
           <div className={styles.sectionIntro}><span>05 · Применимость</span><h2>Насколько это похоже на ваш случай</h2><p>Чем больше совпадений, тем полезнее тест как ориентир. Это не калькулятор гарантированного результата.</p></div>
           <div className={styles.fitList}>{test.applicability.map((item) => <div key={item}><Check size={17}/><span>{item}</span></div>)}</div>
@@ -117,8 +123,6 @@ export function TestDetail({ test }: { test: TestRecord }) {
           <div className={styles.sectionIntro}><span>06 · Границы вывода</span><h2>Чего этот тест не доказывает</h2></div>
           <div className={styles.limitGrid}><div className={styles.warningPanel}><h3><AlertTriangle size={19}/> Ограничения данных</h3><ul>{test.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div><div className={styles.noProofPanel}><h3><X size={19}/> Нельзя утверждать</h3><ul>{test.notProven.map((item) => <li key={item}>{item}</li>)}</ul></div></div>
         </section>
-
-        <section className={styles.videoPanel}><div className={styles.videoIcon}><Film size={28}/></div><div><span>Видео теста</span><h2>{test.video.title}</h2>{!videoId && <p>URL ролика не был сохранён в исходной сводке. Блок готов и будет подключён без изменения страницы, когда ссылка будет подтверждена.</p>}</div><span className={styles.videoStatus}>{videoId ? "Встроенный плеер" : "Ожидает ссылку"}</span>{videoId && <div className={styles.videoPlayer}><ArticleVideoEmbed videoId={videoId} title={test.video.title} orientation="horizontal"/></div>}</section>
 
         <section id="history" className={styles.contentSection}>
           <div className={styles.sectionIntro}><span>07 · История замеров</span><h2>Новый патч не переписывает старый результат</h2><p>Каждый повтор сохраняется отдельной версией. Так можно увидеть изменение класса или локации во времени.</p></div>

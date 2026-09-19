@@ -8,7 +8,7 @@ import styles from "./tests.module.css";
 export const metadata: Metadata = {
   title: "RedPlay Tests — реальные замеры Lineage 2",
   description: "Сравнения классов и локаций на основе реальных игровых замеров RedPlay.",
-  robots: { index: false, follow: false },
+  alternates: { canonical: "/lineage-2/tests" },
 };
 
 export default function TestsPage() {
@@ -16,7 +16,7 @@ export default function TestsPage() {
     <header className={styles.header}><div className={styles.headerInner}>
       <Link href="/" className={styles.brand}><span>R</span><strong>REDPLAY</strong></Link>
       <Link href="/" className={styles.back}><ArrowLeft size={16}/> На главную</Link>
-      <span className={styles.previewPill}>Preview · не опубликовано</span>
+      <span className={styles.previewPill}>RedPlay Tests</span>
     </div></header>
 
     <section className={styles.catalogHero}><div className={styles.catalogHeroInner}>
@@ -31,9 +31,9 @@ export default function TestsPage() {
     </div></section>
 
     <section className={styles.catalogSection}><div className={styles.catalogWrap}>
-      <div className={styles.catalogHeading}><div><span>Первые замеры</span><h2>Какой вопрос вы решаете?</h2></div><p>{redplayTests.length} исследования · оба в черновике</p></div>
+      <div className={styles.catalogHeading}><div><span>Первые замеры</span><h2>Какой вопрос вы решаете?</h2></div><p>{redplayTests.length} исследования · открыты для чтения</p></div>
       <TestsCatalog tests={redplayTests}/>
-      <div className={styles.architectureNote}><strong>Почему это отдельный раздел</strong><p>Тест хранит связи с классами и локациями, условия замера и версии результатов. Один тест можно показать на странице Самурая, Диверсанта, ТОИ 9 или ТОИ 11 — без копирования содержания в четыре статьи.</p></div>
+      <div className={styles.architectureNote}><strong>Как читать результаты</strong><p>Сначала выберите цель — опыт или адену. Затем проверьте длительность серии, версию игры и насколько ваш персонаж похож на тестовый. Короткий замер помогает выбрать направление, длинный — увереннее оценить стабильный фарм.</p></div>
     </div></section>
   </main>;
 }

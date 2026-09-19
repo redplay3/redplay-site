@@ -31,7 +31,9 @@ export function TestsCatalog({ tests }: { tests: TestRecord[] }) {
       {visible.map((test) => <Link className={styles.testCard} href={`/lineage-2/tests/${test.slug}`} key={test.id}>
         <div className={styles.cardTop}>
           <div className={styles.cardBadges}><span className={styles.testNumber}><FlaskConical size={15}/>{test.number}</span><span className={`${styles.editionBadge} ${test.edition === "main" ? styles.editionMain : styles.editionEssence}`}>{editionLabels[test.edition]}</span></div>
-          <span className={styles.draftBadge}>Черновик</span>
+          <span className={test.status === "published" ? styles.publishedBadge : styles.draftBadge}>
+            {test.status === "published" ? "Опубликовано" : "Черновик"}
+          </span>
         </div>
         <div className={styles.cardIcon}>{test.kind === "class-comparison" ? <Swords/> : <MapPinned/>}</div>
         <p className={styles.cardQuestion}>{test.question}</p>
