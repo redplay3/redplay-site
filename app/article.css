@@ -162,3 +162,9 @@
 .article-page .replica-flow small{color:#b8bec8;font-size:.72rem;line-height:1.45}
 @media(max-width:620px){.article-page .article-section-number{font-size:.7rem}.article-page .article-warning .article-rich-text p,.article-page .article-note .article-rich-text p{font-size:.86rem!important}}
 
+/* Keep card icons and their titles on one visual line. */
+.article-page .key-grid>div:has(>svg){display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:.72rem}
+.article-page .key-grid>div:has(>svg)>svg{grid-column:1;grid-row:1}
+.article-page .key-grid>div:has(>svg)>strong{grid-column:2;grid-row:1;margin-top:0}
+.article-page .key-grid>div:has(>svg)>p{grid-column:1/-1;grid-row:2;margin-top:.65rem!important}
+
