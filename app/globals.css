@@ -22,9 +22,8 @@
   --rp-dark-text-muted:#b8bec8;
   --rp-dark-border:#ffffff1f;
   --rp-dark-border-strong:#ffffff33;
-  --rp-article-hero-shade:linear-gradient(0deg,#090b11d9 0%,#090b1152 14%,transparent 42%),linear-gradient(180deg,#090b115c 0%,transparent 26%);
-  --rp-article-title-scrim:radial-gradient(ellipse at 42% 52%,#06080cdb 0%,#06080cb8 42%,#06080c66 64%,transparent 82%);
-  --rp-article-title-mask:radial-gradient(ellipse at 42% 52%,#000 34%,#000d 56%,transparent 84%);
+  --rp-article-hero-shade:linear-gradient(0deg,#090b11b8 0%,#090b1138 12%,transparent 30%),linear-gradient(180deg,#090b114d 0%,transparent 18%);
+  --rp-article-title-scrim:linear-gradient(90deg,#06080ce0 0%,#06080cc7 68%,#06080c61 88%,transparent 100%);
   --rp-article-title-shadow:0 3px 22px #000e,0 1px 3px #000;
 }
 @theme inline{--color-background:var(--background);--color-foreground:var(--foreground);--color-card:var(--card);--color-card-foreground:var(--card-foreground);--color-popover:var(--popover);--color-popover-foreground:var(--popover-foreground);--color-primary:var(--primary);--color-primary-foreground:var(--primary-foreground);--color-secondary:var(--secondary);--color-secondary-foreground:var(--secondary-foreground);--color-muted:var(--muted);--color-muted-foreground:var(--muted-foreground);--color-accent:var(--accent);--color-accent-foreground:var(--accent-foreground);--color-destructive:var(--destructive);--color-border:var(--border);--color-input:var(--input);--color-ring:var(--ring);--font-sans:Inter,"Segoe UI Variable","Segoe UI",Arial,sans-serif}
