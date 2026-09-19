@@ -160,7 +160,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
       <div className="relative z-10 mx-auto flex min-h-[600px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-14"><div className="max-w-5xl">
         <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href={categoryPath}>{edition}</Link><ChevronRight size={14}/><Link href={categoryPath}>{category}</Link></div>
         <div className="mt-7 flex flex-wrap items-center gap-3"><span className="article-label">{article.label || category}</span><span className="article-meta"><CalendarDays size={14}/> {formatDate(article.published_at)}</span><span className="article-meta"><Clock3 size={14}/> {formatReadingTime(readingTime(sections))}</span><ArticleViewCount pageKey={canonicalPath} initialViews={initialViews}/></div>
-        <h1>{article.title}</h1><p className="article-deck">{article.description}</p>
+        <h1><span>{article.title}</span></h1><p className="article-deck">{article.description}</p>
       </div></div>
     </section>
 

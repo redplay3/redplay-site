@@ -171,7 +171,8 @@
 /* Global publication hero: preserve the artwork and protect only the title area. */
 .article-page .article-hero-shade{background:var(--rp-article-hero-shade)}
 .article-page .article-hero h1{position:relative;isolation:isolate;width:fit-content;text-shadow:var(--rp-article-title-shadow)}
-.article-page .article-hero h1::before{content:"";position:absolute;z-index:-1;inset:-.5em -.8em -.42em -.55em;background:var(--rp-article-title-scrim);backdrop-filter:blur(11px) brightness(.72);-webkit-backdrop-filter:blur(11px) brightness(.72);mask-image:var(--rp-article-title-mask);-webkit-mask-image:var(--rp-article-title-mask);pointer-events:none}
+.article-page .article-hero h1>span{position:relative;z-index:1}
+.article-page .article-hero h1::before{content:"";position:absolute;z-index:0;inset:-.5em -.8em -.42em -.55em;background:var(--rp-article-title-scrim);backdrop-filter:blur(11px) brightness(.72);-webkit-backdrop-filter:blur(11px) brightness(.72);mask-image:var(--rp-article-title-mask);-webkit-mask-image:var(--rp-article-title-mask);pointer-events:none}
 .article-page .article-deck{text-shadow:0 2px 12px #000e,0 1px 2px #000}
 @media(max-width:760px){.article-page .article-hero-shade{background:linear-gradient(0deg,#090b11e0 0%,#090b1161 16%,transparent 44%),linear-gradient(180deg,#090b115c 0%,transparent 24%)}.article-page .article-hero h1::before{inset:-.55em -.45em -.48em -.4em;backdrop-filter:blur(8px) brightness(.7);-webkit-backdrop-filter:blur(8px) brightness(.7)}}
 
