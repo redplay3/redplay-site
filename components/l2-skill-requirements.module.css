@@ -23,7 +23,7 @@
   position: relative;
   display: grid;
   min-width: 0;
-  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
   align-items: center;
   gap: .72rem;
   overflow: hidden;
@@ -51,8 +51,9 @@
 .icon {
   position: relative;
   display: grid;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  justify-self: center;
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--book-border);
@@ -87,7 +88,7 @@
 
 @media (max-width: 620px) {
   .requirement { padding: .78rem; }
-  .item { grid-template-columns: 3rem minmax(0, 1fr) auto; gap: .62rem; padding: .58rem .62rem .58rem .72rem; }
-  .icon { width: 3rem; height: 3rem; }
+  .item { grid-template-columns: 2.625rem minmax(0, 1fr) auto; gap: .62rem; padding: .58rem .62rem .58rem .72rem; }
+  .icon { width: 2.5rem; height: 2.5rem; }
   .copy strong { overflow-wrap: anywhere; font-size: .8rem; }
 }
