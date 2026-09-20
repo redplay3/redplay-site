@@ -11,6 +11,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -40,20 +41,77 @@ const gameLinks = [
   { name: "Special Project", short: "SP", tag: "Фарм и честный прогресс", text: "Развивай персонажа через охоту и добычу адены, собирай экипировку в игре и двигайся вперёд без L-монет.", cta: "Начать в Special Project", url: "https://ru.4game.com/s2s/redplay_eva", image: "/game-special.webp", featured: true },
 ];
 
-const rewardPreviews: Record<BonusGroup, { image: string; alt: string; title: string; note: string }> = {
+type RewardItem = { name: string; amount: string; detail?: string; iconX: number; iconY: number };
+type RewardPreview = {
+  image: string;
+  sourceWidth: number;
+  sourceHeight: number;
+  title: string;
+  eyebrow: string;
+  note: string;
+  emblem: { iconX: number; iconY: number };
+  items: RewardItem[];
+};
+
+const rewardPreviews: Record<BonusGroup, RewardPreview> = {
   Main: {
     image: "/bonus/main-partner-pack.png",
-    alt: "Состав Куба Помощи Партнёра для Lineage 2 Main",
-    title: "Main — Куб Помощи Партнёра",
+    sourceWidth: 366,
+    sourceHeight: 369,
+    eyebrow: "Награда Main",
+    title: "Куб Помощи Партнёра",
     note: "Ежедневные и разовые предметы для первых 30 дней развития.",
+    emblem: { iconX: 24, iconY: 24 },
+    items: [
+      { name: "Чудодейственный Коктейль", amount: "×3", detail: "каждый день", iconX: 24, iconY: 103 },
+      { name: "Брелок Спутника Новичков", amount: "×1", detail: "1-й день", iconX: 24, iconY: 147 },
+      { name: "Медовое Тёмное Пиво", amount: "×50", detail: "10-й день", iconX: 24, iconY: 192 },
+      { name: "Зелье Стихий Дракона", amount: "×50", detail: "20-й день", iconX: 24, iconY: 234 },
+      { name: "Золотые Песочные Часы Невитт", amount: "×50", detail: "30-й день", iconX: 24, iconY: 311 },
+    ],
   },
   "Essence / Special Project": {
     image: "/bonus/essence-special-partner-pack.png",
-    alt: "Состав Сундука Партнёра для Lineage 2 Essence и Special Project",
-    title: "Essence и Special Project — Сундук Партнёра",
+    sourceWidth: 559,
+    sourceHeight: 358,
+    eyebrow: "Essence · Special Project",
+    title: "Сундук Партнёра",
     note: "Состав награды одинаковый для обеих версий; ссылки регистрации разные.",
+    emblem: { iconX: 17, iconY: 24 },
+    items: [
+      { name: "Модифицировать Атаку", amount: "×200", iconX: 17, iconY: 102 },
+      { name: "Модифицировать Защиту", amount: "×200", iconX: 17, iconY: 142 },
+      { name: "Руда Духов", amount: "×10 000", iconX: 17, iconY: 182 },
+      { name: "Купон на Заряды Души", amount: "×1 000", iconX: 17, iconY: 222 },
+      { name: "Серьга Закена +2", amount: "×1", detail: "7 дней", iconX: 17, iconY: 262 },
+      { name: "Купон Призыва Куклы", amount: "×3", iconX: 17, iconY: 302 },
+    ],
   },
 };
+
+function RewardIcon({ reward, x, y, large = false }: { reward: RewardPreview; x: number; y: number; large?: boolean }) {
+  const style = {
+    backgroundImage: `url(${reward.image})`,
+    backgroundPosition: `-${x}px -${y}px`,
+    backgroundSize: `${reward.sourceWidth}px ${reward.sourceHeight}px`,
+  } satisfies CSSProperties;
+  return <span className={`reward-sprite${large ? " reward-sprite-large" : ""}`} style={style} aria-hidden="true"/>;
+}
+
+function RewardBoard({ group, compact = false }: { group: BonusGroup; compact?: boolean }) {
+  const reward = rewardPreviews[group];
+  return <section className={`bonus-reward-board${compact ? " is-compact" : ""}`} aria-label={`${reward.title}: состав награды`}>
+    <div className="bonus-reward-head">
+      <RewardIcon reward={reward} x={reward.emblem.iconX} y={reward.emblem.iconY} large/>
+      <div><span>{reward.eyebrow}</span><strong>{reward.title}</strong><p>{reward.note}</p></div>
+    </div>
+    <ul className="bonus-reward-items">{reward.items.map((item) => <li key={item.name}>
+      <RewardIcon reward={reward} x={item.iconX} y={item.iconY}/>
+      <span><strong>{item.name}</strong>{item.detail && <small>{item.detail}</small>}</span>
+      <b>{item.amount}</b>
+    </li>)}</ul>
+  </section>;
+}
 
 function readStorage(storage: Storage, key: string) {
   try {
@@ -305,10 +363,7 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
         </div>
         <div className="bonus-desktop-groups" aria-hidden="true"><span>Main</span><span>Essence / Special Project</span></div>
         <div className="bonus-reward-grid">
-          {(Object.entries(rewardPreviews) as [BonusGroup, (typeof rewardPreviews)[BonusGroup]][]).map(([group, reward]) => <figure key={group} className="bonus-reward-card">
-            <img src={reward.image} alt={reward.alt}/>
-            <figcaption><strong>{reward.title}</strong><span>{reward.note}</span></figcaption>
-          </figure>)}
+          {(Object.keys(rewardPreviews) as BonusGroup[]).map((group) => <RewardBoard key={group} group={group}/>)}
         </div>
         <div className="bonus-dialog-cards grid gap-3 p-4 sm:grid-cols-3 sm:p-6">{gameLinks.map((game) => <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>)}</div>
         <div className="bonus-dialog-footer"><p>Переходы ведут по партнёрским ссылкам RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
@@ -327,10 +382,7 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
         <div className="bonus-sheet-tabs" aria-label="Выбор версии">
           {(["Main", "Essence / Special Project"] as BonusGroup[]).map((group) => <button key={group} type="button" className={bonusGroup === group ? "active" : ""} onClick={() => selectGroup(group)}>{group}</button>)}
         </div>
-        <figure className="bonus-sheet-reward">
-          <img src={rewardPreviews[bonusGroup].image} alt={rewardPreviews[bonusGroup].alt}/>
-          <figcaption><strong>{rewardPreviews[bonusGroup].title}</strong><span>{rewardPreviews[bonusGroup].note}</span></figcaption>
-        </figure>
+        <div className="bonus-sheet-reward"><RewardBoard group={bonusGroup} compact/></div>
         <div className="bonus-sheet-cards">{gameLinks.filter((game) => bonusGroup === "Main" ? game.name === "Main" : game.name !== "Main").map((game) => <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>)}</div>
         <div className="bonus-sheet-footer"><p>Партнёрские ссылки RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
       </section>

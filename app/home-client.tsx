@@ -6,33 +6,27 @@ import {
   Clock3, Crosshair, Database, Eye, Flame, FlaskConical, Gift, Map, Menu, Newspaper, Play, Search,
   Send, Shield, Sparkles, Swords, Video as Youtube, X,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useBonusOffer } from "@/components/bonus-offer-provider";
 import { ThemeSwitcher } from "@/components/theme-provider";
 import { editions, knowledgeSections, type Edition } from "@/lib/content";
 import { articleCategories, isGuideSourceCategory } from "@/lib/articles/catalog";
-import { readEditionPreference, saveEditionPreference, type EditionPreference } from "@/lib/edition-preference";
+import { saveEditionPreference, type EditionPreference } from "@/lib/edition-preference";
 import { createPublicClient } from "@/lib/supabase/public";
 
 type Video = { id: string; title: string; url: string; thumbnail: string; published: string };
 type OnlineServer = { name: string; online: number };
 type OnlineEdition = "Main" | "Special Project" | "Essence";
 type OnlineGroups = Record<OnlineEdition, OnlineServer[]>;
-export type PublishedArticle = { id: string; title: string; description: string; label: string; cover: { src?: string; alt?: string } | null; edition: "main" | "essence" | "special-project"; category: string; slug: string; tags: string[] | null; published_at: string | null; updated_at: string };
+export type PublishedArticle = { id: string; title: string; description: string; label: string; cover: { src?: string; alt?: string } | null; edition: "main" | "essence" | "special-project"; category: string; slug: string; href?: string; tags: string[] | null; published_at: string | null; updated_at: string };
 type ArticleViewRow = { page_key: string; view_count: number | string; updated_at?: string; view_date?: string };
-const editionLabels: Record<EditionPreference, Edition> = {
-  all: "Все версии",
-  main: "Main",
-  essence: "Essence / Special Project",
-};
 const editionValues: Record<Edition, EditionPreference> = {
   "Все версии": "all",
   Main: "main",
   "Essence / Special Project": "essence",
 };
-const subscribeToEditionPreference = () => () => undefined;
 const fallbackHero = {
   title: "Forged in Battle в Lineage 2: все классы, умения и точные изменения",
   description: "Полный разбор большого обновления: классы, новые зоны, предметы, крафт и различия Essence и Special Project.",
@@ -67,6 +61,37 @@ const forgedArticle: PublishedArticle = {
   published_at: fallbackHero.publishedAt,
   updated_at: fallbackHero.publishedAt,
 };
+const fallbackTestArticles: PublishedArticle[] = [
+  {
+    id: "test-samurai-diversant",
+    title: "Самурай против Диверсанта: кто фармит лучше на равном бусте",
+    description: "Честное сравнение опыта и адены на одинаковом усилении — с методикой, цифрами и итоговым выбором.",
+    label: "RedPlay Tests",
+    cover: { src: "/redplay-tests/samurai-vs-diversant-fairies.png", alt: "Самурай против Диверсанта" },
+    edition: "essence",
+    category: "comparisons",
+    slug: "samurai-vs-diversant-equal-boost",
+    href: "/lineage-2/tests/samurai-vs-diversant-equal-boost",
+    tags: ["Essence", "Special Project", "Тест фарма"],
+    published_at: "2026-09-11T10:00:00+03:00",
+    updated_at: "2026-09-11T10:00:00+03:00",
+  },
+  {
+    id: "test-diversant-map",
+    title: "Где фармить Диверсантом: большая карта локаций",
+    description: "Сравнили серверные и межсерверные зоны, чтобы найти лучшие места по опыту и адене.",
+    label: "RedPlay Tests",
+    cover: { src: "/redplay-tests/farm-diversant-all-locations.png", alt: "Карта фарма Диверсанта" },
+    edition: "essence",
+    category: "zones",
+    slug: "diversant-farm-location-map-1520",
+    href: "/lineage-2/tests/diversant-farm-location-map-1520",
+    tags: ["Essence", "Special Project", "Локации"],
+    published_at: "2026-09-10T10:00:00+03:00",
+    updated_at: "2026-09-10T10:00:00+03:00",
+  },
+];
+const articleHref = (article: PublishedArticle) => article.href || `/lineage-2/${article.edition}/${article.category}/${article.slug}`;
 const fallbackOnline: OnlineGroups = {
   Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063}],
   "Special Project": [{name:"Wolf1",online:1813},{name:"Wolf2",online:2047},{name:"Eva1",online:1943},{name:"Eva2",online:1690},{name:"Samurai1",online:1728},{name:"Samurai2",online:1438}],
@@ -79,13 +104,7 @@ const fallbackVideos: Video[] = [
   { id: "zT6UhPTusio", title: "3 млрд опыта или 5,8 млн адены в час? Тест 16 локаций", url: "https://www.youtube.com/watch?v=zT6UhPTusio", thumbnail: "https://i.ytimg.com/vi/zT6UhPTusio/hqdefault.jpg", published: "RedPlay" },
 ];
 export default function HomePage({ initialArticles }: { initialArticles: PublishedArticle[] }) {
-  const savedEdition = useSyncExternalStore(
-    subscribeToEditionPreference,
-    () => editionLabels[readEditionPreference()],
-    () => "Все версии",
-  );
-  const [selectedEdition, setSelectedEdition] = useState<Edition | null>(null);
-  const edition = selectedEdition || savedEdition;
+  const [edition, setEdition] = useState<Edition>("Все версии");
   const { openBonus: openGlobalBonus, promptOpen: bonusPromptOpen } = useBonusOffer();
   const openBonus = () => openGlobalBonus(edition === "Main" ? "Main" : "Essence / Special Project");
   const [query, setQuery] = useState("");
@@ -99,7 +118,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
   const [articleViews, setArticleViews] = useState<Record<string, number>>({});
 
   const selectEdition = (selectedEdition: Edition) => {
-    setSelectedEdition(selectedEdition);
+    setEdition(selectedEdition);
     saveEditionPreference(editionValues[selectedEdition]);
   };
 
@@ -134,10 +153,10 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
   }, []);
 
   const editionArticles = useMemo(() => {
-    const pool = [...publishedArticles, forgedArticle, replicaArticle]
+    const pool = [...publishedArticles, forgedArticle, replicaArticle, ...fallbackTestArticles]
       .filter((article, index, all) => {
-        const href = `/lineage-2/${article.edition}/${article.category}/${article.slug}`;
-        return all.findIndex((item) => `/lineage-2/${item.edition}/${item.category}/${item.slug}` === href) === index;
+        const href = articleHref(article);
+        return all.findIndex((item) => articleHref(item) === href) === index;
       })
       .sort((left, right) => new Date(right.published_at || right.updated_at).getTime() - new Date(left.published_at || left.updated_at).getTime());
 
@@ -150,11 +169,11 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
 
   const latestHero = publishedArticles[0] || forgedArticle;
   const featuredStory = editionArticles[0] || latestHero;
-  const featuredHref = featuredStory ? `/lineage-2/${featuredStory.edition}/${featuredStory.category}/${featuredStory.slug}` : "";
+  const featuredHref = featuredStory ? articleHref(featuredStory) : "";
   const featuredViews = featuredStory ? articleViews[featuredHref] || 0 : 0;
   const results = useMemo(() => {
     const excluded = new Set([featuredHref]);
-    const posts = editionArticles.filter((article) => !excluded.has(`/lineage-2/${article.edition}/${article.category}/${article.slug}`)).slice(0, 3).map((article) => {
+    const posts = editionArticles.filter((article) => !excluded.has(articleHref(article))).slice(0, 3).map((article) => {
       const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
       const targetLabel = targets.length === 2 ? "Essence + Special" : targets[0];
       return {
@@ -162,7 +181,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
         date: new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(article.published_at || article.updated_at)),
         title: article.title,
         summary: article.description,
-        href: `/lineage-2/${article.edition}/${article.category}/${article.slug}`,
+        href: articleHref(article),
       };
     });
     const value = query.trim().toLocaleLowerCase("ru");
@@ -239,7 +258,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     <section id="updates" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
       <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> Новое и актуальное</p><h2>Что изменилось в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={edition === "Все версии" ? "Поиск по всем версиям" : `Поиск в ${edition}`} /></label>{edition !== "Все версии" && <Link className="section-more" href={`/lineage-2/${editionPath}/news`}>Все материалы <ArrowRight size={16}/></Link>}</div></div>
       <div className={`news-layout mt-7 ${results.length ? "" : "news-layout-single"}`}>
-        {featuredStory ? <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Популярное</span><span>{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span>{featuredViews > 0 && <span className="story-views"><Eye size={13}/>{new Intl.NumberFormat("ru-RU").format(featuredViews)}</span>}</div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article> : <div className="news-empty"><strong>Новые материалы уже готовятся</strong><p>Последняя публикация показана выше. Здесь появятся другие популярные статьи выбранной версии без повторов.</p></div>}
+        {featuredStory ? <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Новое</span><span>{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span>{featuredViews > 0 && <span className="story-views"><Eye size={13}/>{new Intl.NumberFormat("ru-RU").format(featuredViews)}</span>}</div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article> : <div className="news-empty"><strong>Новые материалы уже готовятся</strong><p>Последняя публикация показана выше. Здесь появятся другие популярные статьи выбранной версии без повторов.</p></div>}
         {results.length > 0 && <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><div className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></div><h3>{post.title}</h3><p>{post.summary}</p><span className="mt-auto flex items-center gap-2 pt-4 text-xs font-black uppercase tracking-[.08em]">Читать <ArrowRight size={14}/></span></Link>)}</div>}
       </div>
     </div></section>
