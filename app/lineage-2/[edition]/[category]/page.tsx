@@ -6,6 +6,7 @@ import { articleCategories, buildArticlePath } from "@/lib/articles/catalog";
 import type { ArticleCategory, ArticleEdition } from "@/lib/articles/types";
 import { absoluteUrl, categorySeo, editionSeo, safeJsonLd, SITE_URL } from "@/lib/seo";
 import { createPublicClient } from "@/lib/supabase/public";
+import { ThemeSwitcher } from "@/components/theme-provider";
 
 export const revalidate = 300;
 
@@ -61,7 +62,7 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
 
   return <main className="catalog-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>
-    <header className="catalog-header"><div className="catalog-wrap"><Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link><Link href="/" className="catalog-back"><ArrowLeft size={16}/> На главную</Link></div></header>
+    <header className="catalog-header"><div className="catalog-wrap"><Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link><Link href="/" className="catalog-back"><ArrowLeft size={16}/> На главную</Link><ThemeSwitcher className="catalog-theme-switcher"/></div></header>
     <section className="catalog-hero"><div className="catalog-wrap"><div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href={`/lineage-2/${rawEdition}`}>{edition.shortLabel}</Link><ChevronRight size={14}/><span>{category.label}</span></div><p className="catalog-kicker">{edition.label}</p><h1>{category.title}</h1><p>{category.description}</p><div className="catalog-tags">{[...new Set([...category.keywords, ...edition.keywords])].map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div></section>
     <div className="catalog-wrap catalog-content">
       <section><div className="catalog-title"><div><span>Публикации RedPlay</span><h2>Все материалы раздела</h2></div></div>{articles.length ? <div className="catalog-articles">{articles.map((article) => <Link key={article.id} href={buildArticlePath(article.edition, article.category, article.slug)}><span>{article.tags?.slice(0, 2).join(" · ") || category.label}</span><h3>{article.title}</h3><p>{article.description}</p><small>{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(article.published_at || article.updated_at))}</small></Link>)}</div> : <div className="catalog-empty"><strong>Раздел уже открыт.</strong><p>Первый материал появится здесь после публикации в редакторе RedPlay.</p></div>}</section>

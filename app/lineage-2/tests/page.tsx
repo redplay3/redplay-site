@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Database, FlaskConical, GitCompareArrows, ShieldCheck } from "lucide-react";
 import { TestsCatalog } from "@/components/tests/tests-catalog";
+import { ThemeSwitcher } from "@/components/theme-provider";
 import { redplayTests } from "@/lib/tests/data";
 import styles from "./tests.module.css";
 
@@ -17,6 +18,7 @@ export default function TestsPage() {
       <Link href="/" className={styles.brand}><span>R</span><strong>REDPLAY</strong></Link>
       <Link href="/" className={styles.back}><ArrowLeft size={16}/> На главную</Link>
       <span className={styles.previewPill}>RedPlay Tests</span>
+      <ThemeSwitcher/>
     </div></header>
 
     <section className={styles.catalogHero}><div className={styles.catalogHeroInner}>

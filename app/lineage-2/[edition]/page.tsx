@@ -6,6 +6,7 @@ import { articleCategories, buildArticlePath } from "@/lib/articles/catalog";
 import type { ArticleCategory, ArticleEdition } from "@/lib/articles/types";
 import { absoluteUrl, categorySeo, editionSeo, safeJsonLd, SITE_URL } from "@/lib/seo";
 import { createPublicClient } from "@/lib/supabase/public";
+import { ThemeSwitcher } from "@/components/theme-provider";
 
 export const revalidate = 300;
 
@@ -57,7 +58,7 @@ export default async function EditionPage({ params }: { params: Promise<Params> 
 
   return <main className="catalog-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>
-    <header className="catalog-header"><div className="catalog-wrap"><Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link><Link href="/" className="catalog-back"><ArrowLeft size={16}/> На главную</Link></div></header>
+    <header className="catalog-header"><div className="catalog-wrap"><Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link><Link href="/" className="catalog-back"><ArrowLeft size={16}/> На главную</Link><ThemeSwitcher className="catalog-theme-switcher"/></div></header>
     <section className="catalog-hero"><div className="catalog-wrap"><div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><span>{info.shortLabel}</span></div><p className="catalog-kicker">База знаний RedPlay</p><h1>{info.label}</h1><p>{info.description}</p><div className="catalog-tags">{info.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></div></section>
     <div className="catalog-wrap catalog-content">
       <section><div className="catalog-title"><Database size={19}/><div><span>Выбери тему</span><h2>Разделы {info.shortLabel}</h2></div></div><div className="catalog-categories">{articleCategories.map((category) => <Link key={category.value} href={`/lineage-2/${rawEdition}/${category.value}`}><small>{categorySeo[category.value].keywords[0]}</small><strong>{categorySeo[category.value].title}</strong><p>{categorySeo[category.value].description}</p><span>Открыть <ArrowRight size={14}/></span></Link>)}</div></section>

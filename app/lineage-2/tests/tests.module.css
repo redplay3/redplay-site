@@ -15,3 +15,15 @@
 /* Product-version badges keep measurements from different Lineage 2 editions distinct. */
 .cardTop{align-items:flex-start;gap:12px}.cardBadges{display:flex;flex-wrap:wrap;align-items:center;gap:7px}.editionBadge{display:inline-flex;align-items:center;width:max-content;border:1px solid;border-radius:999px;padding:6px 9px;font-size:9px;font-weight:950;letter-spacing:.07em;text-transform:uppercase}.editionMain{border-color:#3f79d54d;background:#edf4ff;color:#285fae}.editionEssence{border-color:#8c57c84d;background:#f5effc;color:#7442a9}.heroMeta .editionBadge{padding:8px 11px}.heroMeta .editionMain{border-color:#6aa0ff66;background:#3f79d526;color:#a8c7ff}.heroMeta .editionEssence{border-color:#bd83ff66;background:#8c57c826;color:#d9b9ff}
 .videoPlayer{grid-column:1/-1;overflow:hidden;width:100%;margin-top:6px;border-radius:13px;background:#05060a}.videoPlayer span{color:inherit;font-size:inherit;letter-spacing:inherit;text-transform:none}
+
+/* The test library follows the shared public theme; hero and video panels stay dark. */
+:global(html[data-theme="dark"]) .page{background:var(--rp-surface-subtle);color:var(--rp-text)}
+:global(html[data-theme="dark"]) :is(.testCard,.decisionPanel,.methodGrid>div,.statsTableWrap,.metricBlock,.fitList>div,.evidenceImages figure){border-color:var(--rp-border);background:var(--rp-surface);box-shadow:0 12px 38px #0003}
+:global(html[data-theme="dark"]) :is(.catalogHeading h2,.testCard h2,.sectionIntro h2,.metricHead strong,.scenarioHead h3,.tableTitle strong,.historyList strong){color:var(--rp-text)}
+:global(html[data-theme="dark"]) :is(.catalogHeading>p,.cardQuestion,.cardAnswer,.sectionIntro p,.decisionGrid p,.methodGrid p,.tableTitle p,.barLabel span,.fitList>div,.historyList small,.evidenceImages figcaption){color:var(--rp-text-secondary)}
+:global(html[data-theme="dark"]) :is(.architectureNote,.entityLinks,.scenarioCard,.decisionGrid>div){border-color:var(--rp-border);background:#20242e;color:var(--rp-text-secondary)}
+:global(html[data-theme="dark"]) .statsTable th{background:#20242e;color:var(--rp-text-muted)}
+:global(html[data-theme="dark"]) :is(.statsTable th,.statsTable td,.cardDecision,.historyList>div,.tableTitle){border-color:var(--rp-border)}
+:global(html[data-theme="dark"]) .barTrack{background:#343945}
+
+@media(max-width:640px){.headerInner :global(.theme-switcher){margin-left:auto}.previewPill{display:none}}

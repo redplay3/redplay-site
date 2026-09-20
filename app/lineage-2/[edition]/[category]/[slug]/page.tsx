@@ -7,6 +7,7 @@ import { ArticleSharePanel, ArticleViewCount } from "@/components/article-engage
 import { ArticleAudienceContent } from "@/components/article-audience-content";
 import { ArticleNavigation } from "@/components/article-navigation";
 import { RememberEditionPreference } from "@/components/remember-edition-preference";
+import { ThemeSwitcher } from "@/components/theme-provider";
 import { articleCategories, articleEditions } from "@/lib/articles/catalog";
 import { getArticleViewCount } from "@/lib/articles/views";
 import type { ArticleCategory, ArticleEdition, ArticleIcon, ArticleSection } from "@/lib/articles/types";
@@ -151,6 +152,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
       <span className="hidden h-6 w-px bg-white/12 sm:block"/>
       <Link href="/" className="article-back"><ArrowLeft size={16}/> На главную</Link>
       <Link href={categoryPath} className="ml-auto hidden text-sm font-bold text-white/55 md:block">{category} · {edition}</Link>
+      <ThemeSwitcher/>
       <span className="article-play-group">{articleTargets.map((target) => <a key={target} href={playLinks[target]} target="_blank" rel="sponsored noopener noreferrer" className="article-play">{target === "main" ? "Играть в Main" : target === "essence" ? "Играть в Essence" : "Играть в Special"} <ArrowUpRight size={15}/></a>)}</span>
     </div></header>
 

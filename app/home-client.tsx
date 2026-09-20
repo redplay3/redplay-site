@@ -8,6 +8,7 @@ import {
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useBonusOffer } from "@/components/bonus-offer-provider";
+import { ThemeSwitcher } from "@/components/theme-provider";
 import { editions, knowledgeSections, type Edition } from "@/lib/content";
 import { articleCategories } from "@/lib/articles/catalog";
 import { readEditionPreference, saveEditionPreference, type EditionPreference } from "@/lib/edition-preference";
@@ -211,6 +212,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
       <span className="hidden h-7 w-px bg-white/10 md:block"/>
       <nav className="hidden items-center gap-6 text-sm font-bold text-white/65 lg:flex"><Link className="nav-link" href="/lineage-2/main">Main</Link><Link className="nav-link" href="/lineage-2/essence">Essence / Special Project</Link><Link className="nav-link" href="/lineage-2/main/guides">Гайды</Link><Link className="nav-link" href="/lineage-2/tests">Тесты</Link><a className="nav-link" href="#knowledge">База знаний</a><a className="nav-link" href="#videos">Видео</a></nav>
       <label className="header-search ml-auto hidden items-center gap-2 xl:flex"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по порталу" /></label>
+      <ThemeSwitcher/>
       <a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer" aria-label="YouTube RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Youtube size={17}/></a><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer" aria-label="Telegram RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Send size={17}/></a>
       <button onClick={() => openBonus()} className="bonus-button hidden sm:flex"><Gift size={16}/> Играть</button>
       <button className="ml-auto grid size-10 place-items-center rounded-full bg-white/8 text-white lg:hidden sm:ml-0" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}>{menuOpen ? <X size={20}/> : <Menu size={20}/>}</button>

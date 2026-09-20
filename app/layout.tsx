@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { BonusOfferProvider } from "@/components/bonus-offer-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { allSeoKeywords, DEFAULT_DESCRIPTION, DEFAULT_TITLE, safeJsonLd, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -71,5 +72,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     ],
   };
 
-  return <html lang="ru"><body className="antialiased"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/><BonusOfferProvider>{children}</BonusOfferProvider></body></html>;
+  const themeBootScript = `(() => { try { const key = "redplay-theme"; const saved = localStorage.getItem(key); const mode = saved === "light" || saved === "dark" || saved === "system" ? saved : "system"; const admin = location.pathname.startsWith("/redplay-admin"); const theme = admin ? "light" : mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode; document.documentElement.dataset.themeMode = mode; document.documentElement.dataset.theme = theme; document.documentElement.style.colorScheme = theme; } catch (_) { document.documentElement.dataset.theme = "light"; } })();`;
+
+  return <html lang="ru" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: themeBootScript }}/></head><body className="antialiased"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/><ThemeProvider><BonusOfferProvider>{children}</BonusOfferProvider></ThemeProvider></body></html>;
 }

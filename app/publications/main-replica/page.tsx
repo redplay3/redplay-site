@@ -9,6 +9,7 @@ import { ArticleNavigation } from "@/components/article-navigation";
 import { ArticleSharePanel, ArticleViewCount } from "@/components/article-engagement";
 import { ArticleVideoEmbed } from "@/components/article-video-embed";
 import { RememberEditionPreference } from "@/components/remember-edition-preference";
+import { ThemeSwitcher } from "@/components/theme-provider";
 import { getArticleViewCount } from "@/lib/articles/views";
 import { absoluteUrl, safeJsonLd, SITE_URL } from "@/lib/seo";
 
@@ -239,6 +240,7 @@ export default async function ReplicaArticle() {
       <span className="hidden h-6 w-px bg-white/12 sm:block"/>
       <Link href="/" className="article-back"><ArrowLeft size={16}/> На главную</Link>
       <nav className="ml-auto hidden items-center gap-6 text-sm font-bold text-white/55 md:flex"><a href="#replica">Реплика</a><a href="#classes">Классы</a><a href="#zones">Зоны</a><a href="#items">Предметы</a></nav>
+      <ThemeSwitcher/>
       <a href={mainLink} target="_blank" rel="sponsored noopener noreferrer" className="article-play">Играть в Main <ArrowUpRight size={15}/></a>
     </div></header>
 

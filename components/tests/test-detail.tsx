@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Check, ChevronRight, Clock3, Database, Film, FlaskConical, History, Link2, Scale, ShieldCheck, Target, X } from "lucide-react";
 import { ArticleVideoEmbed } from "@/components/article-video-embed";
+import { ThemeSwitcher } from "@/components/theme-provider";
 import type { EvidenceKind, TestEdition, TestRecord } from "@/lib/tests/types";
 import styles from "@/app/lineage-2/tests/tests.module.css";
 
@@ -66,6 +67,7 @@ export function TestDetail({ test }: { test: TestRecord }) {
       <Link href="/" className={styles.brand}><span>R</span><strong>REDPLAY</strong></Link>
       <Link href="/lineage-2/tests" className={styles.back}><ArrowLeft size={16}/> Все тесты</Link>
       <span className={styles.previewPill}>RedPlay Tests</span>
+      <ThemeSwitcher/>
     </div></header>
 
     <section className={styles.detailHero}><div className={styles.detailHeroInner}>
