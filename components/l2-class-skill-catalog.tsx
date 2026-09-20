@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { L2SkillRequirements, type RequirementItem, type SkillRequirement } from "./l2-skill-requirements";
 import styles from "./l2-class-skill-catalog.module.css";
 
 type Category = "all" | "attack" | "buff" | "unique" | "common";
@@ -81,7 +82,16 @@ type SkillBundle = {
   modifications: ModificationRow[];
   aliases: AliasRow[];
   icons: IconRow[];
+  requirements: SkillRequirement[];
   category: Exclude<Category, "all">;
+};
+
+type RequirementQueryRow = {
+  id: number;
+  skill_level_id: number;
+  quantity: number;
+  sort_order: number;
+  item: RequirementItem | RequirementItem[] | null;
 };
 
 const categories: Array<{ id: Category; label: string }> = [
@@ -103,14 +113,6 @@ function classify(typeLabel: string | null): Exclude<Category, "all"> {
 function shortType(typeLabel: string | null) {
   if (!typeLabel) return "Навык";
   return typeLabel.replace(/^Активные:\s*/i, "").replace(/^Пассивные:\s*/i, "");
-}
-
-function cleanRequirement(value: string | null) {
-  if (!value) return "";
-  return value
-    .replace(/^Приоритетное использование временных и запечатанных предметов\s*/i, "")
-    .replace(/\s+\|\s+/g, " · ")
-    .trim();
 }
 
 function cleanCost(value: string) {
@@ -268,6 +270,7 @@ function SkillEntry({ bundle }: { bundle: SkillBundle }) {
   const icon = iconForLevel(bundle, level);
   const displayName = level.name_ru || bundle.skill.canonical_name_ru;
   const renamed = displayName !== bundle.skill.canonical_name_ru;
+  const levelRequirements = bundle.requirements.filter((item) => item.skill_level_id === level.id);
   const params = [
     level.character_level !== null ? ["Уровень персонажа", String(level.character_level)] : null,
     level.sp_cost !== null ? ["SP", formatNumber(level.sp_cost)] : null,
@@ -312,10 +315,7 @@ function SkillEntry({ bundle }: { bundle: SkillBundle }) {
         </dl>}
       </div>
 
-      {cleanRequirement(level.required_items) && <div className={styles.requirement}>
-        <span>Требование изучения</span>
-        <p>{cleanRequirement(level.required_items)}</p>
-      </div>}
+      <L2SkillRequirements requirements={levelRequirements} legacyText={level.required_items}/>
 
       {bundle.modifications.length > 0 && <div className={styles.mods}>
         <div className={styles.modsHead}>
@@ -393,6 +393,26 @@ export function L2ClassSkillCatalog({ classSlug, title = "Навыки клас�
         const levels = (levelsResult.data || []) as LevelRow[];
         const modifications = (modificationsResult.data || []) as ModificationRow[];
         const aliases = (aliasesResult.data || []) as AliasRow[];
+        const levelIds = levels.map((item) => item.id);
+        let requirements: SkillRequirement[] = [];
+        if (levelIds.length > 0) {
+          const { data: requirementRows, error: requirementsError } = await supabase
+            .from("l2_skill_level_requirements")
+            .select("id,skill_level_id,quantity,sort_order,item:l2_requirement_items(id,name_ru,item_type,book_grade,icon_url)")
+            .in("skill_level_id", levelIds)
+            .order("sort_order");
+          if (requirementsError) throw requirementsError;
+          requirements = ((requirementRows || []) as RequirementQueryRow[]).flatMap((row) => {
+            const item = Array.isArray(row.item) ? row.item[0] : row.item;
+            return item ? [{
+              id: row.id,
+              skill_level_id: row.skill_level_id,
+              quantity: row.quantity,
+              sort_order: row.sort_order,
+              item,
+            }] : [];
+          });
+        }
 
         const bundles = classSkills
           .map((mapping) => {
@@ -406,6 +426,7 @@ export function L2ClassSkillCatalog({ classSlug, title = "Навыки клас�
               modifications: modifications.filter((item) => item.skill_id === mapping.skill_id),
               aliases: aliases.filter((item) => item.skill_id === mapping.skill_id),
               icons: iconRows.filter((item) => item.skill_id === mapping.skill_id),
+              requirements: requirements.filter((requirement) => skillLevels.some((level) => level.id === requirement.skill_level_id)),
               category: classify(skill.type_label || skillLevels[0]?.type_label || null),
             } satisfies SkillBundle;
           })

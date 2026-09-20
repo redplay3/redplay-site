@@ -22,6 +22,11 @@
   --rp-dark-text-muted:#b8bec8;
   --rp-dark-border:#ffffff1f;
   --rp-dark-border-strong:#ffffff33;
+  --rp-book-improved:#72d66b;
+  --rp-book-exceptional:#f1bd47;
+  --rp-book-rare:#4bbcf0;
+  --rp-book-heroic:#ff5665;
+  --rp-book-legendary:#ad72ff;
   --rp-article-hero-shade:linear-gradient(0deg,#090b11b8 0%,#090b1138 12%,transparent 30%),linear-gradient(180deg,#090b114d 0%,transparent 18%);
   --rp-article-copy-scrim:linear-gradient(90deg,#06080cbd 0%,#06080ca6 68%,#06080c54 86%,transparent 100%);
   --rp-article-title-shadow:0 3px 22px #000e,0 1px 3px #000;
