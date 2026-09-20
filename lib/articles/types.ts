@@ -77,6 +77,7 @@ type ArticleBlockContent =
   | { id: string; type: "opinion"; text: string; image?: string; label?: string }
   | { id: string; type: "video"; title: string; text: string; url: string; source?: "youtube" | "file"; caption?: string; poster?: string; label?: string; action?: string }
   | { id: string; type: "video-playlist"; title: string; text?: string; items: Array<{ title: string; url: string; text?: string }> }
+  | { id: string; type: "skill-catalog"; classSlug: string; title?: string }
   | { id: string; type: "telegram"; title: string; text: string; url?: string; label?: string; action?: string };
 
 export type ArticleBlock = ArticleBlockContent & { scope?: ArticleAudience; richText?: ArticleRichText };

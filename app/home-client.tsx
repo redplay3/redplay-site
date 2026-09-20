@@ -1,18 +1,20 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- CMS and third-party thumbnails can use dynamic remote hosts; hero LCP images use next/image. */
 
 import {
-  Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Box, Calculator, ChevronLeft, ChevronRight,
+  Activity, ArrowRight, ArrowUpRight, Bell, BookOpen, Box, Calculator, ChevronRight,
   Clock3, Crosshair, Database, Eye, Flame, FlaskConical, Gift, Map, Menu, Newspaper, Play, Search,
   Send, Shield, Sparkles, Swords, Video as Youtube, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useBonusOffer } from "@/components/bonus-offer-provider";
 import { ThemeSwitcher } from "@/components/theme-provider";
 import { editions, knowledgeSections, type Edition } from "@/lib/content";
 import { articleCategories } from "@/lib/articles/catalog";
 import { readEditionPreference, saveEditionPreference, type EditionPreference } from "@/lib/edition-preference";
-import { createClient } from "@/lib/supabase/client";
+import { createPublicClient } from "@/lib/supabase/public";
 
 type Video = { id: string; title: string; url: string; thumbnail: string; published: string };
 type OnlineServer = { name: string; online: number };
@@ -76,12 +78,6 @@ const fallbackVideos: Video[] = [
   { id: "MBx29frNvAk", title: "40 000 на заточку! Венец +10 и боевая мощь взлетела", url: "https://www.youtube.com/watch?v=MBx29frNvAk", thumbnail: "https://i.ytimg.com/vi/MBx29frNvAk/hqdefault.jpg", published: "RedPlay" },
   { id: "zT6UhPTusio", title: "3 млрд опыта или 5,8 млн адены в час? Тест 16 локаций", url: "https://www.youtube.com/watch?v=zT6UhPTusio", thumbnail: "https://i.ytimg.com/vi/zT6UhPTusio/hqdefault.jpg", published: "RedPlay" },
 ];
-const heroSlides = [
-  { kicker: "КОРЕЯ • БОЛЬШОЕ ОБНОВЛЕНИЕ", title: "FORGED IN BATTLE", text: "Все изменения классов, новые зоны и предметы — разобрали, перевели и собрали в одном месте.", cta: "Читать патчноут", tone: "red" },
-  { kicker: "REDPLAY ORIGINAL", title: "ПУТЬ ДИВЕРСАНТА", text: "Большой разбор нового класса: билд, экипировка, навыки и реальный потенциал в PvE.", cta: "Смотреть разбор", tone: "violet" },
-  { kicker: "СТАРТ С БОНУСАМИ", title: "ВЫБЕРИ СВОЮ ИГРУ", text: "Main, Essence или Special Project — коротко объясняем разницу и даём бонус на старт.", cta: "Начать играть", tone: "amber" },
-];
-
 export default function HomePage({ initialArticles }: { initialArticles: PublishedArticle[] }) {
   const savedEdition = useSyncExternalStore(
     subscribeToEditionPreference,
@@ -97,7 +93,8 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
   const [videos, setVideos] = useState<Video[]>(fallbackVideos);
   const [onlineEdition, setOnlineEdition] = useState<OnlineEdition>("Main");
   const [onlineGroups, setOnlineGroups] = useState<OnlineGroups>(fallbackOnline);
-  const [onlineUpdated, setOnlineUpdated] = useState("обновляем сейчас");
+  const [onlineUpdated, setOnlineUpdated] = useState("источник временно недоступен");
+  const [onlineLive, setOnlineLive] = useState(false);
   const publishedArticles = initialArticles;
   const [articleViews, setArticleViews] = useState<Record<string, number>>({});
 
@@ -112,10 +109,13 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     }).catch(() => undefined);
     fetch("/api/online").then((response) => response.ok ? response.json() : null).then((data) => {
       if (data?.groups) setOnlineGroups(data.groups);
-      if (data?.updatedAt) setOnlineUpdated(new Date(data.updatedAt).toLocaleTimeString("ru", {hour:"2-digit", minute:"2-digit"}));
+      setOnlineLive(Boolean(data?.live));
+      if (data?.live && data?.updatedAt) setOnlineUpdated(`обновлено в ${new Date(data.updatedAt).toLocaleTimeString("ru", {hour:"2-digit", minute:"2-digit"})}`);
+      else setOnlineUpdated("показана резервная оценка");
     }).catch(() => undefined);
     try {
-      const supabase = createClient();
+      const supabase = createPublicClient();
+      if (!supabase) return;
       const popularitySince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       supabase.from("article_view_daily").select("page_key,view_count,view_date").gte("view_date", popularitySince).then(async ({ data, error }) => {
         let rows = data as ArticleViewRow[] | null;
@@ -219,8 +219,8 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {openBonus();setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/main/guides"],["Тесты","/lineage-2/tests"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
     <section id="top" className="hero-stage">
-      <img src={heroCover} alt="" className="hero-publication-backdrop" aria-hidden="true"/>
-      <img src={heroCover} alt={latestHero?.cover?.alt || heroTitle} className="hero-publication-image"/>
+      <Image src={heroCover} alt="" className="hero-publication-backdrop" aria-hidden="true" fill sizes="100vw" priority/>
+      <Image src={heroCover} alt={latestHero?.cover?.alt || heroTitle} className="hero-publication-image" fill sizes="100vw" priority/>
       <div className="hero-publication-shade"/>
       <div className="relative z-10 mx-auto flex min-h-[650px] max-w-[1500px] items-center px-4 py-16 sm:px-6 lg:px-8">
         <div className="relative z-10 w-full lg:max-w-[60%]">
@@ -247,7 +247,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
 
     <section id="pulse" className="pulse-section"><div className="mx-auto grid max-w-[1500px] gap-5 px-4 py-14 sm:px-6 lg:grid-cols-[.8fr_1.2fr] lg:px-8 lg:py-18">
       <a className="telegram-hub" href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer"><img src="/oni-redplay.webp" alt="Они – персонаж RedPlay"/><span className="telegram-hub-shade"/><span className="telegram-hub-content"><span className="telegram-hub-icon"><Send size={22}/></span><small>RedPlay в Telegram</small><strong>Новости без задержки</strong><p>Быстрые обновления, результаты тестов, голосования, промокоды и живое обсуждение с игроками.</p><span className="telegram-hub-action">Присоединиться <ArrowUpRight size={16}/></span></span></a>
-      <div className="pulse-panel"><div className="pulse-head"><div><p className="portal-kicker dark"><Activity size={14}/> Пульс RedPlay</p><h2>Официальные серверы онлайн</h2></div><div className="pulse-status"><span/><small>Оценочный онлайн<br/>обновлено в {onlineUpdated}</small></div></div><div className="online-tabs">{(["Main","Special Project","Essence"] as OnlineEdition[]).map(item=><button key={item} onClick={()=>setOnlineEdition(item)} className={onlineEdition===item?"is-active":""}>{item}</button>)}</div><div className="online-summary"><span><Activity size={18}/> Сейчас в игре</span><strong>{totalOnline.toLocaleString("ru")}</strong></div><div className="server-list">{selectedServers.map(server=><div key={server.name}><div><strong>{server.name}</strong><span>{server.online.toLocaleString("ru")}</span></div><i><span style={{width:`${Math.max(12, server.online / maxOnline * 100)}%`}}/></i></div>)}</div><div className="pulse-update"><Bell size={16}/><span><strong>Replica: предварительный полный разбор опубликован</strong><small>Следим за изменениями и дополняем материал.</small></span><Link href="/lineage-2/main/updates/replica">Открыть <ArrowRight size={14}/></Link></div></div>
+      <div className="pulse-panel"><div className="pulse-head"><div><p className="portal-kicker dark"><Activity size={14}/> Пульс RedPlay</p><h2>Официальные серверы онлайн</h2></div><div className={`pulse-status${onlineLive ? " is-live" : " is-fallback"}`}><span/><small>{onlineLive ? "Оценочный онлайн" : "Данные не в реальном времени"}<br/>{onlineUpdated}</small></div></div><div className="online-tabs">{(["Main","Special Project","Essence"] as OnlineEdition[]).map(item=><button key={item} onClick={()=>setOnlineEdition(item)} className={onlineEdition===item?"is-active":""}>{item}</button>)}</div><div className="online-summary"><span><Activity size={18}/> {onlineLive ? "Сейчас в игре" : "Резервная оценка"}</span><strong>{totalOnline.toLocaleString("ru")}</strong></div><div className="server-list">{selectedServers.map(server=><div key={server.name}><div><strong>{server.name}</strong><span>{server.online.toLocaleString("ru")}</span></div><i><span style={{width:`${Math.max(12, server.online / maxOnline * 100)}%`}}/></i></div>)}</div><div className="pulse-update"><Bell size={16}/><span><strong>Replica: предварительный полный разбор опубликован</strong><small>Следим за изменениями и дополняем материал.</small></span><Link href="/lineage-2/main/updates/replica">Открыть <ArrowRight size={14}/></Link></div></div>
     </div></section>
 
     <section id="knowledge" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8"><div className="section-heading"><div><p className="portal-kicker dark"><Database size={14}/> База знаний</p><h2>Всё, что нужно для игры</h2></div><p className="max-w-md text-sm leading-6 text-[#777c88]">Белые разделы уже наполнены материалами. Серые появятся по мере развития базы.</p></div><div className="knowledge-grid mt-8">{knowledgeSections.map((section,index)=>{const Icon=iconMap[section.icon];const available=section.href==="classes"||section.href==="tests"||availableKnowledgeSections.has(section.href);const href=section.href==="tests"?"/lineage-2/tests":`/lineage-2/${editionPath}/${section.href}`;const content=<><span className="knowledge-number">0{index+1}</span><span className="knowledge-icon"><Icon size={23}/></span><h3>{section.title}</h3><p>{section.description}</p>{available?<span className="knowledge-link">Открыть раздел <ArrowUpRight size={16}/></span>:<span className="knowledge-state">Материалы готовятся</span>}</>;return available?<Link key={section.title} href={href} className="knowledge-card">{content}</Link>:<div key={section.title} className="knowledge-card knowledge-card-empty" aria-disabled="true">{content}</div>})}</div></div></section>

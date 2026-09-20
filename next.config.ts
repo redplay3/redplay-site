@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "vpsocmwsvwyavrmduzth.supabase.co" },
+      { protocol: "https", hostname: "i.ytimg.com" },
+    ],
+  },
   async redirects() {
     return [
       {

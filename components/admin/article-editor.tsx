@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Eye, ImagePlus, Plus, Save, Send, Trash2, Upload, Video } from "lucide-react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
-import { L2ClassSkillCatalog } from "@/components/l2-class-skill-catalog";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { articleCategories, articleEditions, buildArticlePath } from "@/lib/articles/catalog";
 import type { ArticleAudience, ArticleBlock, ArticleCategory, ArticleEdition, ArticleIcon, ArticleSection } from "@/lib/articles/types";
 import { articleSeoTitle, categorySeo, editionSeo } from "@/lib/seo";
+import { validateArticleSections } from "@/lib/articles/validation";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
@@ -37,7 +37,7 @@ const blockNames: Record<ArticleBlock["type"], string> = {
   warning: "Предупреждение", cards: "Карточки", "audience-cards": "Карточки версий",
   checklist: "Чек-лист", "cta-cards": "Карточки-ссылки", table: "Таблица", flow: "Маршрут",
   image: "Изображение", disclosure: "Выпадающий блок", opinion: "Мнение Они",
-  video: "Видео", "video-playlist": "Видеоподборка", telegram: "Telegram",
+  video: "Видео", "video-playlist": "Видеоподборка", "skill-catalog": "База навыков", telegram: "Telegram",
 };
 
 function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
@@ -64,6 +64,7 @@ function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
     case "opinion": return { id, type, text: "Редакционный вывод RedPlay.", label: "Мнение RedPlay" };
     case "video": return { id, type, title: "Видеоразбор", text: "Главные изменения и выводы в видео.", url: "", source: "youtube" };
     case "video-playlist": return { id, type, title: "Видео классов", text: "Переключай ролики по названию класса.", items: [{ title: "Первое видео", url: "", text: "" }] };
+    case "skill-catalog": return { id, type, classSlug: "", title: "Полная база навыков" };
     case "telegram": return { id, type, title: "Следи за обновлениями", text: "Финальные данные и обсуждение в Telegram.", action: "Получить уведомление" };
   }
 }
@@ -136,7 +137,8 @@ async function assertBrowserPlayableVideo(file: File) {
       const timeout = window.setTimeout(() => reject(new Error("Не удалось прочитать видеодорожку. Перекодируй файл в H.264/AVC.")), 8000);
       const finish = (cause?: Error) => {
         window.clearTimeout(timeout);
-        cause ? reject(cause) : resolve();
+        if (cause) reject(cause);
+        else resolve();
       };
 
       video.onerror = () => finish(new Error("Браузер не поддерживает кодек этого видео. Используй MP4 с H.264/AVC или WebM с VP9."));
@@ -192,6 +194,10 @@ function BlockFields({ block, onChange, uploadMedia, uploadProgress }: { block: 
       <label className="admin-field"><span>Заголовок подборки</span>{input(block.title, (title) => onChange({ ...block, title }))}</label>
       <label className="admin-field"><span>Описание</span>{area(block.text || "", (text) => onChange({ ...block, text }))}</label>
       <label className="admin-field"><span>Название | ссылка на видео | пояснение, одно видео на строку</span>{area(block.items.map((item) => `${item.title} | ${item.url} | ${item.text || ""}`).join("\n"), (value) => onChange({ ...block, items: value.split("\n").map((row) => row.split("|").map((part) => part.trim())).filter(([title, url]) => title || url).map(([title, url, ...rest]) => ({ title, url, text: rest.join(" | ") })) }))}<small>На странице появится один плеер и кнопки-переключатели. Поддерживаются YouTube и прямые ссылки на MP4, WebM и OGG.</small></label>
+    </>;
+    case "skill-catalog": return <>
+      <label className="admin-field"><span>Идентификатор класса в базе</span>{input(block.classSlug, (classSlug) => onChange({ ...block, classSlug }), "например: crow_3")}<small>Каталог загружает навыки, уровни, книги и модификации из Supabase.</small></label>
+      <label className="admin-field"><span>Заголовок каталога</span>{input(block.title || "", (title) => onChange({ ...block, title }), "Полная база навыков")}</label>
     </>;
     case "telegram": return <><label className="admin-field"><span>Заголовок</span>{input(block.title, (title) => onChange({ ...block, title }))}</label><div className="admin-field"><span>Описание и оформление</span>{richArea(block.text)}</div></>;
   }
@@ -310,6 +316,9 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
   const save = async (status: "draft" | "published") => {
     if (!article.title.trim() || !article.slug.trim()) return setMessage("Заполни название и адрес материала.");
     if (article.edition === "essence" && !targets.length) return setMessage("Выбери хотя бы один тип серверов: Essence или Special Project.");
+    const contentErrors = validateArticleSections(sections);
+    if (contentErrors.length) return setMessage(contentErrors[0]);
+    if (status === "published" && (!article.cover?.src?.trim() || !article.cover?.alt?.trim())) return setMessage("Перед публикацией добавь обложку и её текстовое описание.");
     setSaving(true); setMessage("");
     try {
       const supabase = createClient();
@@ -368,5 +377,5 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
   </div>)}
   <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving || uploadProgress !== null} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving || uploadProgress !== null} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving || uploadProgress !== null} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
   {message && <div className={`admin-toast${uploadProgress !== null ? " is-progress" : ""}`}>{uploadProgress !== null && <span style={{ width: `${uploadProgress}%` }}/>}<p>{message}</p></div>}
-  <aside className="editor-panel editor-preview"><div className="editor-preview-head"><strong><Eye size={15}/> Предпросмотр</strong><span className="admin-status">{article.status || "draft"}</span></div><div className="article-body">{sections.map((section) => <section id={section.id} key={section.id}><ArticleBlockRenderer blocks={section.blocks}/>{article.slug === "samurai-guide-2026" && section.id === "skills" && <L2ClassSkillCatalog classSlug="crow_3" title="Полная база навыков"/>}</section>)}</div></aside></div>;
+  <aside className="editor-panel editor-preview"><div className="editor-preview-head"><strong><Eye size={15}/> Предпросмотр</strong><span className="admin-status">{article.status || "draft"}</span></div><div className="article-body">{sections.map((section) => <section id={section.id} key={section.id}><ArticleBlockRenderer blocks={section.blocks}/></section>)}</div></aside></div>;
 }

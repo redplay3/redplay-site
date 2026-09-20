@@ -2,20 +2,17 @@
 
 import { Fragment, useState } from "react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
-import { L2ClassSkillCatalog } from "@/components/l2-class-skill-catalog";
 import type { ArticleAudience, ArticleSection } from "@/lib/articles/types";
 
 type Target = Exclude<ArticleAudience, "all">;
 
 const FORGED_SLUG = "forged-in-battle-vse-klassy-i-umeniya";
-const SAMURAI_GUIDE_SLUG = "samurai-guide-2026";
 const DWARF_OVERVIEW_VIDEO_ID = "jiOzNaL7njw";
 
 export function ArticleAudienceContent({ sections, targets, articleSlug }: { sections: ArticleSection[]; targets: Target[]; articleSlug?: string }) {
   const [audience, setAudience] = useState<ArticleAudience>("all");
   const hasBoth = targets.includes("essence") && targets.includes("special-project");
   const isForgedArticle = articleSlug === FORGED_SLUG;
-  const isSamuraiGuide = articleSlug === SAMURAI_GUIDE_SLUG;
   const dwarfOverview = isForgedArticle
     ? sections.flatMap((section) => section.blocks).find((block) => block.type === "video" && block.url.includes(DWARF_OVERVIEW_VIDEO_ID))
     : undefined;
@@ -37,7 +34,6 @@ export function ArticleAudienceContent({ sections, targets, articleSlug }: { sec
         <section id={section.id}>
           {index > 0 && <div className="article-block-heading"><span className="article-section-number">{String(index + 1).padStart(2, "0")}</span><h2>{section.label}</h2></div>}
           <ArticleBlockRenderer blocks={section.blocks} audience={hasBoth ? audience : targets[0]} insertDwarfSkillShowcase={isForgedArticle}/>
-          {isSamuraiGuide && section.id === "skills" && <L2ClassSkillCatalog classSlug="crow_3" title="Полная база навыков"/>}
         </section>
         {index === 0 && dwarfOverview && <ArticleBlockRenderer blocks={[dwarfOverview]} audience={hasBoth ? audience : targets[0]}/>}
       </Fragment>;

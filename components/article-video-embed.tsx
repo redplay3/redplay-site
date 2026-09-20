@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Expand, Maximize2, Minimize2, X } from "lucide-react";
 
 type ArticleVideoEmbedProps = {
@@ -59,7 +59,7 @@ function getExpandedGeometry(compactRect: DOMRect): VideoGeometry {
   };
 }
 
-export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, poster, orientation = "vertical", autoPlay = false, loop = false, muted = false, preload = "metadata" }: ArticleVideoEmbedProps) {
+export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, poster, orientation = "vertical", autoPlay = false, loop = false, muted = false, preload = "none" }: ArticleVideoEmbedProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const openFrameRef = useRef<number | null>(null);
@@ -120,7 +120,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
     });
   };
 
-  const closeExpanded = () => {
+  const closeExpanded = useCallback(() => {
     if (!geometry) return;
     setIsViewportFullscreen(false);
 
@@ -148,7 +148,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
       updateSettled(false);
       closeFrameRef.current = window.requestAnimationFrame(animateClosed);
     } else animateClosed();
-  };
+  }, [geometry]);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -164,7 +164,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isExpanded]);
+  }, [closeExpanded, isExpanded]);
 
   useEffect(() => () => {
     if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);

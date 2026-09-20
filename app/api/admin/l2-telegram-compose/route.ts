@@ -43,8 +43,6 @@ type Material = {
   context: string;
 };
 
-type AiDescription = { id: string; description: string };
-
 const composerTool = {
   name: "submitRedPlayDescriptions",
   description: "Return concise factual descriptions for the supplied RedPlay Telegram materials.",

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- CMS image blocks intentionally support validated arbitrary HTTPS sources. */
 import {
   ArrowUpRight, Bell, ChevronRight, CircleAlert, Crosshair, Gem, Gift, Globe2,
   Layers3, Map, Play, Send, Shield, Sparkles, Swords,
@@ -10,6 +11,7 @@ import { ArticleVideoPlaylist } from "./article-video-playlist";
 import { ForgedDwarfSkillShowcase } from "./forged-dwarf-skill-showcase";
 import { ArticleVideoEmbed } from "./article-video-embed";
 import { ArticleRichTextContent } from "./article-rich-text";
+import { L2ClassSkillCatalog } from "./l2-class-skill-catalog";
 
 const icons = {
   alert: CircleAlert,
@@ -393,6 +395,8 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       }
       case "video-playlist":
         return <ArticleVideoPlaylist key={block.id} title={block.title} text={block.text} items={block.items}/>;
+      case "skill-catalog":
+        return <L2ClassSkillCatalog key={block.id} classSlug={block.classSlug} title={block.title || "Полная база навыков"}/>;
       case "telegram":
         return <aside key={block.id} className="telegram-callout"><span className="telegram-callout-icon"><Send size={22}/></span><div><small>{block.label || "RedPlay в Telegram"}</small><strong>{block.title}</strong><ArticleRichTextContent value={block.richText} fallback={block.text}/></div><a href={block.url || "https://t.me/redplay2022"} target="_blank" rel="noopener noreferrer">{block.action || "Присоединиться"} <ArrowUpRight size={15}/></a></aside>;
     }

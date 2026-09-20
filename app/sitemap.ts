@@ -23,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...redplayTests.filter((test) => test.status === "published").map((test) => ({ url: `${SITE_URL}/lineage-2/tests/${test.slug}`, changeFrequency: "monthly" as const, priority: 0.8 })),
   ];
 
-  for (const edition of ["main", "essence"] as const) {
+  for (const edition of ["main", "essence", "special-project"] as const) {
     entries.push({
       url: `${SITE_URL}/lineage-2/${edition}`,
       changeFrequency: "daily",

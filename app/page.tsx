@@ -1,10 +1,10 @@
 import HomePage, { type PublishedArticle } from "./home-client";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function Home() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = supabase
     ? await supabase
         .from("articles")

@@ -1,6 +1,9 @@
+/* eslint-disable @next/next/no-img-element -- game CTA art remains a CSS-positioned decorative image; hero LCP images use next/image. */
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { ArrowLeft, ArrowUpRight, Bell, CalendarDays, ChevronRight, Clock3, Send, Video as Youtube } from "lucide-react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
 import { ArticleSharePanel, ArticleViewCount } from "@/components/article-engagement";
@@ -11,8 +14,11 @@ import { ThemeSwitcher } from "@/components/theme-provider";
 import { articleCategories, articleEditions } from "@/lib/articles/catalog";
 import { getArticleViewCount } from "@/lib/articles/views";
 import type { ArticleCategory, ArticleEdition, ArticleIcon, ArticleSection } from "@/lib/articles/types";
+import { articleReadingMinutes } from "@/lib/articles/reading-time";
 import { absoluteUrl, articleSeoTitle, categorySeo, editionSeo, safeJsonLd, SITE_URL } from "@/lib/seo";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
+
+export const revalidate = 300;
 
 type Params = { edition: string; category: string; slug: string };
 type ArticleRow = {
@@ -44,20 +50,15 @@ const fallbackCovers: Record<ArticleEdition, string> = {
   "special-project": "/game-special.webp",
 };
 
-async function getArticle(params: Params) {
-  const supabase = await createClient();
+const getArticle = cache(async (edition: string, category: string, slug: string) => {
+  const supabase = createPublicClient();
   if (!supabase) return null;
-  const { data } = await supabase.from("articles").select("id,edition,category,slug,title,description,label,cover,tags,highlights,content,published_at,updated_at,seo").eq("edition", params.edition).eq("category", params.category).eq("slug", params.slug).eq("status", "published").maybeSingle();
+  const { data } = await supabase.from("articles").select("id,edition,category,slug,title,description,label,cover,tags,highlights,content,published_at,updated_at,seo").eq("edition", edition).eq("category", category).eq("slug", slug).eq("status", "published").maybeSingle();
   return data as ArticleRow | null;
-}
+});
 
 function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value || Date.now()));
-}
-
-function readingTime(sections: ArticleSection[]) {
-  const words = JSON.stringify(sections).replace(/[{}\[\]":,]/g, " ").split(/\s+/).filter(Boolean).length;
-  return Math.max(2, Math.ceil(words / 180));
 }
 
 function formatReadingTime(minutes: number) {
@@ -69,7 +70,7 @@ function formatReadingTime(minutes: number) {
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const resolved = await params;
-  const article = await getArticle(resolved);
+  const article = await getArticle(resolved.edition, resolved.category, resolved.slug);
   if (!article) return { title: "Материал не найден | RedPlay" };
   const canonical = `/lineage-2/${article.edition}/${article.category}/${article.slug}`;
   const titleSource = article.seo?.title?.trim() || article.title;
@@ -100,7 +101,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
 export default async function PublishedArticlePage({ params }: { params: Promise<Params> }) {
   const resolved = await params;
-  const article = await getArticle(resolved);
+  const article = await getArticle(resolved.edition, resolved.category, resolved.slug);
   if (!article) notFound();
 
   const sections = article.content || [];
@@ -157,12 +158,12 @@ export default async function PublishedArticlePage({ params }: { params: Promise
     </div></header>
 
     <section className="article-hero">
-      <img src={cover} alt="" className="article-hero-backdrop" aria-hidden="true"/>
-      <img src={cover} alt={article.cover?.alt || article.title} className="article-hero-image"/><div className="article-hero-shade"/>
-      <div className="relative z-10 mx-auto flex min-h-[600px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-14"><div className="max-w-5xl">
+      <Image src={cover} alt="" className="article-hero-backdrop" aria-hidden="true" fill sizes="100vw" priority/>
+      <Image src={cover} alt={article.cover?.alt || article.title} className="article-hero-image" fill sizes="(max-width: 1500px) 100vw, 82vw" priority/><div className="article-hero-shade"/>
+      <div className="relative z-10 mx-auto flex min-h-[600px] max-w-[1460px] items-end px-4 pb-12 pt-28 sm:px-6 lg:px-8 lg:pb-14"><div className="w-full min-w-0 max-w-5xl">
         <div className="article-hero-copy">
           <div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><Link href={categoryPath}>{edition}</Link><ChevronRight size={14}/><Link href={categoryPath}>{category}</Link></div>
-          <div className="flex flex-wrap items-center gap-3"><span className="article-label">{article.label || category}</span><span className="article-meta"><CalendarDays size={14}/> {formatDate(article.published_at)}</span><span className="article-meta"><Clock3 size={14}/> {formatReadingTime(readingTime(sections))}</span><ArticleViewCount pageKey={canonicalPath} initialViews={initialViews}/></div>
+          <div className="flex flex-wrap items-center gap-3"><span className="article-label">{article.label || category}</span><span className="article-meta"><CalendarDays size={14}/> {formatDate(article.published_at)}</span><span className="article-meta"><Clock3 size={14}/> {formatReadingTime(articleReadingMinutes(sections))}</span><ArticleViewCount pageKey={canonicalPath} initialViews={initialViews}/></div>
           <h1><span>{article.title}</span></h1><p className="article-deck">{article.description}</p>
         </div>
       </div></div>
@@ -178,7 +179,7 @@ export default async function PublishedArticlePage({ params }: { params: Promise
           ? sections.map((section, index) => <section id={section.id} key={section.id}>{index > 0 && <div className="article-block-heading"><span className="article-section-number">{String(index + 1).padStart(2, "0")}</span><h2>{section.label}</h2></div>}<ArticleBlockRenderer blocks={section.blocks}/></section>)
           : <ArticleAudienceContent sections={sections} targets={audienceTargets} articleSlug={article.slug}/>
         }
-        <ArticleSharePanel title={article.title}/>
+        <ArticleSharePanel title={article.title} canonicalUrl={absoluteUrl(canonicalPath)}/>
         <section className="article-next">
           <div className="article-next-head"><span>Продолжить с RedPlay</span><h2>Выбери следующий шаг</h2><p>Открой другие материалы раздела, посмотри разборы или получай быстрые новости.</p></div>
           <div className="article-next-primary">

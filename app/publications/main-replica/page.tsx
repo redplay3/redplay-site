@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- legacy editorial composition relies on intrinsic game-art cropping; migrate section-by-section. */
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -432,7 +433,7 @@ export default async function ReplicaArticle() {
           <ol className="prepare-list"><li><span>1</span><div><strong>Проверь позиционный урон</strong><p>Классы, способные стабильно атаковать сбоку или со спины, получают отдельное преимущество.</p></div></li><li><span>2</span><div><strong>Не оценивай билд по старому криту</strong><p>После изменения базовых значений реальная эффективность бафов и экипировки может поменяться.</p></div></li><li><span>3</span><div><strong>Сохрани Камни Рун</strong><p>На уровнях 121–129 многим классам понадобятся материалы для новых ступеней умений.</p></div></li><li><span>4</span><div><strong>Подготовь адену для Реплики</strong><p>Входы, выбранные переходы, подношения и восстановление тела требуют ощутимых затрат.</p></div></li><li><span>5</span><div><strong>Пересмотри позицию группы</strong><p>Дальнобойные монстры новых и обновлённых зон начинают охотиться за самым удалённым участником.</p></div></li><li><span>6</span><div><strong>Следи за финальными патчноутами</strong><p>Цены, расписание и состав обновления могут измениться к моменту выхода.</p></div></li></ol>
         </section>
 
-        <ArticleSharePanel title="Replica для Lineage 2 Main: межсерверные вторжения, Вершина Богов и 13 новых агатионов"/>
+        <ArticleSharePanel title="Replica для Lineage 2 Main: межсерверные вторжения, Вершина Богов и 13 новых агатионов" canonicalUrl={absoluteUrl(canonicalPath)}/>
         <section className="article-next">
           <div className="article-next-head"><span>Продолжить с RedPlay</span><h2>Выбери следующий шаг</h2><p>Открой другие обновления, посмотри живой разбор или получай быстрые новости.</p></div>
           <div className="article-next-primary">

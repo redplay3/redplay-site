@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- skill icons are small database-driven sprites and should not use the image optimizer. */
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, LoaderCircle } from "lucide-react";
@@ -389,7 +390,8 @@ export function L2ClassSkillCatalog({ classSlug, title = "Навыки клас�
             : icon.source_url,
         }));
 
-        const skillMap = new Map((skillRows || []).map((item) => [item.skill_id, item as SkillRow]));
+        const typedSkillRows = (skillRows || []) as SkillRow[];
+        const skillMap = new Map<number, SkillRow>(typedSkillRows.map((item) => [item.skill_id, item]));
         const levels = (levelsResult.data || []) as LevelRow[];
         const modifications = (modificationsResult.data || []) as ModificationRow[];
         const aliases = (aliasesResult.data || []) as AliasRow[];

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- promotional art uses CSS-driven responsive crops and local assets. */
 
 import { ArrowRight, ArrowUpRight, Gift, X } from "lucide-react";
 import { usePathname } from "next/navigation";

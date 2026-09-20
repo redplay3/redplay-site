@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- original 64px game sprites must render without optimizer resampling. */
 import { BookOpen, Package } from "lucide-react";
 import Image from "next/image";
 import styles from "./l2-skill-requirements.module.css";

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- review media comes from arbitrary Korean source hosts. */
 
 import { useMemo, useState } from "react";
 import { assembleSemanticSections, type KrSemanticSection, type KrSemanticSourceBlock, type KrSemanticUnit } from "@/lib/kr/semantic";

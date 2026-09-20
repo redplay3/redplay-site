@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- administrators preview arbitrary source media before it is normalized. */
 import { KrPublicationTable } from "@/components/admin/kr-publication-table";
 import { isUsefulKrImage } from "@/lib/kr/media";
 import { assembleSemanticSections, type KrSemanticSourceBlock } from "@/lib/kr/semantic";
