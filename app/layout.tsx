@@ -75,7 +75,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
   const themeBootScript = `(() => { try { const key = "redplay-theme"; const saved = localStorage.getItem(key); const mode = saved === "light" || saved === "dark" || saved === "auto" ? saved : "auto"; const admin = location.pathname.startsWith("/redplay-admin"); const hour = new Date().getHours(); const timed = hour >= 7 && hour < 20 ? "light" : "dark"; const theme = admin ? "light" : mode === "auto" ? timed : mode; document.documentElement.dataset.themeMode = mode; document.documentElement.dataset.theme = theme; document.documentElement.style.colorScheme = theme; if (saved === "system") localStorage.setItem(key, "auto"); } catch (_) { document.documentElement.dataset.themeMode = "auto"; document.documentElement.dataset.theme = "light"; document.documentElement.style.colorScheme = "light"; } })();`;
 
-  return <html lang="ru" suppressHydrationWarning>
+  return <html lang="ru" suppressHydrationWarning data-scroll-behavior="smooth">
     <body className="antialiased">
       <Script id="redplay-theme-boot" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeBootScript }}/>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>

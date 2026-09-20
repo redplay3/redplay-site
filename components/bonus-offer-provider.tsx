@@ -2,7 +2,6 @@
 /* eslint-disable @next/next/no-img-element -- promotional art uses CSS-driven responsive crops and local assets. */
 
 import { ArrowRight, ArrowUpRight, Gift, X } from "lucide-react";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   createContext,
@@ -83,7 +82,7 @@ const rewardPreviews: Record<BonusGroup, RewardPreview> = {
 
 function RewardIcon({ icon, large = false }: { icon: string; large?: boolean }) {
   const size = large ? 44 : 34;
-  return <Image className={`reward-sprite${large ? " reward-sprite-large" : ""}`} src={icon} alt="" width={size} height={size}/>;
+  return <img className={`reward-sprite${large ? " reward-sprite-large" : ""}`} src={icon} alt="" width={size} height={size}/>;
 }
 
 function RewardBoard({ group, compact = false }: { group: BonusGroup; compact?: boolean }) {
