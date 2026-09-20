@@ -209,12 +209,25 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     });
   }, [edition, publishedArticles]);
 
-  const latestHero = publishedArticles[0] || forgedArticle;
-  const featuredStory = editionArticles[0] || latestHero;
+  const latestHero = useMemo(() => {
+    const pool = [...publishedArticles, ...fallbackPublishedArticles, forgedArticle, replicaArticle]
+      .filter((article, index, all) => all.findIndex((item) => articleHref(item) === articleHref(article)) === index)
+      .sort((left, right) => new Date(right.published_at || right.updated_at).getTime() - new Date(left.published_at || left.updated_at).getTime());
+    return pool[0] || forgedArticle;
+  }, [publishedArticles]);
+  const latestHeroHref = articleHref(latestHero);
+  const featuredStory = useMemo(() => {
+    const candidates = editionArticles.filter((article) => articleHref(article) !== latestHeroHref);
+    return [...candidates].sort((left, right) => {
+      const viewsDifference = (articleViews[articleHref(right)] || 0) - (articleViews[articleHref(left)] || 0);
+      if (viewsDifference) return viewsDifference;
+      return new Date(right.published_at || right.updated_at).getTime() - new Date(left.published_at || left.updated_at).getTime();
+    })[0] || null;
+  }, [articleViews, editionArticles, latestHeroHref]);
   const featuredHref = featuredStory ? articleHref(featuredStory) : "";
   const featuredViews = featuredStory ? articleViews[featuredHref] || 0 : 0;
   const results = useMemo(() => {
-    const excluded = new Set([featuredHref]);
+    const excluded = new Set([latestHeroHref, featuredHref]);
     const posts = editionArticles.filter((article) => !excluded.has(articleHref(article))).slice(0, 3).map((article) => {
       const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
       const targetLabel = targets.length === 2 ? "Essence + Special" : targets[0];
@@ -229,10 +242,17 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     });
     const value = query.trim().toLocaleLowerCase("ru");
     return value ? posts.filter((post) => [post.title, post.category, post.summary].some((text) => text.toLocaleLowerCase("ru").includes(value))) : posts;
-  }, [editionArticles, featuredHref, query]);
+  }, [editionArticles, featuredHref, latestHeroHref, query]);
   const selectedServers = onlineGroups[onlineEdition];
   const totalOnline = selectedServers.reduce((sum, server) => sum + server.online, 0);
   const maxOnline = Math.max(...selectedServers.map(server => server.online), 1);
+  const heroCover = latestHero.cover?.src || fallbackHero.cover;
+  const heroTitle = latestHero.title || fallbackHero.title;
+  const heroDescription = latestHero.description || fallbackHero.description;
+  const heroEdition = latestHero.edition === "main" ? "Lineage 2 Main" : latestHero.edition === "essence" ? "Lineage 2 Essence" : "Lineage 2 Special Project";
+  const heroCategory = articleCategories.find((item) => item.value === latestHero.category)?.label || latestHero.label;
+  const heroTags = latestHero.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 3) || [];
+  const heroDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(latestHero.published_at || latestHero.updated_at));
   const featuredCover = featuredStory?.cover?.src || (featuredStory?.edition === "main" ? "/game-main.webp" : featuredStory?.edition === "special-project" ? "/game-special.webp" : "/game-essence.webp");
   const featuredCategory = featuredStory ? articleCategories.find((item) => item.value === featuredStory.category)?.label || featuredStory.label : "";
   const featuredDate = featuredStory ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(featuredStory.published_at || featuredStory.updated_at)) : "";
@@ -263,18 +283,20 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
       <button className="ml-auto grid size-10 place-items-center rounded-full bg-white/8 text-white lg:hidden sm:ml-0" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}>{menuOpen ? <X size={20}/> : <Menu size={20}/>}</button>
     </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {openBonus();setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/essence/guides"],["Тесты","/lineage-2/tests"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
-    <section id="top" className="acquisition-hero">
-      <div className="acquisition-glow" aria-hidden="true"/>
+    <section id="top" className="latest-entry-hero">
+      <img src={heroCover} alt="" className="latest-entry-backdrop" aria-hidden="true"/>
+      <img src={heroCover} alt={latestHero.cover?.alt || heroTitle} className="latest-entry-image"/>
+      <div className="latest-entry-shade"/>
       <div className="acquisition-grid mx-auto max-w-[1500px] px-4 py-12 sm:px-6 lg:px-8">
-        <div className="acquisition-copy">
-          <p className="portal-kicker"><Newspaper size={14}/> Игровой портал RedPlay</p>
-          <h1>Lineage 2<br/>без догадок</h1>
-          <p className="acquisition-lead">Разбираем обновления, проверяем классы и фарм на практике, собираем понятные гайды для Main, Essence и Special Project.</p>
+        <div className="latest-entry-copy">
+          <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">Самая свежая публикация · {heroEdition} · {heroCategory}</p></div>
+          <h1 className="latest-entry-title">{heroTitle}</h1>
+          <p className="latest-entry-description">{heroDescription}</p>
           <div className="acquisition-actions">
-            <a className="hero-primary" href="#updates">Свежие публикации <ArrowRight size={18}/></a>
-            <a className="hero-secondary" href="#tests">Практические тесты</a>
+            <Link className="hero-primary" href={latestHeroHref}>Читать публикацию <ArrowRight size={18}/></Link>
+            <a className="hero-secondary" href="#updates"><Newspaper size={17}/> Свежие публикации</a>
           </div>
-          <div className="acquisition-proof" aria-label="Преимущества RedPlay"><span><FlaskConical size={15}/> Реальные замеры</span><span><BookOpen size={15}/> Гайды по существу</span><span><Shield size={15}/> Проверенные данные</span></div>
+          <div className="hero-context"><span>{heroDate}</span>{heroTags.map((tag) => <span key={tag}>{tag}</span>)}</div>
         </div>
         <div className="acquisition-chooser">
           <div className="acquisition-chooser-head"><p>Материалы по версии</p><h2>Выбери свою Lineage 2</h2></div>
@@ -302,7 +324,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     <section id="updates" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
       <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> Свежие публикации</p><h2>Что почитать в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={edition === "Все версии" ? "Поиск по всем версиям" : `Поиск в ${edition}`} /></label><Link className="section-more" href={edition === "Все версии" ? "/lineage-2/publications" : `/lineage-2/${editionPath}`}>Все публикации <ArrowRight size={16}/></Link></div></div>
       <div className={`news-layout mt-7 ${results.length ? "" : "news-layout-single"}`}>
-        {featuredStory ? <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Новое</span><span>{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span>{featuredViews > 0 && <span className="story-views"><Eye size={13}/>{new Intl.NumberFormat("ru-RU").format(featuredViews)}</span>}</div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article> : <div className="news-empty"><strong>Новые материалы уже готовятся</strong><p>Последняя публикация показана выше. Здесь появятся другие популярные статьи выбранной версии без повторов.</p></div>}
+        {featuredStory ? <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Популярное · 30 дней</span><span>{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span>{featuredViews > 0 && <span className="story-views"><Eye size={13}/>{new Intl.NumberFormat("ru-RU").format(featuredViews)}</span>}</div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article> : <div className="news-empty"><strong>Новые материалы уже готовятся</strong><p>Последняя публикация показана выше. Здесь появятся другие популярные статьи выбранной версии без повторов.</p></div>}
         {results.length > 0 && <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><span className="news-card-art"><img src={post.cover} alt=""/><span/></span><span className="news-card-body"><span className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></span><h3>{post.title}</h3><p>{post.summary}</p><span className="news-card-link">Читать <ArrowRight size={14}/></span></span></Link>)}</div>}
       </div>
     </div></section>

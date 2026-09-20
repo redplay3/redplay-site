@@ -286,7 +286,8 @@ html[data-theme="dark"] .telegram-callout p{color:#bdd7e4}
 .acquisition-version-copy{position:relative;z-index:2;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.1rem .65rem}.acquisition-version-copy small{grid-row:1/3;display:grid;width:2.35rem;height:2.35rem;place-items:center;border:1px solid #ffffff26;border-radius:.55rem;background:#090b10b8;color:#ff6678;font-size:.64rem;font-weight:950}.acquisition-version-copy strong{font-size:1rem;font-weight:950}.acquisition-version-copy>span{color:#ffffff78;font-size:.7rem;font-weight:700}.acquisition-version-card>svg{position:relative;z-index:2;color:#ffffff90}
 
 /* Keep the floating community dock from covering the acquisition chooser on laptop screens. */
-@media(max-width:1650px) and (min-width:761px){.acquisition-grid{padding-right:5.5rem!important}.social-dock{right:.55rem;width:54px}.social-dock-brand>span:last-child,.social-dock>a>span:nth-child(2),.social-dock>button>span:nth-child(2),.social-dock>a>svg,.social-dock>button>svg{display:none}.social-dock-brand{justify-content:center;padding:.6rem}.social-dock>a,.social-dock>button{display:grid;grid-template-columns:1fr;place-items:center;padding:.6rem}}
+@media(max-width:1650px) and (min-width:761px){.social-dock{display:none}}
+@media(max-width:2000px) and (min-width:1651px){.social-dock{right:.55rem;width:54px}.social-dock-brand>span:last-child,.social-dock>a>span:nth-child(2),.social-dock>button>span:nth-child(2),.social-dock>a>svg,.social-dock>button>svg{display:none}.social-dock-brand{justify-content:center;padding:.6rem}.social-dock>a,.social-dock>button{display:grid;grid-template-columns:1fr;place-items:center;padding:.6rem}}
 
 /* Reward boards rebuild the supplied screenshots as responsive, readable interface elements. */
 .bonus-reward-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding:1rem 1.5rem 0}
@@ -349,3 +350,15 @@ html[data-theme="dark"] .telegram-callout p{color:#bdd7e4}
 @media(max-width:1000px){.acquisition-grid{min-height:520px;grid-template-columns:minmax(0,1fr) minmax(350px,.86fr)}.acquisition-copy h1{font-size:clamp(3.3rem,7vw,5.3rem)}}
 @media(max-width:760px){.acquisition-grid{grid-template-columns:1fr;gap:1.6rem;padding-top:3.7rem;padding-bottom:2rem}.acquisition-copy h1{font-size:clamp(3.15rem,15vw,4.6rem)}.acquisition-chooser{padding:.75rem}.acquisition-version-card{min-height:88px}.acquisition-bonus-link{margin-top:.55rem}}
 @media(max-width:760px){.social-dock{display:none}}
+
+/* The newest article owns the opening banner; version choice and bonuses remain a secondary path. */
+.latest-entry-hero{position:relative;isolation:isolate;overflow:hidden;background:#090b10;color:#fff}
+.latest-entry-backdrop{position:absolute;z-index:-3;inset:-4%;width:108%;height:108%;object-fit:cover;object-position:center 55%;filter:blur(22px) brightness(.34) saturate(.9);transform:scale(1.08)}
+.latest-entry-image{position:absolute;z-index:-2;top:0;right:0;bottom:0;left:18%;width:82%;height:100%;object-fit:cover;object-position:center 48%;filter:saturate(1.03) contrast(1.05);mask-image:linear-gradient(90deg,transparent 0%,#0009 18%,#000 34%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#0009 18%,#000 34%)}
+.latest-entry-shade{position:absolute;z-index:-1;inset:0;background:linear-gradient(90deg,#080a0fff 0%,#080a0ff6 28%,#080a0fcf 47%,#080a0f6e 68%,#080a0f52 100%),linear-gradient(0deg,#080a0fd6 0%,transparent 38%,#080a0f42 100%)}
+.latest-entry-copy{min-width:0}.latest-entry-title{display:-webkit-box;overflow:hidden;max-width:830px;margin-top:1rem;color:#fff;font-size:clamp(2.65rem,4.8vw,5.35rem);font-weight:950;line-height:.92;letter-spacing:-.058em;text-wrap:balance;text-shadow:0 12px 60px #000;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.latest-entry-description{display:-webkit-box;overflow:hidden;max-width:720px;margin-top:1.25rem;color:#ffffffb8;font-size:clamp(1rem,1.25vw,1.12rem);line-height:1.6;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.latest-entry-hero .acquisition-chooser{background:#11141de8}
+
+@media(max-width:1000px){.latest-entry-image{left:5%!important;width:95%!important;object-position:62% 50%}.latest-entry-title{font-size:clamp(2.7rem,6.2vw,4.5rem)}}
+@media(max-width:760px){.latest-entry-image{left:0!important;width:100%!important;opacity:.68;object-position:68% 38%;mask-image:none;-webkit-mask-image:none}.latest-entry-shade{background:linear-gradient(0deg,#080a0fff 0%,#080a0ff0 62%,#080a0f83 100%),linear-gradient(90deg,#080a0fc9,transparent)}.latest-entry-title{font-size:clamp(2.25rem,11vw,3.5rem);-webkit-line-clamp:5}.latest-entry-description{-webkit-line-clamp:3}}
