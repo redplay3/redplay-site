@@ -40,6 +40,21 @@ const gameLinks = [
   { name: "Special Project", short: "SP", tag: "Фарм и честный прогресс", text: "Развивай персонажа через охоту и добычу адены, собирай экипировку в игре и двигайся вперёд без L-монет.", cta: "Начать в Special Project", url: "https://ru.4game.com/s2s/redplay_eva", image: "/game-special.webp", featured: true },
 ];
 
+const rewardPreviews: Record<BonusGroup, { image: string; alt: string; title: string; note: string }> = {
+  Main: {
+    image: "/bonus/main-partner-pack.png",
+    alt: "Состав Куба Помощи Партнёра для Lineage 2 Main",
+    title: "Main — Куб Помощи Партнёра",
+    note: "Ежедневные и разовые предметы для первых 30 дней развития.",
+  },
+  "Essence / Special Project": {
+    image: "/bonus/essence-special-partner-pack.png",
+    alt: "Состав Сундука Партнёра для Lineage 2 Essence и Special Project",
+    title: "Essence и Special Project — Сундук Партнёра",
+    note: "Состав награды одинаковый для обеих версий; ссылки регистрации разные.",
+  },
+};
+
 function readStorage(storage: Storage, key: string) {
   try {
     return storage.getItem(key);
@@ -289,6 +304,12 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
           <DialogHeader className="mt-3 text-left"><DialogTitle className="text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">Выбери свою Lineage 2</DialogTitle><DialogDescription id="bonus-description" className="mt-2 max-w-2xl text-sm leading-6 text-white/60">Main – отдельная версия. Essence и Special Project работают на общей основе, но предлагают разные правила серверов и отдельные ссылки регистрации.</DialogDescription></DialogHeader>
         </div>
         <div className="bonus-desktop-groups" aria-hidden="true"><span>Main</span><span>Essence / Special Project</span></div>
+        <div className="bonus-reward-grid">
+          {(Object.entries(rewardPreviews) as [BonusGroup, (typeof rewardPreviews)[BonusGroup]][]).map(([group, reward]) => <figure key={group} className="bonus-reward-card">
+            <img src={reward.image} alt={reward.alt}/>
+            <figcaption><strong>{reward.title}</strong><span>{reward.note}</span></figcaption>
+          </figure>)}
+        </div>
         <div className="bonus-dialog-cards grid gap-3 p-4 sm:grid-cols-3 sm:p-6">{gameLinks.map((game) => <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>)}</div>
         <div className="bonus-dialog-footer"><p>Переходы ведут по партнёрским ссылкам RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
       </DialogContent>
@@ -306,6 +327,10 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
         <div className="bonus-sheet-tabs" aria-label="Выбор версии">
           {(["Main", "Essence / Special Project"] as BonusGroup[]).map((group) => <button key={group} type="button" className={bonusGroup === group ? "active" : ""} onClick={() => selectGroup(group)}>{group}</button>)}
         </div>
+        <figure className="bonus-sheet-reward">
+          <img src={rewardPreviews[bonusGroup].image} alt={rewardPreviews[bonusGroup].alt}/>
+          <figcaption><strong>{rewardPreviews[bonusGroup].title}</strong><span>{rewardPreviews[bonusGroup].note}</span></figcaption>
+        </figure>
         <div className="bonus-sheet-cards">{gameLinks.filter((game) => bonusGroup === "Main" ? game.name === "Main" : game.name !== "Main").map((game) => <a key={game.name} href={game.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(game.name)} className={`bonus-choice ${game.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={game.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{game.short}</span><span className="choice-copy"><span className="choice-tag">{game.tag}</span><h3>{game.name}</h3><p>{game.text}</p><span className="choice-cta">{game.cta} <ArrowUpRight size={16}/></span></span></span>{game.featured && <span className="choice-label">Рекомендуем</span>}</a>)}</div>
         <div className="bonus-sheet-footer"><p>Партнёрские ссылки RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
       </section>

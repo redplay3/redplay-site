@@ -149,21 +149,11 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
   }, [edition, publishedArticles]);
 
   const latestHero = publishedArticles[0] || forgedArticle;
-  const latestHeroHref = `/lineage-2/${latestHero.edition}/${latestHero.category}/${latestHero.slug}`;
-  const featuredStory = useMemo(() => {
-    const candidates = editionArticles.filter((article) => `/lineage-2/${article.edition}/${article.category}/${article.slug}` !== latestHeroHref);
-    return candidates.sort((left, right) => {
-      const leftKey = `/lineage-2/${left.edition}/${left.category}/${left.slug}`;
-      const rightKey = `/lineage-2/${right.edition}/${right.category}/${right.slug}`;
-      const viewsDifference = (articleViews[rightKey] || 0) - (articleViews[leftKey] || 0);
-      if (viewsDifference) return viewsDifference;
-      return new Date(left.published_at || left.updated_at).getTime() - new Date(right.published_at || right.updated_at).getTime();
-    })[0] || null;
-  }, [articleViews, editionArticles, latestHeroHref]);
+  const featuredStory = editionArticles[0] || latestHero;
   const featuredHref = featuredStory ? `/lineage-2/${featuredStory.edition}/${featuredStory.category}/${featuredStory.slug}` : "";
   const featuredViews = featuredStory ? articleViews[featuredHref] || 0 : 0;
   const results = useMemo(() => {
-    const excluded = new Set([latestHeroHref, featuredHref]);
+    const excluded = new Set([featuredHref]);
     const posts = editionArticles.filter((article) => !excluded.has(`/lineage-2/${article.edition}/${article.category}/${article.slug}`)).slice(0, 3).map((article) => {
       const targets = article.tags?.filter((tag) => tag === "Essence" || tag === "Special Project") || [];
       const targetLabel = targets.length === 2 ? "Essence + Special" : targets[0];
@@ -177,18 +167,10 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     });
     const value = query.trim().toLocaleLowerCase("ru");
     return value ? posts.filter((post) => [post.title, post.category, post.summary].some((text) => text.toLocaleLowerCase("ru").includes(value))) : posts;
-  }, [editionArticles, featuredHref, latestHeroHref, query]);
+  }, [editionArticles, featuredHref, query]);
   const selectedServers = onlineGroups[onlineEdition];
   const totalOnline = selectedServers.reduce((sum, server) => sum + server.online, 0);
   const maxOnline = Math.max(...selectedServers.map(server => server.online), 1);
-  const heroHref = `/lineage-2/${latestHero.edition}/${latestHero.category}/${latestHero.slug}`;
-  const heroCover = latestHero?.cover?.src || fallbackHero.cover;
-  const heroTitle = latestHero?.title || fallbackHero.title;
-  const heroDescription = latestHero?.description || fallbackHero.description;
-  const heroEdition = latestHero ? (latestHero.edition === "main" ? "Lineage 2 Main" : latestHero.edition === "essence" ? "Lineage 2 Essence" : "Lineage 2 Special Project") : "Lineage 2 Essence";
-  const heroCategory = latestHero ? articleCategories.find((item) => item.value === latestHero.category)?.label || latestHero.label : fallbackHero.label;
-  const heroTags = latestHero?.tags?.filter((tag) => tag !== "Essence" && tag !== "Special Project").slice(0, 3) || ["Классы и умения", "Зоны и предметы"];
-  const heroDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(latestHero?.published_at || latestHero?.updated_at || fallbackHero.publishedAt));
   const featuredCover = featuredStory?.cover?.src || (featuredStory?.edition === "main" ? "/game-main.webp" : featuredStory?.edition === "special-project" ? "/game-special.webp" : "/game-essence.webp");
   const featuredCategory = featuredStory ? articleCategories.find((item) => item.value === featuredStory.category)?.label || featuredStory.label : "";
   const featuredDate = featuredStory ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(featuredStory.published_at || featuredStory.updated_at)) : "";
@@ -201,7 +183,6 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
   const guidesAvailable = edition !== "Main" && (editionArticles.some((article) => isGuideSourceCategory(article.category)) || publishedArticles.length === 0);
 
   return <main className="min-h-screen overflow-hidden bg-background text-foreground">
-    <h1 className="sr-only">Lineage 2 – новости, обновления, гайды и база знаний</h1>
     <aside className={`social-dock ${bonusPromptOpen ? "social-dock-suspended" : ""}`} aria-label="Ссылки RedPlay">
       <div className="social-dock-brand"><span className="redplay-mark small">R</span><span><strong>REDPLAY</strong><small>Всегда на связи</small></span></div>
       <a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer"><span className="dock-icon youtube"><Youtube size={19}/></span><span><strong>YouTube</strong><small>Ролики и стримы</small></span><ArrowUpRight size={14}/></a>
@@ -216,21 +197,39 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
       <label className="header-search ml-auto hidden items-center gap-2 xl:flex"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по порталу" /></label>
       <ThemeSwitcher/>
       <a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer" aria-label="YouTube RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Youtube size={17}/></a><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer" aria-label="Telegram RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Send size={17}/></a>
-      <button onClick={() => openBonus()} className="bonus-button hidden sm:flex"><Gift size={16}/> Играть</button>
+      <button onClick={() => openBonus()} className="bonus-button flex"><Gift size={16}/> Играть</button>
       <button className="ml-auto grid size-10 place-items-center rounded-full bg-white/8 text-white lg:hidden sm:ml-0" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}>{menuOpen ? <X size={20}/> : <Menu size={20}/>}</button>
     </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {openBonus();setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/essence/guides"],["Тесты","/lineage-2/tests"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
-    <section id="top" className="hero-stage">
-      <Image src={heroCover} alt="" className="hero-publication-backdrop" aria-hidden="true" fill sizes="100vw" priority/>
-      <Image src={heroCover} alt={latestHero?.cover?.alt || heroTitle} className="hero-publication-image" fill sizes="100vw" priority/>
-      <div className="hero-publication-shade"/>
-      <div className="relative z-10 mx-auto flex min-h-[650px] max-w-[1500px] items-center px-4 py-16 sm:px-6 lg:px-8">
-        <div className="relative z-10 w-full lg:max-w-[60%]">
-          <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">{heroEdition} · {heroCategory}</p></div>
-          <p className="hero-article-title mt-4" role="heading" aria-level={2}>{heroTitle}</p>
-          <p className="hero-article-description mt-5 max-w-2xl text-base leading-7 text-white/70 sm:text-lg">{heroDescription}</p>
-          <div className="mt-8 flex flex-wrap gap-3"><Link href={heroHref} className="hero-primary">Читать публикацию <ArrowRight size={18}/></Link><Link href="/lineage-2/essence/updates" className="hero-secondary"><Newspaper size={17}/> Все обновления</Link></div>
-          <div className="hero-context"><span>{heroDate}</span>{heroTags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+    <section id="top" className="acquisition-hero">
+      <div className="acquisition-glow" aria-hidden="true"/>
+      <div className="acquisition-grid mx-auto max-w-[1500px] px-4 py-14 sm:px-6 lg:px-8">
+        <div className="acquisition-copy">
+          <p className="portal-kicker"><Gift size={14}/> Для новых и вернувшихся игроков</p>
+          <h1>Начни Lineage 2 с правильной версии</h1>
+          <p className="acquisition-lead">Сравни Main, Essence и Special Project, выбери подходящий темп игры и получи стартовые расходники по ссылке RedPlay.</p>
+          <div className="acquisition-actions">
+            <button type="button" className="hero-primary" onClick={() => openBonus()}>Подобрать версию <ArrowRight size={18}/></button>
+            <button type="button" className="hero-secondary" onClick={() => openBonus()}>Что входит в бонус</button>
+          </div>
+          <div className="acquisition-proof" aria-label="Преимущества RedPlay"><span><FlaskConical size={15}/> Практические тесты</span><span><BookOpen size={15}/> Актуальные гайды</span><span><Shield size={15}/> Официальные серверы</span></div>
+        </div>
+        <div className="acquisition-chooser">
+          <div className="acquisition-chooser-head"><p>Быстрый выбор</p><h2>Какая Lineage 2 подойдёт тебе?</h2></div>
+          <div className="acquisition-versions">
+            <button type="button" className="acquisition-version-card" onClick={() => openGlobalBonus("Main")}>
+              <Image src="/game-main.webp" alt="Lineage 2 Main" fill sizes="(max-width: 760px) 92vw, 360px"/>
+              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>MN</small><strong>Main</strong><span>Большой мир и клановая игра</span></span><ArrowRight size={17}/>
+            </button>
+            <button type="button" className="acquisition-version-card" onClick={() => openGlobalBonus("Essence / Special Project")}>
+              <Image src="/game-essence.webp" alt="Lineage 2 Essence" fill sizes="(max-width: 760px) 92vw, 360px"/>
+              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>ES</small><strong>Essence</strong><span>Высокий темп и конкуренция</span></span><ArrowRight size={17}/>
+            </button>
+            <button type="button" className="acquisition-version-card" onClick={() => openGlobalBonus("Essence / Special Project")}>
+              <Image src="/game-special.webp" alt="Lineage 2 Special Project" fill sizes="(max-width: 760px) 92vw, 360px"/>
+              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>SP</small><strong>Special Project</strong><span>Фарм и честный прогресс</span></span><ArrowRight size={17}/>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -238,7 +237,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     <div className="edition-bar"><div className="mx-auto flex max-w-[1500px] items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8"><span className="mr-2 hidden shrink-0 text-[11px] font-black uppercase tracking-[.16em] text-white/35 sm:block">Материалы по версии</span>{editions.map(item => <button key={item} onClick={() => selectEdition(item)} className={`edition-tab ${edition===item?"edition-tab-active":""}`}><span className="edition-signal"/>{item}</button>)}<span className="ml-auto hidden shrink-0 items-center gap-2 text-xs text-white/35 lg:flex"><Flame size={14} className="text-[#ff344b]"/> Обновлено сегодня</span></div></div>
 
     <section id="updates" className="portal-section"><div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
-      <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> В центре внимания</p><h2>Актуальное в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={edition === "Все версии" ? "Поиск по всем версиям" : `Поиск в ${edition}`} /></label>{edition !== "Все версии" && <Link className="section-more" href={`/lineage-2/${editionPath}/news`}>Все материалы <ArrowRight size={16}/></Link>}</div></div>
+      <div className="section-heading"><div><p className="portal-kicker dark"><Newspaper size={14}/> Новое и актуальное</p><h2>Что изменилось в Lineage 2</h2></div><div className="flex items-center gap-3"><label className="content-search"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={edition === "Все версии" ? "Поиск по всем версиям" : `Поиск в ${edition}`} /></label>{edition !== "Все версии" && <Link className="section-more" href={`/lineage-2/${editionPath}/news`}>Все материалы <ArrowRight size={16}/></Link>}</div></div>
       <div className={`news-layout mt-7 ${results.length ? "" : "news-layout-single"}`}>
         {featuredStory ? <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Популярное</span><span>{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span>{featuredViews > 0 && <span className="story-views"><Eye size={13}/>{new Intl.NumberFormat("ru-RU").format(featuredViews)}</span>}</div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article> : <div className="news-empty"><strong>Новые материалы уже готовятся</strong><p>Последняя публикация показана выше. Здесь появятся другие популярные статьи выбранной версии без повторов.</p></div>}
         {results.length > 0 && <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><div className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></div><h3>{post.title}</h3><p>{post.summary}</p><span className="mt-auto flex items-center gap-2 pt-4 text-xs font-black uppercase tracking-[.08em]">Читать <ArrowRight size={14}/></span></Link>)}</div>}

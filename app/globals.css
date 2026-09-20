@@ -258,3 +258,43 @@ html[data-theme="dark"] .telegram-callout p{color:#bdd7e4}
   .article-header>.article-header-inner>.article-play{display:none}
   .catalog-header .theme-switcher-label{display:none}
 }
+
+/* Homepage acquisition hero: the first screen sells the next step, while editorial content starts below. */
+.acquisition-hero{position:relative;isolation:isolate;overflow:hidden;background:#0a0c12;color:#fff}
+.acquisition-hero::before{position:absolute;z-index:-2;inset:0;background:linear-gradient(#ffffff07 1px,transparent 1px),linear-gradient(90deg,#ffffff07 1px,transparent 1px);background-size:72px 72px;content:"";mask-image:linear-gradient(90deg,#000,transparent 82%)}
+.acquisition-hero::after{position:absolute;z-index:-1;inset:0;background:radial-gradient(circle at 78% 40%,#e3294742,transparent 34%),linear-gradient(112deg,#090b10 0%,#10131c 53%,#211018 100%);content:""}
+.acquisition-glow{position:absolute;right:7%;top:12%;width:420px;height:420px;border-radius:50%;background:#ef29472e;filter:blur(110px)}
+.acquisition-grid{position:relative;z-index:1;display:grid;min-height:650px;grid-template-columns:minmax(0,1.05fr) minmax(440px,.95fr);align-items:center;gap:clamp(2rem,5vw,5.5rem)}
+.acquisition-copy h1{max-width:810px;margin-top:1.15rem;font-size:clamp(3.1rem,6.5vw,6.8rem);font-weight:950;line-height:.86;letter-spacing:-.068em;text-wrap:balance;text-shadow:0 14px 60px #0009}
+.acquisition-lead{max-width:690px;margin-top:1.6rem;color:#ffffffad;font-size:clamp(1rem,1.45vw,1.22rem);line-height:1.65}
+.acquisition-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}
+.acquisition-actions .hero-primary,.acquisition-actions .hero-secondary{border:0}
+.acquisition-proof{display:flex;flex-wrap:wrap;gap:.65rem 1.25rem;margin-top:1.65rem;color:#ffffff70;font-size:.72rem;font-weight:800}
+.acquisition-proof span{display:flex;align-items:center;gap:.45rem}.acquisition-proof svg{color:#ff5366}
+.acquisition-chooser{border:1px solid #ffffff12;border-radius:1.1rem;background:#11141dcc;padding:1.15rem;box-shadow:0 28px 80px #0008;backdrop-filter:blur(18px)}
+.acquisition-chooser-head{padding:.35rem .35rem 1rem}.acquisition-chooser-head p{color:#ff5366;font-size:.63rem;font-weight:950;letter-spacing:.12em;text-transform:uppercase}.acquisition-chooser-head h2{margin-top:.35rem;font-size:1.35rem;font-weight:950;letter-spacing:-.035em}
+.acquisition-versions{display:grid;gap:.65rem}.acquisition-version-card{position:relative;display:grid;min-height:118px;grid-template-columns:1fr auto;align-items:center;overflow:hidden;border:1px solid #ffffff10;border-radius:.85rem;padding:1rem;color:#fff;text-align:left;box-shadow:inset 0 1px #ffffff08;transition:.22s}.acquisition-version-card>img{object-fit:cover;object-position:center 42%;filter:saturate(.9) brightness(.68);transition:.35s}.acquisition-version-card:hover{border-color:#ff61744a;transform:translateX(-5px)}.acquisition-version-card:hover>img{filter:saturate(1.05) brightness(.76);transform:scale(1.035)}
+.acquisition-version-shade{position:absolute;z-index:1;inset:0;background:linear-gradient(90deg,#0b0d14f5 0%,#0b0d14c9 48%,#0b0d1452 100%)}
+.acquisition-version-copy{position:relative;z-index:2;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.1rem .65rem}.acquisition-version-copy small{grid-row:1/3;display:grid;width:2.35rem;height:2.35rem;place-items:center;border:1px solid #ffffff26;border-radius:.55rem;background:#090b10b8;color:#ff6678;font-size:.64rem;font-weight:950}.acquisition-version-copy strong{font-size:1rem;font-weight:950}.acquisition-version-copy>span{color:#ffffff78;font-size:.7rem;font-weight:700}.acquisition-version-card>svg{position:relative;z-index:2;color:#ffffff90}
+
+/* Keep the floating community dock from covering the acquisition chooser on laptop screens. */
+@media(max-width:1400px) and (min-width:761px){.acquisition-grid{padding-right:5.5rem!important}.social-dock{right:.55rem;width:54px}.social-dock-brand>span:last-child,.social-dock>a>span:nth-child(2),.social-dock>button>span:nth-child(2),.social-dock>a>svg,.social-dock>button>svg{display:none}.social-dock-brand{justify-content:center;padding:.6rem}.social-dock>a,.social-dock>button{display:grid;grid-template-columns:1fr;place-items:center;padding:.6rem}}
+
+/* Exact partner reward previews supplied for Main and the shared Essence / Special Project pack. */
+.bonus-reward-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding:1rem 1.5rem 0}
+.bonus-reward-card{display:grid;grid-template-columns:minmax(150px,.72fr) 1fr;align-items:center;gap:1rem;overflow:hidden;border:1px solid #ffffff10;border-radius:.85rem;background:#0b0d14;padding:.7rem}.bonus-reward-card img{width:100%;max-height:170px;border-radius:.55rem;object-fit:contain}.bonus-reward-card figcaption{display:flex;flex-direction:column;gap:.45rem}.bonus-reward-card strong{font-size:.8rem;font-weight:950}.bonus-reward-card span{color:#ffffff68;font-size:.67rem;line-height:1.45}.bonus-sheet-reward{display:none}
+
+@media(max-width:1000px){.acquisition-grid{grid-template-columns:minmax(0,1fr) minmax(360px,.85fr);gap:2rem}.acquisition-copy h1{font-size:clamp(3rem,7vw,5.2rem)}.bonus-reward-card{grid-template-columns:1fr}.bonus-reward-card img{max-height:150px}}
+@media(max-width:760px){
+  .portal-header .bonus-button{min-width:auto;padding:.68rem .78rem;font-size:.72rem}
+  .acquisition-grid{min-height:0;grid-template-columns:1fr;gap:2rem;padding-top:4.6rem;padding-bottom:2.5rem}
+  .acquisition-copy h1{font-size:clamp(3rem,15vw,4.8rem);line-height:.88}
+  .acquisition-lead{margin-top:1.25rem;font-size:.96rem}
+  .acquisition-actions{display:grid;grid-template-columns:1fr;margin-top:1.5rem}.acquisition-actions>*{justify-content:center}
+  .acquisition-proof{gap:.65rem 1rem}.acquisition-chooser{padding:.8rem}.acquisition-chooser-head h2{font-size:1.15rem}.acquisition-version-card{min-height:102px}
+  .bonus-reward-grid{display:none}
+  .bonus-sheet-reward{display:grid;flex:none;grid-template-columns:112px 1fr;align-items:center;gap:.8rem;margin:.75rem 1rem 0;border:1px solid #ffffff10;border-radius:.8rem;background:#090b11;padding:.55rem}
+  .bonus-sheet-reward img{width:112px;max-height:105px;border-radius:.45rem;object-fit:contain}
+  .bonus-sheet-reward figcaption{display:flex;min-width:0;flex-direction:column;gap:.3rem}.bonus-sheet-reward strong{font-size:.68rem;line-height:1.3}.bonus-sheet-reward span{color:#ffffff62;font-size:.58rem;line-height:1.35}
+}
+@media(max-width:390px){.portal-header .bonus-button{padding:.65rem}.portal-header .bonus-button svg{display:none}.acquisition-copy h1{font-size:2.8rem}.bonus-sheet-reward{grid-template-columns:92px 1fr}.bonus-sheet-reward img{width:92px}}
