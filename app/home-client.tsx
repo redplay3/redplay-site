@@ -259,39 +259,40 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
       <label className="header-search ml-auto hidden items-center gap-2 xl:flex"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по порталу" /></label>
       <ThemeSwitcher/>
       <a href="https://www.youtube.com/@iRedP" target="_blank" rel="noopener noreferrer" aria-label="YouTube RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Youtube size={17}/></a><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer" aria-label="Telegram RedPlay" className="hidden size-10 place-items-center rounded-full bg-white/6 text-white/70 transition hover:bg-white/12 hover:text-white sm:grid"><Send size={17}/></a>
-      <button onClick={() => openBonus()} className="bonus-button flex"><Gift size={16}/> Играть</button>
+      <button onClick={() => openBonus()} className="bonus-button flex"><Gift size={16}/> Бонусы</button>
       <button className="ml-auto grid size-10 place-items-center rounded-full bg-white/8 text-white lg:hidden sm:ml-0" onClick={() => setMenuOpen(v => !v)} aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}>{menuOpen ? <X size={20}/> : <Menu size={20}/>}</button>
     </div>{menuOpen && <nav className="mobile-nav lg:hidden"><button onClick={() => {openBonus();setMenuOpen(false)}}><Gift size={17}/> Играть с бонусами</button>{[["Main","/lineage-2/main"],["Essence / Special Project","/lineage-2/essence"],["Гайды","/lineage-2/essence/guides"],["Тесты","/lineage-2/tests"],["База знаний","#knowledge"],["Видео","#videos"]].map(([item,href]) => <a key={item} href={href} onClick={() => setMenuOpen(false)}>{item}</a>)}</nav>}</header>
 
     <section id="top" className="acquisition-hero">
       <div className="acquisition-glow" aria-hidden="true"/>
-      <div className="acquisition-grid mx-auto max-w-[1500px] px-4 py-14 sm:px-6 lg:px-8">
+      <div className="acquisition-grid mx-auto max-w-[1500px] px-4 py-12 sm:px-6 lg:px-8">
         <div className="acquisition-copy">
-          <p className="portal-kicker"><Gift size={14}/> Для новых и вернувшихся игроков</p>
-          <h1>Начни Lineage 2 с правильной версии</h1>
-          <p className="acquisition-lead">Сравни Main, Essence и Special Project, выбери подходящий темп игры и получи стартовые расходники по ссылке RedPlay.</p>
+          <p className="portal-kicker"><Newspaper size={14}/> Игровой портал RedPlay</p>
+          <h1>Lineage 2<br/>без догадок</h1>
+          <p className="acquisition-lead">Разбираем обновления, проверяем классы и фарм на практике, собираем понятные гайды для Main, Essence и Special Project.</p>
           <div className="acquisition-actions">
-            <button type="button" className="hero-primary" onClick={() => openBonus()}>Подобрать версию <ArrowRight size={18}/></button>
-            <button type="button" className="hero-secondary" onClick={() => openBonus()}>Что входит в бонус</button>
+            <a className="hero-primary" href="#updates">Свежие публикации <ArrowRight size={18}/></a>
+            <a className="hero-secondary" href="#tests">Практические тесты</a>
           </div>
-          <div className="acquisition-proof" aria-label="Преимущества RedPlay"><span><FlaskConical size={15}/> Практические тесты</span><span><BookOpen size={15}/> Актуальные гайды</span><span><Shield size={15}/> Официальные серверы</span></div>
+          <div className="acquisition-proof" aria-label="Преимущества RedPlay"><span><FlaskConical size={15}/> Реальные замеры</span><span><BookOpen size={15}/> Гайды по существу</span><span><Shield size={15}/> Проверенные данные</span></div>
         </div>
         <div className="acquisition-chooser">
-          <div className="acquisition-chooser-head"><p>Быстрый выбор</p><h2>Какая Lineage 2 подойдёт тебе?</h2></div>
+          <div className="acquisition-chooser-head"><p>Материалы по версии</p><h2>Выбери свою Lineage 2</h2></div>
           <div className="acquisition-versions">
-            <button type="button" className="acquisition-version-card" onClick={() => openGlobalBonus("Main")}>
+            <Link className="acquisition-version-card" href="/lineage-2/main">
               <Image src="/game-main.webp" alt="Lineage 2 Main" fill sizes="(max-width: 760px) 92vw, 360px"/>
-              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>MN</small><strong>Main</strong><span>Большой мир и клановая игра</span></span><ArrowRight size={17}/>
-            </button>
-            <button type="button" className="acquisition-version-card" onClick={() => openGlobalBonus("Essence / Special Project")}>
+              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>MN</small><strong>Main</strong><span>Новости и гайды большой версии</span></span><ArrowRight size={17}/>
+            </Link>
+            <Link className="acquisition-version-card" href="/lineage-2/essence">
               <Image src="/game-essence.webp" alt="Lineage 2 Essence" fill sizes="(max-width: 760px) 92vw, 360px"/>
-              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>ES</small><strong>Essence</strong><span>Высокий темп и конкуренция</span></span><ArrowRight size={17}/>
-            </button>
-            <button type="button" className="acquisition-version-card" onClick={() => openGlobalBonus("Essence / Special Project")}>
+              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>ES</small><strong>Essence</strong><span>Обновления, классы и тесты</span></span><ArrowRight size={17}/>
+            </Link>
+            <Link className="acquisition-version-card" href="/lineage-2/special-project">
               <Image src="/game-special.webp" alt="Lineage 2 Special Project" fill sizes="(max-width: 760px) 92vw, 360px"/>
-              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>SP</small><strong>Special Project</strong><span>Фарм и честный прогресс</span></span><ArrowRight size={17}/>
-            </button>
+              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>SP</small><strong>Special Project</strong><span>Фарм, развитие и сравнения</span></span><ArrowRight size={17}/>
+            </Link>
           </div>
+          <button type="button" className="acquisition-bonus-link" onClick={() => openBonus()}><Gift size={15}/><span><strong>Новичкам и вернувшимся</strong><small>Посмотреть стартовые бонусы</small></span><ArrowRight size={16}/></button>
         </div>
       </div>
     </section>
