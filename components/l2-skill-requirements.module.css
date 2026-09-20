@@ -23,7 +23,7 @@
   position: relative;
   display: grid;
   min-width: 0;
-  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: .72rem;
   overflow: hidden;
@@ -49,9 +49,10 @@
 .item[data-grade="legendary"] { --book-color: var(--rp-book-legendary); --book-border: #ad72ff61; --book-tint: #ad72ff17; }
 
 .icon {
+  position: relative;
   display: grid;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--book-border);
@@ -62,6 +63,21 @@
 }
 
 .icon img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.bookArtwork {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.itemImage { position: relative; z-index: 1; }
+.gradeFrame {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  object-fit: contain !important;
+}
 .copy { min-width: 0; }
 .copy small, .copy strong { display: block; }
 .copy small { margin-bottom: .17rem; color: var(--book-color); font-size: .61rem; font-weight: 950; letter-spacing: .055em; text-transform: uppercase; }
@@ -71,7 +87,7 @@
 
 @media (max-width: 620px) {
   .requirement { padding: .78rem; }
-  .item { grid-template-columns: 2.25rem minmax(0, 1fr) auto; gap: .62rem; padding: .58rem .62rem .58rem .72rem; }
-  .icon { width: 2.25rem; height: 2.25rem; }
+  .item { grid-template-columns: 3rem minmax(0, 1fr) auto; gap: .62rem; padding: .58rem .62rem .58rem .72rem; }
+  .icon { width: 3rem; height: 3rem; }
   .copy strong { overflow-wrap: anywhere; font-size: .8rem; }
 }

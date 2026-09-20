@@ -1,4 +1,5 @@
 import { BookOpen, Package } from "lucide-react";
+import Image from "next/image";
 import styles from "./l2-skill-requirements.module.css";
 
 export type BookGrade = "improved" | "exceptional" | "rare" | "heroic" | "legendary";
@@ -25,6 +26,29 @@ const gradeLabels: Record<BookGrade, string> = {
   rare: "Редкая",
   heroic: "Героическая",
   legendary: "Легендарная",
+};
+
+const gradeArtwork: Record<BookGrade, { book: string; frame: string }> = {
+  improved: {
+    book: "/l2/skill-requirements/books/improved.png",
+    frame: "/l2/skill-requirements/frames/improved.png",
+  },
+  exceptional: {
+    book: "/l2/skill-requirements/books/exceptional.png",
+    frame: "/l2/skill-requirements/frames/exceptional.png",
+  },
+  rare: {
+    book: "/l2/skill-requirements/books/rare.png",
+    frame: "/l2/skill-requirements/frames/rare.png",
+  },
+  heroic: {
+    book: "/l2/skill-requirements/books/heroic.png",
+    frame: "/l2/skill-requirements/frames/heroic.png",
+  },
+  legendary: {
+    book: "/l2/skill-requirements/books/legendary.png",
+    frame: "/l2/skill-requirements/frames/legendary.png",
+  },
 };
 
 const legacyBookGradePatterns: Array<[BookGrade, RegExp]> = [
@@ -85,15 +109,27 @@ export function L2SkillRequirements({
         const { item } = requirement;
         const grade = item.book_grade;
         const isBook = item.item_type === "book";
+        const artwork = isBook && grade ? gradeArtwork[grade] : null;
+        const itemIcon = item.icon_url || artwork?.book;
         return <div
           className={styles.item}
           data-grade={grade || undefined}
           key={`${requirement.id}-${item.id}`}
         >
-          <span className={styles.icon} aria-hidden="true">
-            {item.icon_url
-              ? <img src={item.icon_url} alt="" loading="lazy"/>
-              : isBook ? <BookOpen size={19}/> : <Package size={19}/>}
+          <span className={`${styles.icon} ${artwork ? styles.bookArtwork : ""}`} aria-hidden="true">
+            {itemIcon
+              ? itemIcon.startsWith("/")
+                ? <Image className={styles.itemImage} src={itemIcon} alt="" width={64} height={64} unoptimized/>
+                : <img className={styles.itemImage} src={itemIcon} alt="" loading="lazy"/>
+              : isBook ? <BookOpen size={24}/> : <Package size={19}/>}
+            {artwork && <Image
+              className={styles.gradeFrame}
+              src={artwork.frame}
+              alt=""
+              width={64}
+              height={64}
+              unoptimized
+            />}
           </span>
           <span className={styles.copy}>
             {grade && <small>{gradeLabels[grade]} книга</small>}
