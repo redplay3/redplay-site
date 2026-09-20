@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useBonusOffer } from "@/components/bonus-offer-provider";
 import { ThemeSwitcher } from "@/components/theme-provider";
 import { editions, knowledgeSections, type Edition } from "@/lib/content";
@@ -148,7 +147,7 @@ const fallbackVideos: Video[] = [
 export default function HomePage({ initialArticles }: { initialArticles: PublishedArticle[] }) {
   const [edition, setEdition] = useState<Edition>("Все версии");
   const { openBonus: openGlobalBonus, promptOpen: bonusPromptOpen } = useBonusOffer();
-  const openBonus = () => openGlobalBonus(edition === "Main" ? "Main" : "Essence / Special Project");
+  const openBonus = () => openGlobalBonus(edition === "Essence / Special Project" ? "Essence / Special Project" : "Main");
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [videos, setVideos] = useState<Video[]>(fallbackVideos);
@@ -287,7 +286,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
       <img src={heroCover} alt="" className="latest-entry-backdrop" aria-hidden="true"/>
       <img src={heroCover} alt={latestHero.cover?.alt || heroTitle} className="latest-entry-image"/>
       <div className="latest-entry-shade"/>
-      <div className="acquisition-grid mx-auto max-w-[1500px] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="acquisition-grid latest-entry-grid mx-auto max-w-[1500px] px-4 py-12 sm:px-6 lg:px-8">
         <div className="latest-entry-copy">
           <div className="flex items-center gap-3"><span className="live-dot"/><p className="portal-kicker">Самая свежая публикация · {heroEdition} · {heroCategory}</p></div>
           <h1 className="latest-entry-title">{heroTitle}</h1>
@@ -297,24 +296,6 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
             <a className="hero-secondary" href="#updates"><Newspaper size={17}/> Свежие публикации</a>
           </div>
           <div className="hero-context"><span>{heroDate}</span>{heroTags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-        </div>
-        <div className="acquisition-chooser">
-          <div className="acquisition-chooser-head"><p>Материалы по версии</p><h2>Выбери свою Lineage 2</h2></div>
-          <div className="acquisition-versions">
-            <Link className="acquisition-version-card" href="/lineage-2/main">
-              <Image src="/game-main.webp" alt="Lineage 2 Main" fill sizes="(max-width: 760px) 92vw, 360px"/>
-              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>MN</small><strong>Main</strong><span>Новости и гайды большой версии</span></span><ArrowRight size={17}/>
-            </Link>
-            <Link className="acquisition-version-card" href="/lineage-2/essence">
-              <Image src="/game-essence.webp" alt="Lineage 2 Essence" fill sizes="(max-width: 760px) 92vw, 360px"/>
-              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>ES</small><strong>Essence</strong><span>Обновления, классы и тесты</span></span><ArrowRight size={17}/>
-            </Link>
-            <Link className="acquisition-version-card" href="/lineage-2/special-project">
-              <Image src="/game-special.webp" alt="Lineage 2 Special Project" fill sizes="(max-width: 760px) 92vw, 360px"/>
-              <span className="acquisition-version-shade"/><span className="acquisition-version-copy"><small>SP</small><strong>Special Project</strong><span>Фарм, развитие и сравнения</span></span><ArrowRight size={17}/>
-            </Link>
-          </div>
-          <button type="button" className="acquisition-bonus-link" onClick={() => openBonus()}><Gift size={15}/><span><strong>Новичкам и вернувшимся</strong><small>Посмотреть стартовые бонусы</small></span><ArrowRight size={16}/></button>
         </div>
       </div>
     </section>

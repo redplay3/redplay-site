@@ -55,7 +55,7 @@ const rewardPreviews: Record<BonusGroup, RewardPreview> = {
   Main: {
     eyebrow: "Награда Main",
     title: "Куб Помощи Партнёра",
-    note: "Ежедневные и разовые предметы для первых 30 дней развития.",
+    note: "Коктейль — каждый день; остальные подарки — в 1-й, 10-й, 20-й и 30-й день.",
     emblem: "/bonus/icons/main-pack.png",
     items: [
       { name: "Чудодейственный Коктейль", amount: "×3", detail: "каждый день", icon: "/bonus/icons/main-cocktail.png" },
@@ -93,6 +93,7 @@ function RewardBoard({ group, compact = false }: { group: BonusGroup; compact?: 
       <RewardIcon icon={reward.emblem} large/>
       <div><span>{reward.eyebrow}</span><strong>{reward.title}</strong><p>{reward.note}</p></div>
     </div>
+    <div className="bonus-reward-caption"><span>{group === "Main" ? "Расписание выдачи" : "Состав сундука"}</span><span>{group === "Main" ? "Когда получить" : "Количество"}</span></div>
     <ul className="bonus-reward-items">{reward.items.map((item) => <li key={item.name}>
       <RewardIcon icon={item.icon}/>
       <span><strong>{item.name}</strong>{item.detail && <small>{item.detail}</small>}</span>
