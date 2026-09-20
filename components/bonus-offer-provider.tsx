@@ -378,11 +378,13 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
           <p id="bonus-sheet-description">Main – отдельная версия. Essence и Special Project имеют разные правила серверов и отдельные ссылки регистрации.</p>
           <button type="button" className="bonus-sheet-close" onClick={() => closeBonus(false)} aria-label="Закрыть окно"><X size={20}/></button>
         </div>
-        <div className="bonus-sheet-tabs" aria-label="Выбор версии">
-          {gameLinks.map((game) => <button key={game.name} type="button" className={selectedGame === game.name ? "active" : ""} onClick={() => selectGame(game.name as GameName)}>{game.name === "Special Project" ? "Special" : game.name}</button>)}
+        <div className="bonus-sheet-scroll">
+          <div className="bonus-sheet-tabs" aria-label="Выбор версии">
+            {gameLinks.map((game) => <button key={game.name} type="button" className={selectedGame === game.name ? "active" : ""} onClick={() => selectGame(game.name as GameName)}>{game.name === "Special Project" ? "Special" : game.name}</button>)}
+          </div>
+          <div className="bonus-sheet-reward"><RewardBoard group={bonusGroup} compact/></div>
+          <div className="bonus-sheet-cards"><a href={activeGame.url} target="_blank" rel="sponsored noopener noreferrer" data-game={activeGame.name} onClick={followBonusLink(activeGame.name)} className={`bonus-choice ${activeGame.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={activeGame.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{activeGame.short}</span><span className="choice-copy"><span className="choice-tag">{activeGame.tag}</span><h3>{activeGame.name}</h3><p>{activeGame.text}</p><span className="choice-cta">{activeGame.cta} <ArrowUpRight size={16}/></span></span></span>{activeGame.featured && <span className="choice-label">Рекомендуем</span>}</a></div>
         </div>
-        <div className="bonus-sheet-reward"><RewardBoard group={bonusGroup} compact/></div>
-        <div className="bonus-sheet-cards"><a href={activeGame.url} target="_blank" rel="sponsored noopener noreferrer" onClick={followBonusLink(activeGame.name)} className={`bonus-choice ${activeGame.featured ? "bonus-choice-featured" : ""}`}><span className="bonus-choice-art"><img src={activeGame.image} alt=""/><span/></span><span className="relative z-10 flex h-full flex-col p-4"><span className="game-code">{activeGame.short}</span><span className="choice-copy"><span className="choice-tag">{activeGame.tag}</span><h3>{activeGame.name}</h3><p>{activeGame.text}</p><span className="choice-cta">{activeGame.cta} <ArrowUpRight size={16}/></span></span></span>{activeGame.featured && <span className="choice-label">Рекомендуем</span>}</a></div>
         <div className="bonus-sheet-footer"><p>Партнёрские ссылки RedPlay. Условия бонуса определяет 4game.</p><button type="button" onClick={() => closeBonus(false)}>Продолжить без выбора</button></div>
       </section>
     </div>, document.body)}
