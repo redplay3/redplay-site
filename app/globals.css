@@ -313,3 +313,24 @@ html[data-theme="dark"] .telegram-callout p{color:#bdd7e4}
   .bonus-sheet-tabs{grid-template-columns:repeat(3,1fr)}.bonus-sheet-reward{display:block;flex:none;margin:.7rem 1rem 0}.bonus-sheet-reward .bonus-reward-board{border-radius:.8rem}.bonus-sheet-reward .bonus-reward-head{grid-template-columns:2.7rem 1fr;padding:.7rem}.bonus-sheet-reward .reward-sprite-large{transform:scale(.92)}.bonus-sheet-reward .bonus-reward-head p{display:none}.bonus-sheet-reward .bonus-reward-items{grid-template-columns:1fr 1fr;gap:.12rem;padding:.45rem}.bonus-sheet-reward .bonus-reward-items li{min-height:44px;grid-template-columns:28px minmax(0,1fr) auto;gap:.4rem;padding:.2rem}.bonus-sheet-reward .reward-sprite:not(.reward-sprite-large){width:28px;height:28px}.bonus-sheet-reward .bonus-reward-items li strong{display:-webkit-box;overflow:hidden;font-size:.58rem;line-height:1.25;white-space:normal;-webkit-box-orient:vertical;-webkit-line-clamp:2}.bonus-sheet-reward .bonus-reward-items li small{display:none}.bonus-sheet-reward .bonus-reward-items li b{font-size:.61rem}.bonus-sheet-cards .bonus-choice{min-height:245px}.bonus-sheet-cards .choice-copy{padding-top:1.5rem}
 }
 @media(max-width:390px){.portal-header .bonus-button{padding:.65rem}.portal-header .bonus-button svg{display:none}.acquisition-copy h1{font-size:2.8rem}}
+
+/* Editorial hierarchy: one lead story, one image-led secondary story, then two compact cards. */
+.news-card-1{grid-template-columns:minmax(150px,.68fr) minmax(0,1.32fr)}
+.news-card-1 .news-card-art>span{background:linear-gradient(90deg,transparent 38%,#1e1721 100%)}
+.news-card-1 p{color:#ffffff78!important}
+
+/* Registration chooser typography stays readable over game artwork. */
+.bonus-version-tabs button{min-height:3.2rem;gap:.6rem;color:#ffffff82;font-size:.86rem}
+.bonus-version-tabs button span{width:1.9rem;height:1.9rem;font-size:.6rem}
+.bonus-reward-head span{font-size:.62rem}.bonus-reward-head strong{font-size:1rem}.bonus-reward-head p{color:#ffffffb8;font-size:.72rem;line-height:1.5}
+.bonus-reward-items li strong{font-size:.73rem}.bonus-reward-items li small{color:#ffffff9e;font-size:.62rem}.bonus-reward-items li b{font-size:.74rem}
+.bonus-focused-copy small{font-size:.68rem}.bonus-focused-copy strong{font-size:1.85rem}.bonus-focused-copy p{color:#ffffffc7;font-size:.86rem}.bonus-focused-copy b{font-size:.82rem}
+
+@media(max-width:760px){
+  .bonus-sheet-head>p:last-of-type{color:#ffffffad;font-size:.8rem;line-height:1.5;-webkit-line-clamp:3}
+  .bonus-sheet-tabs button{font-size:.76rem}
+  .bonus-sheet-reward .bonus-reward-head strong{font-size:.82rem}
+  .bonus-sheet-reward .bonus-reward-items li strong{font-size:.62rem}
+  .bonus-sheet-reward .bonus-reward-items li b{font-size:.64rem}
+  .bonus-sheet-cards .choice-copy p{font-size:.8rem;line-height:1.55}
+}

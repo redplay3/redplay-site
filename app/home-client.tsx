@@ -61,6 +61,48 @@ const forgedArticle: PublishedArticle = {
   published_at: fallbackHero.publishedAt,
   updated_at: fallbackHero.publishedAt,
 };
+const fallbackPublishedArticles: PublishedArticle[] = [
+  {
+    id: "samurai-guide-static-fallback",
+    title: "Самурай в Lineage 2 Essence — полный гайд 2026",
+    description: "Полный гайд по Самураю в Lineage 2 Essence и Special Project: навыки, прокачка, PvE, PvP, расход Руды Духов, экипировка и развитие класса в 2026.",
+    label: "Гайд · Самурай 2026",
+    cover: { src: "https://vpsocmwsvwyavrmduzth.supabase.co/storage/v1/object/public/article-media/2026/image/79c387d4-ad11-4ea1-b1f5-5c4e3dfb1076--codex-19-.-2026-.-21-23-12.png", alt: "Самурай в Lineage 2 Essence — полный гайд 2026" },
+    edition: "essence", category: "classes", slug: "samurai-guide-2026",
+    tags: ["Самурай", "Гайд", "PvE", "PvP", "Essence", "Special Project"],
+    published_at: "2026-09-19T19:22:25.161+00:00", updated_at: "2026-09-20T10:32:43.26878+00:00",
+  },
+  {
+    id: "essence-update-16-september-static-fallback",
+    title: "Обновление Lineage 2 Essence от 16 сентября: Полководец, Авангард",
+    description: "Полный разбор обновления Lineage 2 Essence от 16 сентября 2026: классы, навыки, таблицы, события, магазин и другие изменения из официального корейского патчноута.",
+    label: "Обновление · 16 сентября 2026",
+    cover: { src: "https://vpsocmwsvwyavrmduzth.supabase.co/storage/v1/object/public/article-media/2026/image/7b32322d-c918-491b-aad6-f67703af2fc2-044ba3e8-915c-4b3b-945f-3e4636fcf58c.png", alt: "Обновление Lineage 2 Essence от 16 сентября: Полководец, Авангард" },
+    edition: "essence", category: "updates", slug: "obnovlenie-16-sentyabrya-2026-polkovodets-avangard",
+    tags: ["Обновление", "Корея", "Полководец", "Авангард", "Essence", "Special Project"],
+    published_at: "2026-09-16T18:33:26.31+00:00", updated_at: "2026-09-16T19:57:07.973029+00:00",
+  },
+  {
+    id: "fortune-seeker-static-fallback",
+    title: "Искатель Удачи в Forged in Battle: все умения, Spoil и Lucky Box",
+    description: "Полный разбор Искателя Удачи после Forged in Battle: новая боевая модель, все ключевые умения, Rolling Dice, Spoil Destroyer и Lucky Box.",
+    label: "Новый материал",
+    cover: { src: "https://vpsocmwsvwyavrmduzth.supabase.co/storage/v1/object/public/article-media/2026/image/228a77ba-c5e4-450f-8c3e-961c53953438-chatgpt-image-14-.-2026-.-21-36-55.png", alt: "Искатель Удачи в Forged in Battle" },
+    edition: "essence", category: "classes", slug: "iskatel-udachi-forged-in-battle",
+    tags: ["Искатель Удачи", "Forged in Battle", "Essence", "Special Project"],
+    published_at: "2026-09-14T18:46:31.823+00:00", updated_at: "2026-09-14T18:46:31.67525+00:00",
+  },
+  {
+    id: "maestro-static-fallback",
+    title: "Маэстро в Forged in Battle: все умения, крафт и Broken Armor",
+    description: "Полный разбор Маэстро после Forged in Battle: новые молоты и парные мечи, Broken Armor, Prime Maestro, выживание и ремесло.",
+    label: "Новый материал",
+    cover: { src: "https://vpsocmwsvwyavrmduzth.supabase.co/storage/v1/object/public/article-media/2026/image/f8049a7e-b47b-4fea-bc93-0e9eafcde721-chatgpt-image-14-.-2026-.-20-09-37-1-.png", alt: "Маэстро в Forged in Battle" },
+    edition: "essence", category: "classes", slug: "maestro-forged-in-battle",
+    tags: ["Маэстро", "Forged in Battle", "Essence", "Special Project"],
+    published_at: "2026-09-14T18:45:28.274+00:00", updated_at: "2026-09-14T18:45:28.122159+00:00",
+  },
+];
 const fallbackTestArticles: PublishedArticle[] = [
   {
     id: "test-samurai-diversant",
@@ -153,7 +195,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
   }, []);
 
   const editionArticles = useMemo(() => {
-    const pool = [...publishedArticles, forgedArticle, replicaArticle]
+    const pool = [...publishedArticles, ...fallbackPublishedArticles, forgedArticle, replicaArticle]
       .filter((article, index, all) => {
         const href = articleHref(article);
         return all.findIndex((item) => articleHref(item) === href) === index;

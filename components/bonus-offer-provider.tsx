@@ -352,7 +352,7 @@ export function BonusOfferProvider({ children }: { children: ReactNode }) {
       <DialogContent className="bonus-dialog max-h-[92vh] overflow-y-auto border-0 p-0 sm:max-w-5xl" aria-describedby="bonus-description">
         <div className="bonus-dialog-head px-6 py-7 sm:px-8">
           <p className="portal-kicker"><Gift size={14}/> Бонус новым и вернувшимся</p>
-          <DialogHeader className="mt-3 text-left"><DialogTitle className="text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">Выбери свою Lineage 2</DialogTitle><DialogDescription id="bonus-description" className="mt-2 max-w-2xl text-sm leading-6 text-white/75">Main – отдельная версия. Essence и Special Project работают на общей основе, но предлагают разные правила серверов и отдельные ссылки регистрации.</DialogDescription></DialogHeader>
+          <DialogHeader className="mt-3 text-left"><DialogTitle className="text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">Выбери свою Lineage 2</DialogTitle><DialogDescription id="bonus-description" className="mt-2 max-w-3xl text-base leading-7 text-white/80">Main – отдельная версия. Essence и Special Project работают на общей основе, но предлагают разные правила серверов и отдельные ссылки регистрации.</DialogDescription></DialogHeader>
         </div>
         <div className="bonus-version-tabs" aria-label="Выбор версии игры">
           {gameLinks.map((game) => <button key={game.name} type="button" className={selectedGame === game.name ? "active" : ""} onClick={() => selectGame(game.name as GameName)}><span>{game.short}</span>{game.name}</button>)}
