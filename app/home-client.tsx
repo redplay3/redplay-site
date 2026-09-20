@@ -153,7 +153,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
   }, []);
 
   const editionArticles = useMemo(() => {
-    const pool = [...publishedArticles, forgedArticle, replicaArticle, ...fallbackTestArticles]
+    const pool = [...publishedArticles, forgedArticle, replicaArticle]
       .filter((article, index, all) => {
         const href = articleHref(article);
         return all.findIndex((item) => articleHref(item) === href) === index;
@@ -261,6 +261,16 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
       <div className={`news-layout mt-7 ${results.length ? "" : "news-layout-single"}`}>
         {featuredStory ? <article className="feature-story"><div className="story-art"><img src={featuredCover} alt={featuredStory.cover?.alt || featuredStory.title}/><div className="story-overlay"/></div><div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8"><div className="flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[.13em] text-white/55"><span className="story-badge">Новое</span><span>{featuredCategory}</span><span>{featuredDate}</span><span>• {featuredEdition}</span>{featuredViews > 0 && <span className="story-views"><Eye size={13}/>{new Intl.NumberFormat("ru-RU").format(featuredViews)}</span>}</div><h3>{featuredStory.title}</h3><p>{featuredStory.description}</p>{featuredTags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{featuredTags.map(tag=><span key={tag} className="dark-tag">{tag}</span>)}</div>}<Link href={featuredHref} className="story-link">Читать материал <ArrowUpRight size={17}/></Link></div></article> : <div className="news-empty"><strong>Новые материалы уже готовятся</strong><p>Последняя публикация показана выше. Здесь появятся другие популярные статьи выбранной версии без повторов.</p></div>}
         {results.length > 0 && <div className="news-stack">{results.map((post,index)=><Link key={`${post.href}-${post.title}`} href={post.href} className={`news-card news-card-${index+1}`}><span className="news-card-art"><img src={post.cover} alt=""/><span/></span><span className="news-card-body"><span className="flex items-center justify-between gap-3"><span className="news-category">{post.category}</span><span className="text-[11px] font-bold text-[#9297a3]">{post.date}</span></span><h3>{post.title}</h3><p>{post.summary}</p><span className="news-card-link">Читать <ArrowRight size={14}/></span></span></Link>)}</div>}
+      </div>
+    </div></section>
+
+    <section id="tests" className="tests-section"><div className="mx-auto max-w-[1500px] px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+      <div className="section-heading"><div><p className="portal-kicker dark"><FlaskConical size={15}/> Проверено в игре</p><h2>Тесты с цифрами, а не догадками</h2></div><Link href="/lineage-2/tests" className="section-more">Все тесты <ArrowRight size={16}/></Link></div>
+      <div className="tests-grid mt-8">
+        {fallbackTestArticles.map((article, index) => <Link key={article.id} href={articleHref(article)} className={`test-card ${index === 0 ? "test-card-primary" : ""}`}>
+          <span className="test-card-art"><img src={article.cover?.src || "/game-essence.webp"} alt={article.cover?.alt || article.title}/><span/></span>
+          <span className="test-card-copy"><span className="test-card-meta"><FlaskConical size={14}/> RedPlay Tests · Essence + Special</span><strong>{article.title}</strong><p>{article.description}</p><span className="test-card-action">Посмотреть результаты <ArrowUpRight size={16}/></span></span>
+        </Link>)}
       </div>
     </div></section>
 
