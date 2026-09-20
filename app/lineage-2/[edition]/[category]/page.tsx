@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronRight } from "lucide-react";
 import { notFound } from "next/navigation";
-import { articleCategories, buildArticlePath } from "@/lib/articles/catalog";
+import { articleCategories, buildArticlePath, guideSourceCategories } from "@/lib/articles/catalog";
 import type { ArticleCategory, ArticleEdition } from "@/lib/articles/types";
 import { absoluteUrl, categorySeo, editionSeo, safeJsonLd, SITE_URL } from "@/lib/seo";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -19,7 +19,8 @@ async function getArticles(edition: ArticleEdition, category: ArticleCategory) {
   const supabase = createPublicClient();
   if (!supabase) return [];
   const editions = edition === "essence" ? ["essence", "special-project"] : [edition];
-  const { data } = await supabase.from("articles").select("id,title,description,edition,category,slug,tags,published_at,updated_at").eq("status", "published").eq("category", category).in("edition", editions).order("published_at", { ascending: false });
+  const categories = category === "guides" ? guideSourceCategories : [category];
+  const { data } = await supabase.from("articles").select("id,title,description,edition,category,slug,tags,published_at,updated_at").eq("status", "published").in("category", categories).in("edition", editions).order("published_at", { ascending: false });
   return (data || []) as CatalogArticle[];
 }
 

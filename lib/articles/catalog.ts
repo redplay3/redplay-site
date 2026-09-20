@@ -17,6 +17,12 @@ export const articleEditions: Array<{ value: ArticleEdition; label: string }> = 
   { value: "essence", label: "Essence / Special Project" },
 ];
 
+export const guideSourceCategories: ArticleCategory[] = ["guides", "classes"];
+
+export function isGuideSourceCategory(category: string) {
+  return guideSourceCategories.includes(category as ArticleCategory);
+}
+
 export function buildArticlePath(edition: ArticleEdition, category: ArticleCategory, slug: string) {
   return `/lineage-2/${edition}/${category}/${slug}`;
 }
