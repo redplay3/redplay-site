@@ -18,7 +18,8 @@ import { articleReadingMinutes } from "@/lib/articles/reading-time";
 import { absoluteUrl, articleSeoTitle, categorySeo, editionSeo, safeJsonLd, SITE_URL } from "@/lib/seo";
 import { createPublicClient } from "@/lib/supabase/public";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Params = { edition: string; category: string; slug: string };
 type ArticleRow = {
