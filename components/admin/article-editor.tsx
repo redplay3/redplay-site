@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Eye, ImagePlus, Plus, Save, Send, Trash2, Upload, Video } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Eye, ImagePlus, Plus, Save, Send, Trash2, Upload, Video } from "lucide-react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { articleCategories, articleEditions, buildArticlePath } from "@/lib/articles/catalog";
@@ -313,12 +313,17 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
       if (kind === "video") setUploadProgress(null);
     }
   };
-  const save = async (status: "draft" | "published") => {
+  const save = async (status: "draft" | "scheduled" | "published") => {
     if (!article.title.trim() || !article.slug.trim()) return setMessage("Заполни название и адрес материала.");
     if (article.edition === "essence" && !targets.length) return setMessage("Выбери хотя бы один тип серверов: Essence или Special Project.");
     const contentErrors = validateArticleSections(sections);
     if (contentErrors.length) return setMessage(contentErrors[0]);
-    if (status === "published" && (!article.cover?.src?.trim() || !article.cover?.alt?.trim())) return setMessage("Перед публикацией добавь обложку и её текстовое описание.");
+    if (status !== "draft" && (!article.cover?.src?.trim() || !article.cover?.alt?.trim())) return setMessage("Перед публикацией добавь обложку и её текстовое описание.");
+    if (status === "scheduled") {
+      const scheduledAt = article.published_at ? new Date(article.published_at) : null;
+      if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) return setMessage("Выбери дату и время отложенной публикации.");
+      if (scheduledAt.getTime() <= Date.now()) return setMessage("Для отложенной публикации выбери время в будущем.");
+    }
     setSaving(true); setMessage("");
     try {
       const supabase = createClient();
@@ -326,11 +331,13 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
       const audienceTags = article.edition === "essence" ? targets.map((target) => target === "essence" ? "Essence" : "Special Project") : [];
       const customSeoTitle = article.seo?.title?.trim();
       const finalSeoTitle = customSeoTitle ? (/redplay/i.test(customSeoTitle) ? customSeoTitle : articleSeoTitle(customSeoTitle, article.edition)) : articleSeoTitle(article.title, article.edition);
-      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: article.highlights || [], content: sections, seo: { title: finalSeoTitle, description: article.seo?.description?.trim() || article.description, keywords: ordinaryTags }, video_url: article.video_url || null, published_at: status === "published" ? article.published_at || new Date().toISOString() : null };
+      const publishedAt = status === "draft" ? null : status === "scheduled" ? article.published_at : article.published_at || new Date().toISOString();
+      const payload = { game: "lineage-2", edition: article.edition, category: article.category, slug: article.slug, status, title: article.title, description: article.description, label: article.label, cover: article.cover || {}, tags: [...ordinaryTags, ...audienceTags], highlights: article.highlights || [], content: sections, seo: { title: finalSeoTitle, description: article.seo?.description?.trim() || article.description, keywords: ordinaryTags }, video_url: article.video_url || null, published_at: publishedAt };
       const query = article.id ? supabase.from("articles").update(payload).eq("id", article.id) : supabase.from("articles").insert(payload);
       const { data, error } = await query.select("id").single();
       if (error) throw error;
-      setMessage(status === "published" ? "Материал опубликован." : "Черновик сохранён.");
+      setArticle((current) => ({ ...current, id: data.id, status, published_at: publishedAt }));
+      setMessage(status === "published" ? "Материал опубликован." : status === "scheduled" ? "Публикация запланирована." : "Черновик сохранён.");
       if (!article.id) router.replace(`/redplay-admin/articles/${data.id}`);
       router.refresh();
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Не удалось сохранить материал."); }
@@ -361,6 +368,7 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     <label className="admin-field"><span>Категория</span><select value={article.category} onChange={(event) => setArticle({ ...article, category: event.target.value as ArticleCategory })}>{articleCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
     {article.edition === "essence" && <div className="admin-field wide"><span>Материал относится к серверам</span><div className="editor-targets"><label><input type="checkbox" checked={targets.includes("essence")} onChange={(event) => setTargets(event.target.checked ? [...new Set([...targets, "essence" as const])] : targets.filter((item) => item !== "essence"))}/> Essence</label><label><input type="checkbox" checked={targets.includes("special-project")} onChange={(event) => setTargets(event.target.checked ? [...new Set([...targets, "special-project" as const])] : targets.filter((item) => item !== "special-project"))}/> Special Project</label></div></div>}
     <label className="admin-field wide"><span>Адрес страницы</span><input value={article.slug} onChange={(event) => setArticle({ ...article, slug: slugify(event.target.value) })}/><small>{path}</small></label>
+    <label className="admin-field wide"><span>Дата и время публикации</span><input type="datetime-local" value={datetimeLocalValue(article.published_at)} onChange={(event) => setArticle({ ...article, published_at: event.target.value ? new Date(event.target.value).toISOString() : null })}/><small>Используется часовой пояс этого компьютера. Для отложенной публикации выбери будущую дату.</small></label>
     <label className="admin-field wide"><span>Обложка – адрес или загруженный файл</span><input value={article.cover?.src || ""} onChange={(event) => setArticle({ ...article, cover: { ...article.cover, src: event.target.value } })}/><label className="admin-secondary"><ImagePlus size={15}/> Загрузить обложку<input hidden type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (file) setArticle({ ...article, cover: { src: await uploadMedia(file, "image"), alt: article.title } }); }}/></label></label>
     <div className="editor-seo wide">
       <div className="editor-seo-head"><div><strong>SEO и поиск</strong><span>Как публикация будет называться и описываться в поиске</span></div><span className={seoTitlePreview.length > 72 ? "is-long" : ""}>{seoTitlePreview.length} знаков</span></div>
@@ -375,7 +383,15 @@ export function ArticleEditor({ initial }: { initial?: EditorArticle }) {
     {section.blocks.map((block, blockIndex) => <div className="editor-block" key={block.id}><div className="editor-block-tools"><span>{block.type === "video" && <Video size={13}/>} {blockNames[block.type]}</span><span className="editor-block-actions">{article.edition === "essence" && <select className={`editor-scope ${block.scope || "all"}`} value={block.scope || "all"} onChange={(event) => updateBlock(sectionIndex, blockIndex, { ...block, scope: event.target.value as ArticleAudience })}><option value="all">Общий</option><option value="essence">Только Essence</option><option value="special-project">Только Special</option></select>}<button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, -1)}><ArrowUp size={14}/></button><button className="editor-icon-button" onClick={() => moveBlock(sectionIndex, blockIndex, 1)}><ArrowDown size={14}/></button><button className="editor-icon-button" onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: item.blocks.filter((_, childIndex) => childIndex !== blockIndex) } : item))}><Trash2 size={14}/></button></span></div><BlockFields block={block} onChange={(next) => updateBlock(sectionIndex, blockIndex, next)} uploadMedia={uploadMedia} uploadProgress={uploadProgress}/></div>)}
     <div className="block-library">{(Object.keys(blockNames) as ArticleBlock["type"][]).map((type) => <button key={type} onClick={() => setSections(sections.map((item, index) => index === sectionIndex ? { ...item, blocks: [...item.blocks, makeBlock(type)] } : item))}><Plus size={12}/> {blockNames[type]}</button>)}</div>
   </div>)}
-  <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving || uploadProgress !== null} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-primary" disabled={saving || uploadProgress !== null} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving || uploadProgress !== null} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
+  <div className="editor-actions"><button className="admin-secondary" onClick={() => setSections([...sections, { id: `section-${sections.length + 1}`, label: `Новый раздел ${sections.length + 1}`, blocks: [makeBlock("paragraph")] }])}><Plus size={15}/> Добавить раздел</button><button className="admin-secondary" disabled={saving || uploadProgress !== null} onClick={() => save("draft")}><Save size={15}/> Сохранить черновик</button><button className="admin-secondary" disabled={saving || uploadProgress !== null} onClick={() => save("scheduled")}><CalendarClock size={15}/> Запланировать</button><button className="admin-primary" disabled={saving || uploadProgress !== null} onClick={() => save("published")}><Send size={15}/> Опубликовать</button>{article.id && <button className="admin-danger" disabled={saving || uploadProgress !== null} onClick={remove}><Trash2 size={15}/> Удалить публикацию</button>}{message && <span className="admin-saving">{message}</span>}</div></div>
   {message && <div className={`admin-toast${uploadProgress !== null ? " is-progress" : ""}`}>{uploadProgress !== null && <span style={{ width: `${uploadProgress}%` }}/>}<p>{message}</p></div>}
   <aside className="editor-panel editor-preview"><div className="editor-preview-head"><strong><Eye size={15}/> Предпросмотр</strong><span className="admin-status">{article.status || "draft"}</span></div><div className="article-body">{sections.map((section) => <section id={section.id} key={section.id}><ArticleBlockRenderer blocks={section.blocks}/></section>)}</div></aside></div>;
+}
+
+function datetimeLocalValue(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }

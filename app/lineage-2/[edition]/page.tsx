@@ -8,7 +8,8 @@ import { absoluteUrl, categorySeo, editionSeo, safeJsonLd, SITE_URL } from "@/li
 import { createPublicClient } from "@/lib/supabase/public";
 import { ThemeSwitcher } from "@/components/theme-provider";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Params = { edition: string };
 type CatalogArticle = { id: string; title: string; description: string; edition: ArticleEdition; category: ArticleCategory; slug: string; published_at: string | null; updated_at: string };

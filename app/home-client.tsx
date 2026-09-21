@@ -208,12 +208,7 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
     });
   }, [edition, publishedArticles]);
 
-  const latestHero = useMemo(() => {
-    const pool = [...publishedArticles, ...fallbackPublishedArticles, forgedArticle, replicaArticle]
-      .filter((article, index, all) => all.findIndex((item) => articleHref(item) === articleHref(article)) === index)
-      .sort((left, right) => new Date(right.published_at || right.updated_at).getTime() - new Date(left.published_at || left.updated_at).getTime());
-    return pool[0] || forgedArticle;
-  }, [publishedArticles]);
+  const latestHero = useMemo(() => editionArticles[0] || forgedArticle, [editionArticles]);
   const latestHeroHref = articleHref(latestHero);
   const featuredStory = useMemo(() => {
     const candidates = editionArticles.filter((article) => articleHref(article) !== latestHeroHref);

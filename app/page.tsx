@@ -1,7 +1,11 @@
 import HomePage, { type PublishedArticle } from "./home-client";
 import { createPublicClient } from "@/lib/supabase/public";
 
-export const revalidate = 300;
+// Articles are edited directly in Supabase, outside Next.js' cache lifecycle.
+// Keep the homepage data-driven so a newly published article updates the hero,
+// edition filters and cards immediately instead of waiting for a stale ISR page.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function Home() {
   const supabase = createPublicClient();
