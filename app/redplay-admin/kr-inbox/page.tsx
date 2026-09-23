@@ -24,7 +24,10 @@ type RadarRun = {
   queued_count: number;
 };
 
-export default async function KrInboxPage() {
+export default async function KrInboxPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const { view } = await searchParams;
+  const showArchive = view === "archive";
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const supabase = await createClient();
   if (!supabase) redirect("/redplay-admin");
 
@@ -34,12 +37,15 @@ export default async function KrInboxPage() {
   const { data: allowed } = await supabase.rpc("is_admin");
   if (!allowed) redirect("/redplay-admin/login?error=access");
 
+  const inboxQuery = supabase
+    .from("kr_ingest_items")
+    .select("id,title_kr,edition,source_kind,status,article_id,feed_id,latest_snapshot_version,updated_at");
+  const filteredInbox = showArchive
+    ? inboxQuery.lt("created_at", cutoff)
+    : inboxQuery.gte("created_at", cutoff);
+
   const [{ data: inboxData, error: inboxError }, { data: radarData }] = await Promise.all([
-    supabase
-      .from("kr_ingest_items")
-      .select("id,title_kr,edition,source_kind,status,article_id,feed_id,latest_snapshot_version,updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(50),
+    filteredInbox.order("updated_at", { ascending: false }).limit(50),
     supabase
       .from("kr_radar_runs")
       .select("checked_at,ok,discovered_count,new_count,queued_count")
@@ -85,12 +91,12 @@ export default async function KrInboxPage() {
       <div style={{ marginTop: 20 }}><KrIngestProbe /></div>
 
       {storageReady ? <section style={{ marginTop: 28 }}>
-        <div className="admin-head"><div><h2 style={{ fontSize: 24, fontWeight: 950 }}>Сохранённые материалы</h2><p>v0 – найдено радаром; v1+ – оригинал уже загружен и разобран.</p></div></div>
+        <div className="admin-head"><div><h2 style={{ fontSize: 24, fontWeight: 950 }}>{showArchive ? "Архив KR Inbox" : "Сохранённые материалы"}</h2><p>{showArchive ? "Материалы старше 7 дней. Оригиналы и переводы сохранены." : "За последние 7 дней · v0 – найдено радаром; v1+ – оригинал загружен и разобран."}</p></div><Link href={showArchive ? "/redplay-admin/kr-inbox" : "/redplay-admin/kr-inbox?view=archive"} className="admin-status">{showArchive ? "Свежие материалы" : "Архив"}</Link></div>
         {inbox.length ? <div className="admin-grid">{inbox.map((item) => <Link className="admin-article-row" key={item.id} href={`/redplay-admin/kr-inbox/${item.id}`}>
           <span><strong>{item.title_kr || "KR publication"}</strong><small>{(item.edition || "unknown").toUpperCase()} · {item.source_kind} · {item.article_id ? `articleId ${item.article_id}` : item.feed_id ? `feedId ${item.feed_id}` : "без ID"}</small></span>
           <span style={{ color: "#747985", fontSize: 12, fontWeight: 850 }}>v{item.latest_snapshot_version}</span>
           <span className={`admin-status ${item.status}`}>{item.status}</span>
-        </Link>)}</div> : <div className="admin-empty"><p>KR Inbox пока пуст. Радар автоматически добавит новые официальные публикации.</p></div>}
+        </Link>)}</div> : <div className="admin-empty"><p>{showArchive ? "В архиве пока нет материалов." : "За последние 7 дней материалов нет. Радар добавит новые официальные публикации автоматически."}</p></div>}
       </section> : null}
     </div>
   </main>;
