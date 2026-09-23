@@ -339,9 +339,9 @@ export function TelegramMonitorClient({ digestBody, digestGeneratedAt, digestSta
       setCharCount(plainTextFromEditor(editorRef.current).length);
       setEditorDirty(false);
       setGeneratedItemIds(selectedIds);
-      setGeneratedAt(new Date().toISOString());
-      setStatus("draft");
-      setStatusAt(new Date().toISOString());
+      setGeneratedAt(data?.digest?.generated_at ? String(data.digest.generated_at) : new Date().toISOString());
+      setStatus(data?.digest?.status ? String(data.digest.status) : "composed");
+      setStatusAt(data?.digest?.updated_at ? String(data.digest.updated_at) : new Date().toISOString());
       setMessage(`Пост собран из ${selectedItems.length} материал${selectedItems.length === 1 ? "а" : "ов"}. Проверь текст слева.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Ошибка Telegram Composer");
@@ -481,7 +481,8 @@ export function TelegramMonitorClient({ digestBody, digestGeneratedAt, digestSta
             const choice = selection[item.id];
             const selected = Boolean(choice);
             const expanded = expandedId === item.id;
-            const preview = (item.summary || item.rawContext || "Описание пока не получено.").trim();
+            const preview = (item.summary || (item.relevant ? "Краткое описание пока не найдено. Открой источник, чтобы посмотреть условия." : item.rawContext) || "Описание пока не получено.").trim();
+            const compactPreview = preview.length > 180 ? `${preview.slice(0, 181).replace(/\s+\S*$/, "").trim()}…` : preview;
             return <article key={item.id} className={`tg-feed-item ${item.relevant ? "is-relevant" : "is-muted"}${selected ? " is-selected" : ""}${item.alreadyPublished ? " is-published" : ""}`} onClick={() => setExpandedId(expanded ? null : item.id)}>
               <div className="tg-feed-top">
                 <label className="tg-select-box" onClick={(event) => event.stopPropagation()}>
@@ -492,6 +493,7 @@ export function TelegramMonitorClient({ digestBody, digestGeneratedAt, digestSta
               </div>
               <div className="tg-feed-meta"><span className={`tg-edition ${item.edition}`}>{editionNames[item.edition] || item.edition}</span><span>{categoryNames[item.category] || item.category}</span><span>{formatDate(item.publishedAt || item.firstSeenAt)}</span></div>
               <strong>{item.title}</strong>
+              <p className="tg-feed-summary">{compactPreview}</p>
               <div className="tg-feed-flags">
                 {item.relevant ? <span className="is-recommended">радар рекомендует</span> : <span>не приоритет</span>}
                 {item.alreadyPublished ? <span className="is-done">✓ уже публиковали</span> : null}
