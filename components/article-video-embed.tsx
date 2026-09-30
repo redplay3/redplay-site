@@ -5,6 +5,7 @@ import { Expand, Maximize2, Minimize2, X } from "lucide-react";
 
 type ArticleVideoEmbedProps = {
   videoId?: string;
+  startSeconds?: number;
   src?: string;
   source?: "youtube" | "file";
   title: string;
@@ -59,7 +60,8 @@ function getExpandedGeometry(compactRect: DOMRect): VideoGeometry {
   };
 }
 
-export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, poster, orientation = "vertical", autoPlay = false, loop = false, muted = false, preload = "none" }: ArticleVideoEmbedProps) {
+export function ArticleVideoEmbed({ videoId, startSeconds = 0, src, source = "youtube", title, poster, orientation = "vertical", autoPlay = false, loop = false, muted = false, preload = "none" }: ArticleVideoEmbedProps) {
+  const youtubeStart = Number.isFinite(startSeconds) ? Math.max(0, Math.floor(startSeconds)) : 0;
   const shellRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const openFrameRef = useRef<number | null>(null);
@@ -282,7 +284,7 @@ export function ArticleVideoEmbed({ videoId, src, source = "youtube", title, pos
           <source src={src}/>
           {src && <a href={src}>Открыть видео</a>}
         </video> : <iframe
-          src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+          src={`https://www.youtube-nocookie.com/embed/${videoId}${youtubeStart > 0 ? `?start=${youtubeStart}` : ""}`}
           title={title}
           loading="lazy"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

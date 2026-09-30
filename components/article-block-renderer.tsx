@@ -49,6 +49,19 @@ function youtubeVideoId(value: string) {
   }
 }
 
+function youtubeStartSeconds(value: string) {
+  try {
+    const url = new URL(value.trim());
+    const timestamp = url.searchParams.get("start") || url.searchParams.get("t") || "";
+    if (/^\d+$/.test(timestamp)) return Number(timestamp);
+    const parts = timestamp.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+    if (parts && timestamp) return Number(parts[1] || 0) * 3600 + Number(parts[2] || 0) * 60 + Number(parts[3] || 0);
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
 function youtubeOrientation(value: string) {
   try {
     return new URL(value.trim()).pathname.startsWith("/shorts/") ? "vertical" as const : "horizontal" as const;
@@ -384,7 +397,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
           { title: "Маэстро", url: "https://www.youtube.com/watch?v=PBzcJ_gaLbg", text: "Молот, усиления и Разрушенная броня" },
         ]}/>;
         if (youtubeId) return <figure key={block.id} className="article-video-player">
-          <ArticleVideoEmbed videoId={youtubeId} title={block.title || "Видео RedPlay"} orientation={youtubeOrientation(block.url)}/>
+          <ArticleVideoEmbed videoId={youtubeId} startSeconds={youtubeStartSeconds(block.url)} title={block.title || "Видео RedPlay"} orientation={youtubeOrientation(block.url)}/>
           {(block.title || block.text || block.caption) && <figcaption>{block.title && <strong>{block.title}</strong>}{block.text && <ArticleRichTextContent value={block.richText} fallback={block.text}/>} {block.caption && <small>{block.caption}</small>}</figcaption>}
         </figure>;
         if (block.source === "file") return block.url ? <figure key={block.id} className="article-video-player">
