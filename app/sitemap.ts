@@ -5,7 +5,9 @@ import { SITE_URL } from "@/lib/seo";
 import { redplayTests } from "@/lib/tests/data";
 import { createPublicClient } from "@/lib/supabase/public";
 
-export const revalidate = 300;
+// Reflect publication and scheduling changes immediately, including cron updates.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type SitemapArticle = {
   edition: ArticleEdition;
