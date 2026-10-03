@@ -27,6 +27,7 @@ type RadarRun = {
 export default async function KrInboxPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const { view } = await searchParams;
   const showArchive = view === "archive";
+  // eslint-disable-next-line react-hooks/purity -- This server page calculates a rolling archive cutoff for the current request.
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const supabase = await createClient();
   if (!supabase) redirect("/redplay-admin");

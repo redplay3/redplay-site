@@ -22,16 +22,29 @@ function youtubeVideoId(value: string) {
   return null;
 }
 
+function youtubeStartSeconds(value: string) {
+  try {
+    const url = new URL(value.trim());
+    const timestamp = url.searchParams.get("start") || url.searchParams.get("t") || "";
+    if (/^\d+$/.test(timestamp)) return Number(timestamp);
+    const parts = timestamp.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+    if (parts && timestamp) return Number(parts[1] || 0) * 3600 + Number(parts[2] || 0) * 60 + Number(parts[3] || 0);
+  } catch {
+    return 0;
+  }
+  return 0;
+}
+
 type VideoItem = { title: string; url: string; text?: string };
 
 type ResolvedVideo = VideoItem & (
-  | { kind: "youtube"; id: string }
+  | { kind: "youtube"; id: string; startSeconds: number }
   | { kind: "file"; src: string }
 );
 
 function resolveVideo(item: VideoItem): ResolvedVideo | null {
   const id = youtubeVideoId(item.url);
-  if (id) return { ...item, kind: "youtube", id };
+  if (id) return { ...item, kind: "youtube", id, startSeconds: youtubeStartSeconds(item.url) };
   try {
     const url = new URL(item.url.trim());
     if (/\.(?:mp4|webm|ogg)$/i.test(url.pathname)) return { ...item, kind: "file", src: url.toString() };
@@ -54,16 +67,17 @@ export function ArticleVideoPlaylist({ title, text, items }: { title: string; te
   const [selected, setSelected] = useState(0);
   const active = videos[Math.min(selected, Math.max(0, videos.length - 1))];
   if (!active) return null;
+  const isChapters = active.kind === "youtube" && videos.every((video) => video.kind === "youtube" && video.id === active.id);
 
   return <figure className={styles.playlist}>
     <div className={styles.heading}>
-      <span>Официальные демонстрации</span>
+      <span>{isChapters ? "Разделы видео" : "Видеоподборка"}</span>
       <strong>{title}</strong>
       {text && <p>{text}</p>}
     </div>
     <div className={styles.frame}>
       {active.kind === "youtube"
-        ? <ArticleVideoEmbed key={active.id} videoId={active.id} title={active.title} orientation={youtubeOrientation(active.url)}/>
+        ? <ArticleVideoEmbed key={`${active.id}-${active.startSeconds}`} videoId={active.id} startSeconds={active.startSeconds} title={active.title} orientation={youtubeOrientation(active.url)}/>
         : <ArticleVideoEmbed key={active.src} source="file" src={active.src} title={active.title} orientation="auto"/>
       }
     </div>
