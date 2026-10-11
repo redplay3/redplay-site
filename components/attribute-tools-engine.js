@@ -102,7 +102,10 @@ function renderAssembly(){
  $('build-selected').innerHTML=state.mode==='assembly'?total.items.map(item=>`<div class="selected-item"><div><strong>${esc(item.title)}</strong><small>${esc(item.label)}<br>${esc(bonusText(item))}</small></div>${item.locked?'<span class="muted">Сет Почёта</span>':`<button class="text-button remove-source" type="button" data-remove-source="${item.id}" aria-label="Убрать ${esc(item.title)}">Убрать ×</button>`}</div>`).join(''):'';
  $('build-selected-empty').hidden=total.items.length>0||state.mode!=='assembly';
  $('clear-build').hidden=state.mode!=='assembly'||total.items.length===0;
- $('build-sticky').innerHTML=`<a href="#calculator"><span>${state.mode==='assembly'?'Сборка':'Параметры'} · атака стихией</span><strong>${format(total.attack)}</strong></a><a href="#calc-controls">Выбрать предметы ↑</a>`;
+ const zone=DATA.zones.find(z=>z.id===state.target);
+ const attackNeed=zone?deficit(zone['Атака'],total.attack):null;
+ const relevant=zone?zoneElements(zone):[];
+ $('build-sticky').innerHTML=`<div class="sticky-attack"><span>${state.mode==='assembly'?'Сборка':'Параметры'} · атака стихией</span><strong>${format(total.attack)}</strong></div><div class="sticky-defenses" aria-label="Защита от стихий">${ELEMENTS.map((e,i)=>{const need=relevant.includes(e)?deficit(zone['Защита'],total.defenses[e]):null;return `<div class="sticky-defense"><img src="/guides/attribute/icons/${FILES[i]}.webp" alt=""><span>${e}</span><strong>${format(total.defenses[e])}</strong>${need!==null?`<small class="${need?'sticky-missing':'sticky-ok'}">${need?'не хватает '+format(need):'достаточно'}</small>`:''}</div>`;}).join('')}</div><div class="sticky-target"><span>${zone?esc(zone['Название']):'Локация не выбрана'}</span><strong class="${attackNeed===0?'sticky-ok':''}">${attackNeed===null?'Выбери цель в таблице':attackNeed?'Не хватает '+format(attackNeed)+' атаки':'Атаки достаточно'}</strong><a href="${zone?'#calc-controls':'#zones'}">${zone?'К выбору предметов ↑':'Выбрать локацию ↑'}</a></div>`;
 }
 function renderCalc(){renderAssembly();const total=currentTotals();const zone=DATA.zones.find(z=>z.id===state.target);if(!zone){$('target-name').textContent='Сравнение с локацией';$('calc-result').innerHTML='<p>Итоги сборки обновляются при выборе предметов. Для расчёта дефицита выбери локацию.</p>';return;}$('target-name').textContent=zone['Название'];let s=`<p class="muted">Цель: ${format(zone['Атака'])} атаки · ${format(zone['Защита'])} защиты по стихии зоны</p>`;s+=resultLine('Не хватает атаки',deficit(zone['Атака'],total.attack));for(const e of zoneElements(zone))s+=resultLine('Защита: '+e,deficit(zone['Защита'],total.defenses[e]));$('calc-result').innerHTML=s;}
 function renderSources(){const q=$('source-search').value.toLocaleLowerCase('ru').replaceAll('ё','е');const cat=$('source-category').value;const rows=DATA.sources.filter(s=>(!cat||s.section===cat)&&[s.title,...s.variants,...s.details,...(s.materials||[]).map(m=>m.label)].join(' ').toLocaleLowerCase('ru').replaceAll('ё','е').includes(q));$('source-cards').innerHTML=rows.slice(0,sourceLimit).map(s=>`<article class="reference-item"><div class="source-head">${iconMarkup(s)}<div><div class="category">${esc(s.section)}</div><h3>${esc(s.title)}</h3></div></div><div class="reference-bonuses">${sourceValues(s,true)}${materialMarkup(s)}${s.warning?'<p class="source-warning">'+esc(s.warning)+'</p>':''}</div><button class="outline show-source" type="button" data-source="${s.id}">Все бонусы и условия ↗</button></article>`).join('');$('source-count').textContent=`Показано ${Math.min(rows.length,sourceLimit)} из ${rows.length} источников`;$('source-more').hidden=rows.length<=sourceLimit;}
@@ -154,6 +157,13 @@ $('clear-build').addEventListener('click',()=>{state.selections={};persist();ren
 renderZones();renderSources();renderCalculatorSources();renderCalc();
 
 
-return () => { $("item-dialog").close(); root.replaceChildren(); };
+// The bar belongs to this widget only and is visible while its calculator is on screen.
+const sticky=$('build-sticky');
+sticky.setAttribute('role','region');
+sticky.setAttribute('aria-label','Текущий итог калькулятора атрибута');
+const visibility=new IntersectionObserver(([entry])=>{sticky.hidden=!entry.isIntersecting;},{threshold:0});
+sticky.hidden=true;
+visibility.observe($('calculator'));
+return () => { visibility.disconnect(); $("item-dialog").close(); root.replaceChildren(); };
 }
 

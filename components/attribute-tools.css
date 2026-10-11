@@ -3,3 +3,37 @@
 .attribute-tools .calc{padding:0;background:transparent;border:0;border-top:1px solid var(--rp-border);border-radius:0}.attribute-tools .calc-grid,.attribute-tools #calculator .calc-grid{grid-template-columns:minmax(0,1fr);gap:24px}.attribute-tools .calculator-summary{grid-row:1;position:static;border:1px solid var(--rp-border);padding:20px;border-radius:12px;background:var(--rp-surface-subtle)}.attribute-tools .calculator-summary .assembly-defenses{grid-template-columns:repeat(3,minmax(0,1fr))}.attribute-tools .reference-item{grid-template-columns:minmax(0,1fr);gap:12px}.attribute-tools .reference-item>.outline{grid-column:1;justify-self:start}.attribute-tools .build-sticky{display:none}.attribute-tools .filters{flex-wrap:wrap}.attribute-tools .filters label{min-width:140px}.attribute-tools dialog{color:var(--rp-text);background:var(--rp-surface)}.attribute-tools .dialog-close{color:var(--rp-text)}.attribute-tools .loadout-slot,.attribute-tools .item-option{background:var(--rp-surface);border-color:var(--rp-border)}.attribute-tools .item-option.is-selected,.attribute-tools .loadout-slot.is-selected{border-color:var(--rp-accent);background:color-mix(in srgb,var(--rp-accent) 12%,var(--rp-surface))}.attribute-tools .source-warning{color:var(--rp-text-secondary)!important}.attribute-tools .material-list{padding:0;list-style:none}.attribute-tools .material-list li{padding:0}.attribute-tools .calc aside{border-left:0}.attribute-tools [hidden]{display:none!important}
 @media(max-width:560px){.attribute-tools .loadout-board{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.attribute-tools .filters{display:grid;grid-template-columns:minmax(0,1fr)}.attribute-tools .filters label{min-width:0}.attribute-tools .calculator-summary{padding:14px}}
 
+
+/* The equipment calculator owns this bar; no surrounding article/site styles change. */
+.attribute-tools{padding-bottom:160px}
+.attribute-tools .build-sticky{position:fixed;inset:auto 0 0;z-index:45;display:grid;grid-template-columns:minmax(130px,auto) minmax(360px,640px) minmax(180px,250px);justify-content:center;align-items:center;gap:28px;padding:14px 24px calc(14px + env(safe-area-inset-bottom));background:var(--rp-surface);color:var(--rp-text);border-top:1px solid var(--rp-border);box-shadow:0 -6px 24px #0002;backdrop-filter:none}
+.attribute-tools .sticky-attack{display:grid;gap:6px}
+.attribute-tools .sticky-attack span{font-size:11px;color:var(--rp-text-secondary)}
+.attribute-tools .sticky-attack strong{font-size:30px;color:var(--rp-accent);font-variant-numeric:tabular-nums}
+.attribute-tools .sticky-defenses{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.attribute-tools .sticky-defense{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:2px 6px;min-width:0}
+.attribute-tools .sticky-defense img{width:20px;height:20px;grid-row:1/3;object-fit:contain}
+.attribute-tools .sticky-defense span{font-size:10px;color:var(--rp-text-secondary)}
+.attribute-tools .sticky-defense strong{font-size:18px;line-height:1.3;color:var(--rp-text);font-variant-numeric:tabular-nums}
+.attribute-tools .sticky-defense small{grid-column:1/-1;font-size:9px;line-height:1.3}
+.attribute-tools .sticky-target{display:grid;gap:4px;min-width:0}
+.attribute-tools .sticky-target span{font-size:11px;color:var(--rp-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:none}
+.attribute-tools .sticky-target strong{font-size:13px;line-height:1.4;color:var(--rp-accent)}
+.attribute-tools .build-sticky .sticky-target a{display:inline;font-size:11px;color:var(--rp-text);text-decoration:underline;text-underline-offset:3px}
+.attribute-tools .build-sticky .sticky-ok{color:var(--rp-text-secondary)}
+.attribute-tools .sticky-missing{color:var(--rp-accent)}
+@media(max-width:900px){
+.attribute-tools .build-sticky{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px 16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.attribute-tools .sticky-attack{display:flex;gap:12px;align-items:center}
+.attribute-tools .sticky-attack span{max-width:100px;font-size:10px}
+.attribute-tools .sticky-attack strong{font-size:26px}
+.attribute-tools .sticky-defenses{grid-column:1/-1;grid-row:2;gap:8px}
+.attribute-tools .sticky-defense{grid-template-columns:minmax(0,1fr);gap:2px;text-align:center}
+.attribute-tools .sticky-defense img{display:none}
+.attribute-tools .sticky-defense span{font-size:9px}
+.attribute-tools .sticky-defense strong{font-size:16px}
+.attribute-tools .sticky-defense small{font-size:8px}
+.attribute-tools .sticky-target{grid-column:2;grid-row:1;gap:2px}
+.attribute-tools .sticky-target strong{font-size:11px}
+.attribute-tools .sticky-target span,.attribute-tools .build-sticky .sticky-target a{font-size:9px}
+}
