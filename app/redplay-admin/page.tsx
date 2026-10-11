@@ -24,6 +24,7 @@ export default async function AdminHome() {
 
   return <main className="admin-shell"><AdminTopbar/><div className="admin-wrap">
     <div className="admin-head"><div><h1>Публикации</h1><p>Черновики, запланированные и опубликованные материалы RedPlay.</p></div><Link className="admin-primary" href="/redplay-admin/articles/new"><FilePlus2 size={16}/> Новый материал</Link></div>
+    <p><Link className="admin-primary" href="/redplay-admin/previews/attribute">Предпросмотр: Атрибут стихий — Lineage 2 Main</Link></p>
     {articles.length ? <div className="admin-grid">{articles.map((article) => {
       const pageKey = `/lineage-2/${article.edition}/${article.category}/${article.slug}`;
       return <Link className="admin-article-row" key={article.id} href={`/redplay-admin/articles/${article.id}`}><span><strong>{article.title}</strong><small>{article.edition} / {article.category} / {article.slug}</small></span><span className="admin-views"><Eye size={14}/>{new Intl.NumberFormat("ru-RU").format(views.get(pageKey) || 0)}</span><span className={`admin-status ${article.status}`}>{article.status}</span><Pencil size={16}/></Link>;
