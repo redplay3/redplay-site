@@ -33,7 +33,7 @@ type EditorArticle = {
 const newId = () => typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
 const blockNames: Record<ArticleBlock["type"], string> = {
-  paragraph: "Текст", heading: "Заголовок", list: "Список", facts: "Цифры", note: "Плашка",
+  "attribute-tools": "Атрибут: локации, предметы и калькулятор", paragraph: "Текст", heading: "Заголовок", list: "Список", facts: "Цифры", note: "Плашка",
   warning: "Предупреждение", cards: "Карточки", "audience-cards": "Карточки версий",
   checklist: "Чек-лист", "cta-cards": "Карточки-ссылки", table: "Таблица", flow: "Маршрут",
   image: "Изображение", disclosure: "Выпадающий блок", opinion: "Мнение Они",
@@ -43,6 +43,7 @@ const blockNames: Record<ArticleBlock["type"], string> = {
 function makeBlock(type: ArticleBlock["type"]): ArticleBlock {
   const id = newId();
   switch (type) {
+    case "attribute-tools": return { id, type };
     case "paragraph": return { id, type, text: "Новый абзац" };
     case "heading": return { id, type, text: "Название подраздела", level: 3 };
     case "list": return { id, type, items: ["Первый пункт", "Второй пункт"] };
@@ -195,6 +196,7 @@ function BlockFields({ block, onChange, uploadMedia, uploadProgress }: { block: 
       <label className="admin-field"><span>Описание</span>{area(block.text || "", (text) => onChange({ ...block, text }))}</label>
       <label className="admin-field"><span>Название | ссылка на видео | пояснение, одно видео на строку</span>{area(block.items.map((item) => `${item.title} | ${item.url} | ${item.text || ""}`).join("\n"), (value) => onChange({ ...block, items: value.split("\n").map((row) => row.split("|").map((part) => part.trim())).filter(([title, url]) => title || url).map(([title, url, ...rest]) => ({ title, url, text: rest.join(" | ") })) }))}<small>На странице появится один плеер и кнопки-переключатели. Поддерживаются YouTube и прямые ссылки на MP4, WebM и OGG.</small></label>
     </>;
+    case "attribute-tools": return <p>Таблица PvE-зон, справочник предметов и калькулятор АТТ. Данные и правила расчёта общие для всех вставок блока.</p>;
     case "skill-catalog": return <>
       <label className="admin-field"><span>Идентификатор класса в базе</span>{input(block.classSlug, (classSlug) => onChange({ ...block, classSlug }), "например: crow_3")}<small>Каталог загружает навыки, уровни, книги и модификации из Supabase.</small></label>
       <label className="admin-field"><span>Заголовок каталога</span>{input(block.title || "", (title) => onChange({ ...block, title }), "Полная база навыков")}</label>

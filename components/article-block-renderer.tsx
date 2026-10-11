@@ -13,6 +13,8 @@ import { ArticleVideoEmbed } from "./article-video-embed";
 import { ArticleRichTextContent } from "./article-rich-text";
 import { L2ClassSkillCatalog } from "./l2-class-skill-catalog";
 
+import { ArticleAttributeTools } from "./article-attribute-tools";
+
 const icons = {
   alert: CircleAlert,
   bell: Bell,
@@ -408,6 +410,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       }
       case "video-playlist":
         return <ArticleVideoPlaylist key={block.id} title={block.title} text={block.text} items={block.items}/>;
+      case "attribute-tools": return <ArticleAttributeTools key={block.id}/>;
       case "skill-catalog":
         return <L2ClassSkillCatalog key={block.id} classSlug={block.classSlug} title={block.title || "Полная база навыков"}/>;
       case "telegram":

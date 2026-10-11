@@ -1,9 +1,9 @@
 # Attribute guide
 
-Published page: `/lineage-2/main/guides/atribut-stihiy`.
+Published at `/lineage-2/main/guides/atribut-stihiy` through the standard dynamic article page and ArticleBlockRenderer. Guide lists, tables, examples and the RedPlay video NEHFjhfosmI are native CMS blocks. Current cover: `/guides/attribute/cover-v3.webp`.
 
-The standalone HTML retains the reviewed guide, 171 PvE zone rows, 231 attribute sources and equipment calculator. HTML is stored in `content/guides/attribute-page.json`; its static files are in `public/guides/attribute/`. The page uses the approved v2 cover and the RedPlay video `NEHFjhfosmI`.
+The attribute-tools block mounts an isolated DOM widget inside the article body. Its engine loads only when the block is present, with 171 PvE zones and 231 sources. The scoped stylesheet uses site theme tokens and cannot style surrounding article blocks. All event handlers are confined to the widget and disposed when it unmounts. Selection storage remains compatible with the previous page.
 
-The corresponding `articles` record has edition `main`, category `guides`, slug `atribut-stihiy`. Its status controls whether the page is accessible. A published record also makes the guide visible in the site's normal catalogue, latest publications and sitemap. The record contains the guide text for editorial retrieval, while this custom page renders the reviewed HTML snapshot; edit the HTML snapshot and static calculator data when updating the public guide. The metadata and cover in the article record must stay in sync.
+Sources: components/attribute-tools-{engine.js,markup.json,css}. Icons remain in public/guides/attribute/icons. The former standalone HTML snapshot and scripts are archival and are not used by the public article.
 
-The earlier admin preview continues to use its separate, restricted database assets. Publishing this guide does not relax permissions on that table or other previews.
+The same published guide is also listed in Calculators via the Калькуляторы tag. It retains category guides, its existing URL and a single canonical record. The catalogue includes only published records in the requested edition and deduplicates by article id.

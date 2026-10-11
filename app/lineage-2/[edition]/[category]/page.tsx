@@ -23,7 +23,9 @@ async function getArticles(edition: ArticleEdition, category: ArticleCategory) {
   const editions = edition === "essence" ? ["essence", "special-project"] : [edition];
   const categories = category === "guides" ? guideSourceCategories : [category];
   const { data } = await supabase.from("articles").select("id,title,description,edition,category,slug,tags,published_at,updated_at").eq("status", "published").in("category", categories).in("edition", editions).order("published_at", { ascending: false });
-  return (data || []) as CatalogArticle[];
+  if (category !== "calculators") return (data || []) as CatalogArticle[];
+  const { data: tools } = await supabase.from("articles").select("id,title,description,edition,category,slug,tags,published_at,updated_at").eq("status", "published").in("edition", editions).contains("tags", ["Калькуляторы"]);
+  return [...new Map([...(data || []), ...(tools || [])].map((article) => [article.id, article])).values()].sort((a, b) => new Date(b.published_at || b.updated_at).getTime() - new Date(a.published_at || a.updated_at).getTime()) as CatalogArticle[];
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {

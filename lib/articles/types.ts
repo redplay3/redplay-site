@@ -60,6 +60,7 @@ export type ArticleTableCell = {
 };
 
 type ArticleBlockContent =
+  | { id: string; type: "attribute-tools" }
   | { id: string; type: "paragraph"; text: string; lead?: boolean }
   | { id: string; type: "heading"; text: string; level: 2 | 3; kicker?: string; number?: string; anchor?: string }
   | { id: string; type: "list"; items: string[]; ordered?: boolean }
