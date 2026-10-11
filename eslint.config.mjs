@@ -14,6 +14,15 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
   {
+    files: ["public/guides/attribute/{core,data}.js"],
+    rules: {
+      // Classic scripts share these globals with the separately loaded app.js.
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        varsIgnorePattern: "^(DATA|deficit|planTotals|zoneElements|assemblyTotals|chooseSource)$",
+      }],
+    },
+  },
+  {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
     rules: {
       // These files are vendored verbatim from shadcn@4.17.0. Keep the
