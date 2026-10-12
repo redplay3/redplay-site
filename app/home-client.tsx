@@ -255,6 +255,9 @@ export default function HomePage({ initialArticles }: { initialArticles: Publish
 
   const editionPath = edition === "Essence / Special Project" ? "essence" : "main";
   const availableKnowledgeSections = new Set(editionArticles.map((article) => article.category));
+  if (editionArticles.some((article) => article.tags?.includes("Калькуляторы"))) {
+    availableKnowledgeSections.add("calculators");
+  }
   const guideEditionPath = edition === "Main" ? "main" : "essence";
   const guidesAvailable = edition !== "Main" && (editionArticles.some((article) => isGuideSourceCategory(article.category)) || publishedArticles.length === 0);
 
