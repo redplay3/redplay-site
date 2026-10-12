@@ -365,7 +365,7 @@ function RenderBlock({ block, audience }: { block: ArticleBlock; audience: Artic
       case "warning":
         return <div key={block.id} className="article-warning"><strong>{block.title}</strong><ArticleRichTextContent value={block.richText} fallback={block.text}/></div>;
       case "cards":
-        return <div key={block.id} className="key-grid">{block.items.map((item, index) => <div key={`${block.id}-${index}`}>{item.icon && <BlockIcon name={item.icon}/>}<strong>{item.title}</strong><p>{item.text}</p></div>)}</div>;
+        return <div key={block.id} className="key-grid">{block.items.map((item, index) => <div key={`${block.id}-${index}`}>{item.image ? <img className="article-card-icon" src={item.image} alt="" width={48} height={48} loading="lazy"/> : item.icon && <BlockIcon name={item.icon}/>}<strong>{item.title}</strong><p>{item.text}</p></div>)}</div>;
       case "audience-cards":
         return <div key={block.id} className="audience-grid">{block.items.filter((item) => visibleForAudience(item.scope, audience)).map((item, index) => <div className={item.scope} key={`${block.id}-${index}`}><span>{audienceLabel(item.scope)}</span><strong>{item.title}</strong><p>{item.text}</p></div>)}</div>;
       case "checklist":

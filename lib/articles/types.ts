@@ -67,7 +67,7 @@ type ArticleBlockContent =
   | { id: string; type: "facts"; items: Array<{ value: string; label: string }> }
   | { id: string; type: "note"; title: string; text: string; icon?: ArticleIcon; compact?: boolean }
   | { id: string; type: "warning"; title: string; text: string }
-  | { id: string; type: "cards"; items: Array<{ title: string; text: string; icon?: ArticleIcon }> }
+  | { id: string; type: "cards"; items: Array<{ title: string; text: string; icon?: ArticleIcon; image?: string }> }
   | { id: string; type: "audience-cards"; items: Array<{ scope: ArticleAudience; title: string; text: string }> }
   | { id: string; type: "checklist"; items: Array<{ scope: ArticleAudience; title: string; text: string }> }
   | { id: string; type: "cta-cards"; items: Array<{ scope: ArticleAudience; title: string; text: string; action: string; url: string }> }
