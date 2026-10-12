@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { ArrowLeft, ArrowUpRight, Bell, CalendarDays, ChevronRight, Clock3, Send, Video as Youtube } from "lucide-react";
 import { ArticleBlockRenderer } from "@/components/article-block-renderer";
+import { AttributeGuideMotion } from "@/components/attribute-guide-motion";
 import { ArticleSharePanel, ArticleViewCount } from "@/components/article-engagement";
 import { ArticleAudienceContent } from "@/components/article-audience-content";
 import { ArticleNavigation } from "@/components/article-navigation";
@@ -146,7 +147,10 @@ export default async function PublishedArticlePage({ params }: { params: Promise
     ],
   };
 
-  return <main className="article-page">
+  const isAttributeGuide = article.edition === "main" && article.slug === "atribut-stihiy";
+
+  return <main className={`article-page${isAttributeGuide ? " attribute-guide" : ""}`}>
+    {isAttributeGuide && <AttributeGuideMotion/>}
     <RememberEditionPreference edition={article.edition}/>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}/>
     <header className="article-header"><div className="article-header-inner mx-auto flex h-[68px] max-w-[1460px] items-center gap-5 px-4 sm:px-6 lg:px-8">

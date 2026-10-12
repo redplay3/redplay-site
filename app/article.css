@@ -187,3 +187,24 @@
 
 
 .key-grid img.article-card-icon{display:block;width:48px;height:48px;object-fit:contain;margin-bottom:14px}
+
+/* Attribute guide: native article layout, readable lists and restrained motion. */
+.attribute-guide .article-body > section:not(#attribute-tools) > :is(ul,ol){margin:1.2rem 0 1.5rem;gap:.8rem}
+.attribute-guide .article-body > section:not(#attribute-tools) > ul{list-style:none}
+.attribute-guide .article-body > section:not(#attribute-tools) > ol{display:grid;list-style:decimal;padding-left:1.65rem}
+.attribute-guide .article-body > section:not(#attribute-tools) > ol > li{display:list-item;padding-left:.4rem}
+.attribute-guide .article-body > section:not(#attribute-tools) > ol > li::marker{color:#e12b42;font-weight:850;font-variant-numeric:tabular-nums}
+.attribute-guide .article-body > section:not(#attribute-tools) > ol > li::before{content:none}
+.attribute-guide .article-body > section:not(#attribute-tools) > .article-block-heading:has(h3){margin-top:1.8rem;margin-bottom:.8rem}
+.attribute-guide #att-basics .key-grid{margin:1.5rem 0}
+.attribute-guide #att-basics .key-grid > div{display:grid;grid-template-columns:48px minmax(0,1fr);column-gap:.8rem;align-items:center}
+.attribute-guide #att-basics .article-card-icon{grid-column:1;grid-row:1;margin-bottom:0}
+.attribute-guide #att-basics .key-grid > div > strong{grid-column:2;grid-row:1;margin-top:0}
+.attribute-guide #att-basics .key-grid > div > p{grid-column:1/-1;margin-top:.8rem}
+.attribute-guide .article-data-table td:first-child{font-weight:650}
+@media(prefers-reduced-motion:no-preference){
+  .attribute-guide #att-basics .key-grid > div{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+  .attribute-guide #att-basics .key-grid > div:hover{transform:translateY(-3px);border-color:#df6373;box-shadow:0 12px 28px #15192314}
+  .attribute-guide .article-data-table tbody tr{transition:background-color .18s ease}
+  .attribute-guide .article-data-table tbody tr:hover{background-color:#e12b4208}
+}
