@@ -4,6 +4,7 @@ const fallback = {
   Main: [
     { name: "Blackbird", online: 4703 }, { name: "Elcardia", online: 4902 },
     { name: "Hatos", online: 4155 }, { name: "Cadmus 2023", online: 3063 },
+    { name: "Aden", online: 4339 }, { name: "Rune", online: 4183 },
   ],
   "Special Project": [
     { name: "Wolf1", online: 1813 }, { name: "Wolf2", online: 2047 }, { name: "Eva1", online: 1943 },
@@ -21,12 +22,20 @@ export async function GET() {
   try {
     const response = await fetch("https://l2on.net/", { next: { revalidate: 300 } });
     if (response.ok) {
-      const text = (await response.text()).replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
+      const html = await response.text();
+      // Read each server's own row: flattening the page can match navigation
+      // names to unrelated numbers, or miss counts stored in data attributes.
+      const counts = new Map<string, number>();
+      for (const row of html.matchAll(/<tr\b([^>]*)>([\s\S]*?)<\/tr>/gi)) {
+        const count = row[1].match(/\bdata-c=["'](\d+)["']/i);
+        const name = row[2].match(/<a\b[^>]*\btarget=[^>]*>([^<]+)<\/a>/i);
+        if (count && name) counts.set(name[1].trim().toLowerCase(), Number(count[1]));
+      }
       let found = 0;
       for (const servers of Object.values(groups)) {
         for (const server of servers) {
-          const match = text.match(new RegExp(`${server.name.replace(" ", "\\s*")}[^0-9]{0,80}([0-9]{3,6})`, "i"));
-          if (match) { server.online = Number(match[1]); found += 1; }
+          const count = counts.get(server.name.toLowerCase());
+          if (count !== undefined) { server.online = count; found += 1; }
         }
       }
       live = found >= 6;

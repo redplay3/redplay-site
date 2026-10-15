@@ -134,7 +134,7 @@ const fallbackTestArticles: PublishedArticle[] = [
 ];
 const articleHref = (article: PublishedArticle) => article.href || `/lineage-2/${article.edition}/${article.category}/${article.slug}`;
 const fallbackOnline: OnlineGroups = {
-  Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063}],
+  Main: [{name:"Blackbird",online:4703},{name:"Elcardia",online:4902},{name:"Hatos",online:4155},{name:"Cadmus 2023",online:3063},{name:"Aden",online:4339},{name:"Rune",online:4183}],
   "Special Project": [{name:"Wolf1",online:1813},{name:"Wolf2",online:2047},{name:"Eva1",online:1943},{name:"Eva2",online:1690},{name:"Samurai1",online:1728},{name:"Samurai2",online:1438}],
   Essence: [{name:"Amethyst",online:1038},{name:"Peach",online:1937},{name:"Lilac",online:1506}],
 };
