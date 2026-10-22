@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Newspaper } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme-provider";
-import { articleCategories, buildArticlePath } from "@/lib/articles/catalog";
-import type { ArticleCategory, ArticleEdition } from "@/lib/articles/types";
+import { PublicationsCatalog, type CatalogArticle } from "@/components/publications-catalog";
 import { createPublicClient } from "@/lib/supabase/public";
+import styles from "./publications.module.css";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,17 +13,6 @@ export const metadata: Metadata = {
   title: "Все публикации Lineage 2",
   description: "Все свежие публикации RedPlay по Lineage 2 Main, Essence и Special Project.",
   alternates: { canonical: "/lineage-2/publications" },
-};
-
-type CatalogArticle = {
-  id: string;
-  title: string;
-  description: string;
-  edition: ArticleEdition;
-  category: ArticleCategory;
-  slug: string;
-  published_at: string | null;
-  updated_at: string;
 };
 
 const localFallback: CatalogArticle[] = [
@@ -36,15 +25,29 @@ const localFallback: CatalogArticle[] = [
 async function getArticles() {
   const supabase = createPublicClient();
   if (!supabase) return localFallback;
-  const { data } = await supabase.from("articles").select("id,title,description,edition,category,slug,published_at,updated_at").eq("status", "published").order("published_at", { ascending: false }).limit(60);
-  return data?.length ? data as CatalogArticle[] : localFallback;
+  const articles: CatalogArticle[] = [];
+  // Fetch the full public archive; stable ordering also covers equal publication dates.
+  for (let offset = 0; ; offset += 200) {
+    const { data, error } = await supabase.from("articles")
+      .select("id,title,description,edition,category,slug,published_at,updated_at,cover,tags")
+      .eq("status", "published").lte("published_at", new Date().toISOString())
+      .order("published_at", { ascending: false }).order("id")
+      .range(offset, offset + 199);
+    if (error) return localFallback;
+    articles.push(...data as CatalogArticle[]);
+    if (data.length < 200) return articles;
+  }
 }
 
 export default async function PublicationsPage() {
   const articles = await getArticles();
-  return <main className="catalog-page">
-    <header className="catalog-header"><div className="catalog-wrap"><Link href="/" className="article-logo"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link><Link href="/" className="catalog-back"><ArrowLeft size={16}/> На главную</Link><ThemeSwitcher className="catalog-theme-switcher"/></div></header>
-    <section className="catalog-hero"><div className="catalog-wrap"><div className="article-breadcrumb"><Link href="/">Главная</Link><ChevronRight size={14}/><span>Все публикации</span></div><p className="catalog-kicker">Редакция RedPlay</p><h1>Все публикации</h1><p>Новости, обновления, гайды и разборы по Lineage 2 Main, Essence и Special Project — от новых материалов к более ранним.</p><div className="catalog-tags"><span>Main</span><span>Essence</span><span>Special Project</span></div></div></section>
-    <div className="catalog-wrap catalog-content"><section><div className="catalog-title"><Newspaper size={19}/><div><span>Последние материалы</span><h2>Что нового на RedPlay</h2></div></div><div className="catalog-articles">{articles.map((article) => <Link key={article.id} href={buildArticlePath(article.edition, article.category, article.slug)}><span>{articleCategories.find((item) => item.value === article.category)?.label || article.category} · {article.edition === "main" ? "Main" : article.edition === "essence" ? "Essence" : "Special Project"}</span><h3>{article.title}</h3><p>{article.description}</p><small>{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(article.published_at || article.updated_at))}</small></Link>)}</div></section></div>
+  return <main className={styles.page}>
+    <header className={styles.header}><div className={styles.wrap}><Link href="/" className="article-logo" aria-label="RedPlay — главная"><span className="redplay-mark small">R</span><strong>REDPLAY</strong></Link><Link href="/" className={styles.back}><ArrowLeft size={16}/> На главную</Link><ThemeSwitcher/></div></header>
+    <div className={styles.wrap}>
+      <div className={styles.intro}><h1>Все публикации</h1><p>Обновления, классы и гайды по Lineage 2.</p></div>
+      <PublicationsCatalog articles={articles}/>
+      <footer className={styles.footer}><Link href="/">REDPLAY</Link><p>Читай. Проверяй. Играй.</p><a href="https://t.me/redplay2022" target="_blank" rel="noopener noreferrer">Новости в Telegram ↗</a></footer>
+    </div>
   </main>;
 }
+
