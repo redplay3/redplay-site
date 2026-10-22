@@ -48,11 +48,16 @@ function fromLocation(): Filters {
   const ed = params.get("edition") || "all", category = params.get("category") || "all";
   return { q: params.get("q") || "", edition: editions.some(e => e.value === ed) ? ed : "all", category: articleCategories.some(c => c.value === category) ? category : "all" };
 }
-function Cover({ article, priority = false }: { article: CatalogArticle; priority?: boolean }) {
+function Cover({ article, variant }: { article: CatalogArticle; variant: "lead" | "side" | "row" }) {
   const fallback = `/game-${article.edition === "special-project" ? "special" : article.edition}.webp`;
   const [failed, setFailed] = useState(false);
   const src = !failed && article.cover?.src ? article.cover.src : fallback;
-  return <Image src={src} alt="" fill sizes={priority ? "(max-width: 700px) 100vw, 65vw" : "(max-width: 700px) 30vw, 260px"} priority={priority} onError={() => setFailed(true)}/>;
+  const sizes = variant === "lead"
+    ? "(max-width: 700px) calc(100vw - 36px), (max-width: 1050px) 55vw, 800px"
+    : variant === "side"
+      ? "(max-width: 700px) calc(100vw - 36px), (max-width: 1050px) 40vw, 480px"
+      : "(max-width: 700px) calc(100vw - 36px), (max-width: 1050px) 240px, 320px";
+  return <Image src={src} alt="" fill sizes={sizes} priority={variant === "lead"} onError={() => setFailed(true)}/>;
 }
 function DateLabel({ article }: { article: CatalogArticle }) {
   const date = article.published_at || article.updated_at;
@@ -62,7 +67,7 @@ function Story({ article, variant }: { article: CatalogArticle; variant: "lead" 
   const Heading = variant === "row" ? "h3" : "h2";
   return <article className={`${styles.story} ${styles[variant]}`} data-story-id={article.id}>
     <Link href={buildArticlePath(article.edition, article.category, article.slug)} className={styles.storyLink} aria-label={article.title}>
-      <div className={styles.cover}><Cover article={article} priority={variant === "lead"}/></div>
+      <div className={styles.cover}><Cover article={article} variant={variant}/></div>
       <div className={styles.storyCopy}>
         <div className={styles.meta}><span>{version(article)}</span><span>{categoryLabels[article.category]}</span></div>
         <Heading title={article.title}>{title(article)}</Heading>
