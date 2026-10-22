@@ -59,12 +59,13 @@ function DateLabel({ article }: { article: CatalogArticle }) {
   return <time dateTime={date}>{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Kyiv" }).format(new Date(date))}</time>;
 }
 function Story({ article, variant }: { article: CatalogArticle; variant: "lead" | "side" | "row" }) {
+  const Heading = variant === "row" ? "h3" : "h2";
   return <article className={`${styles.story} ${styles[variant]}`} data-story-id={article.id}>
     <Link href={buildArticlePath(article.edition, article.category, article.slug)} className={styles.storyLink} aria-label={article.title}>
       <div className={styles.cover}><Cover article={article} priority={variant === "lead"}/></div>
       <div className={styles.storyCopy}>
         <div className={styles.meta}><span>{version(article)}</span><span>{categoryLabels[article.category]}</span></div>
-        <h3 title={article.title}>{title(article)}</h3>
+        <Heading title={article.title}>{title(article)}</Heading>
         {variant !== "side" && <p>{article.description}</p>}
         <div className={styles.storyBottom}><DateLabel article={article}/><ArrowUpRight size={19} aria-hidden="true"/></div>
       </div>
